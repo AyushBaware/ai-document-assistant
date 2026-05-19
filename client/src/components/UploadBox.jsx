@@ -1,184 +1,211 @@
 import { useState } from "react";
 
+import ResponseViewer
+from "./ResponseViewer";
+
 import { motion }
 from "framer-motion";
 
-import {
-  FiUploadCloud,
-} from "react-icons/fi";
+import { FiUploadCloud }
+from "react-icons/fi";
 
-import {
-  uploadFile,
-} from "../api/uploadApi";
+import { uploadFile }
+from "../api/uploadApi";
 
-import {
-  generateAI,
-} from "../api/aiApi";
+import { generateAI }
+from "../api/aiApi";
 
 function UploadBox() {
 
-  const [selectedFile,
-    setSelectedFile] =
+  const [selectedFile, setSelectedFile] =
     useState(null);
 
-  const [loading,
-    setLoading] =
+  const [loading, setLoading] =
     useState(false);
 
-  const [success,
-    setSuccess] =
+  const [success, setSuccess] =
     useState("");
 
-  const [error,
-    setError] =
+  const [error, setError] =
     useState("");
 
-  const [previewText,
-    setPreviewText] =
+  const [previewText, setPreviewText] =
     useState("");
 
-  const [aiLoading,
-    setAiLoading] =
+  const [aiLoading, setAiLoading] =
     useState(false);
 
-  const [aiResult,
-    setAiResult] =
+  const [aiResult, setAiResult] =
     useState("");
 
   const handleFileUpload =
-    async (file) => {
+  async (file) => {
 
-      if (!file) return;
+    if (!file) return;
 
-      setSelectedFile(file);
+    setSelectedFile(file);
 
-      setLoading(true);
+    setLoading(true);
 
-      setSuccess("");
+    setSuccess("");
 
-      setError("");
+    setError("");
 
-      setPreviewText("");
+    setPreviewText("");
 
-      setAiResult("");
+    setAiResult("");
 
-      try {
+    try {
 
-        const data =
-          await uploadFile(file);
+      const data =
+        await uploadFile(file);
 
-        setSuccess(data.message);
+      setSuccess(data.message);
 
-        setPreviewText(
-          data.extractedText
-        );
+      setPreviewText(
+        data.extractedText
+      );
 
-      } catch (err) {
+    } catch (err) {
 
-        setError(
-          err.response?.data?.message
-          || "Upload failed"
-        );
+      setError(
+        err.response?.data?.message
+        || "Upload failed"
+      );
 
-      } finally {
+    } finally {
 
-        setLoading(false);
-      }
+      setLoading(false);
+    }
   };
 
   const generateContent =
-    async (type) => {
+  async (type) => {
 
-      try {
+    try {
 
-        setError("");
-        setAiLoading(true);
-        setAiResult("");
+      setError("");
 
-        const data =
-          await generateAI(
-            previewText,
-            type
-          );
+      setAiLoading(true);
 
-        setAiResult(data.result);
+      setAiResult("");
 
-      } catch (error) {
-
-        setError(
-          error.response?.data?.message
-          || "AI generation failed"
+      const data =
+        await generateAI(
+          previewText,
+          type
         );
 
-        setAiResult("");
+      setAiResult(
+        data.result
+      );
 
-      } finally {
+    } catch (error) {
 
-        setAiLoading(false);
-      }
+      setError(
+        error.response?.data?.message
+        || "AI generation failed"
+      );
+
+      setAiResult("");
+
+    } finally {
+
+      setAiLoading(false);
+    }
   };
 
   return (
+
     <motion.div
+
       initial={{
         opacity: 0,
-        scale: 0.9,
+        scale: 0.95,
       }}
+
       animate={{
         opacity: 1,
         scale: 1,
       }}
+
       transition={{
-        delay: 0.3,
+        duration: 0.5,
       }}
+
       className="
-        mt-14
+        mt-12
         border border-white/10
         bg-white/5
-        backdrop-blur-xl
+        backdrop-blur-2xl
         rounded-3xl
-        p-8 md:p-12
-        shadow-2xl
+        p-5 sm:p-8 md:p-12
+        shadow-[0_0_60px_rgba(0,255,255,0.06)]
       "
     >
 
-      <div className="
+      <div
+        className="
         flex flex-col
         items-center
         text-center
-      ">
+      "
+      >
 
-        <div className="
+        <motion.div
+
+          animate={{
+            y: [0, -5, 0],
+          }}
+
+          transition={{
+            repeat: Infinity,
+            duration: 3,
+          }}
+
+          className="
           w-20 h-20
           rounded-full
           bg-cyan-500/10
           flex items-center
           justify-center
           border border-cyan-400/20
-        ">
+          shadow-[0_0_40px_rgba(34,211,238,0.15)]
+        "
+        >
+
           <FiUploadCloud
             className="
               text-4xl
               text-cyan-400
             "
           />
-        </div>
 
-        <h2 className="
+        </motion.div>
+
+        <h2
+          className="
           mt-6
-          text-2xl
-          font-semibold
-        ">
+          text-2xl sm:text-3xl
+          font-bold
+        "
+        >
           Upload Your Document
         </h2>
 
-        <p className="
+        <p
+          className="
           mt-3
           text-gray-400
-          max-w-md
-        ">
+          max-w-xl
+          text-sm sm:text-base
+          leading-7
+        "
+        >
           Upload PDFs and generate
-          AI-powered insights instantly.
+          structured AI-powered
+          summaries, notes,
+          and explanations instantly.
         </p>
 
         <label
@@ -186,20 +213,23 @@ function UploadBox() {
             mt-8
             cursor-pointer
             px-6 py-3
-            rounded-xl
+            rounded-2xl
             bg-gradient-to-r
             from-cyan-500
             to-blue-600
+            hover:scale-105
             hover:opacity-90
-            transition
+            transition-all
+            duration-300
             font-medium
+            shadow-[0_0_30px_rgba(34,211,238,0.25)]
           "
         >
 
           {
             loading
-              ? "Processing..."
-              : "Choose PDF"
+            ? "Processing..."
+            : "Choose PDF"
           }
 
           <input
@@ -212,194 +242,416 @@ function UploadBox() {
               )
             }
           />
+
         </label>
 
-        {
-          selectedFile && (
-            <motion.div
-              initial={{
-                opacity: 0,
-              }}
-              animate={{
-                opacity: 1,
-              }}
-              className="
-                mt-6
-                w-full
-                max-w-md
-                bg-white/5
-                border border-white/10
-                rounded-2xl
-                p-4
-              "
-            >
-              <p className="
-                font-medium truncate
-              ">
-                {selectedFile.name}
-              </p>
-
-              <p className="
-                text-sm text-gray-400 mt-1
-              ">
-                {
-                  (
-                    selectedFile.size /
-                    1024 /
-                    1024
-                  ).toFixed(2)
-                } MB
-              </p>
-            </motion.div>
-          )
-        }
-
-        {
-          success && (
-            <p className="
-              mt-4
-              text-green-400
-            ">
-              {success}
-            </p>
-          )
-        }
-
-        {
-          error && (
-            <p className="
-              mt-4
-              text-red-400
-            ">
-              {error}
-            </p>
-          )
-        }
-
-      </div>
-
-      {
-        previewText && (
+        {selectedFile && (
 
           <motion.div
+
             initial={{
               opacity: 0,
+              y: 10,
             }}
+
             animate={{
               opacity: 1,
+              y: 0,
             }}
+
             className="
-              mt-10
+              mt-6
+              w-full
+              max-w-md
+              bg-white/5
+              border border-white/10
+              rounded-2xl
+              p-4
             "
           >
 
-            <div className="
+            <p
+              className="
+                font-medium
+                truncate
+              "
+            >
+              {selectedFile.name}
+            </p>
+
+            <p
+              className="
+                text-sm
+                text-gray-400
+                mt-1
+              "
+            >
+              {
+                (
+                  selectedFile.size
+                  / 1024
+                  / 1024
+                ).toFixed(2)
+              } MB
+            </p>
+
+          </motion.div>
+        )}
+
+        {success && (
+
+          <p
+            className="
+              mt-4
+              text-green-400
+            "
+          >
+            {success}
+          </p>
+        )}
+
+        {error && (
+
+          <p
+            className="
+              mt-4
+              text-red-400
+            "
+          >
+            {error}
+          </p>
+        )}
+
+      </div>
+
+      {previewText && (
+
+        <motion.div
+
+          initial={{
+            opacity: 0,
+          }}
+
+          animate={{
+            opacity: 1,
+          }}
+
+          className="
+            mt-10
+          "
+        >
+
+          <div
+            className="
               flex flex-wrap
               gap-4
               justify-center
-            ">
+            "
+          >
 
-              <button
-                onClick={() =>
-                  generateContent(
-                    "summary"
-                  )
-                }
+            <motion.button
+
+              whileHover={{
+                scale: 1.05,
+              }}
+
+              whileTap={{
+                scale: 0.96,
+              }}
+
+              onClick={() =>
+                generateContent(
+                  "summary"
+                )
+              }
+
+              className="
+              px-5 py-3
+              rounded-2xl
+              bg-cyan-500/15
+              border border-cyan-400/20
+              hover:bg-cyan-500/25
+              hover:border-cyan-300/40
+              transition-all duration-300
+              shadow-[0_0_20px_rgba(34,211,238,0.15)]
+              hover:shadow-[0_0_35px_rgba(34,211,238,0.35)]
+              font-medium
+            "
+            >
+              Generate Summary
+            </motion.button>
+
+            <motion.button
+
+              whileHover={{
+                scale: 1.05,
+              }}
+
+              whileTap={{
+                scale: 0.96,
+              }}
+
+              onClick={() =>
+                generateContent(
+                  "notes"
+                )
+              }
+
+              className="
+              px-5 py-3
+              rounded-2xl
+              bg-purple-500/15
+              border border-purple-400/20
+              hover:bg-purple-500/25
+              hover:border-purple-300/40
+              transition-all duration-300
+              shadow-[0_0_20px_rgba(168,85,247,0.15)]
+              hover:shadow-[0_0_35px_rgba(168,85,247,0.35)]
+              font-medium
+            "
+            >
+              Generate Notes
+            </motion.button>
+
+            <motion.button
+
+              whileHover={{
+                scale: 1.05,
+              }}
+
+              whileTap={{
+                scale: 0.96,
+              }}
+
+              onClick={() =>
+                generateContent(
+                  "explain"
+                )
+              }
+
+              className="
+              px-5 py-3
+              rounded-2xl
+              bg-blue-500/15
+              border border-blue-400/20
+              hover:bg-blue-500/25
+              hover:border-blue-300/40
+              transition-all duration-300
+              shadow-[0_0_20px_rgba(59,130,246,0.15)]
+              hover:shadow-[0_0_35px_rgba(59,130,246,0.35)]
+              font-medium
+            "
+            >
+              Explain Simply
+            </motion.button>
+
+          </div>
+
+          {aiLoading && (
+
+            <motion.div
+
+              initial={{
+                opacity: 0,
+              }}
+
+              animate={{
+                opacity: 1,
+              }}
+
+              className="
+                mt-12
+                flex flex-col
+                items-center
+                gap-6
+              "
+            >
+
+              <motion.div
+
+                animate={{
+                  rotate: 360,
+                }}
+
+                transition={{
+                  repeat: Infinity,
+                  duration: 2,
+                  ease: "linear",
+                }}
+
                 className="
-                  px-5 py-3
-                  rounded-xl
-                  bg-cyan-500/20
-                  border border-cyan-400/20
-                  hover:bg-cyan-500/30
-                  transition
+                  w-14 h-14
+                  border-4
+                  border-cyan-500/20
+                  border-t-cyan-400
+                  rounded-full
                 "
-              >
-                Generate Summary
-              </button>
+              />
 
-              <button
-                onClick={() =>
-                  generateContent(
-                    "notes"
-                  )
-                }
+              <div
                 className="
-                  px-5 py-3
-                  rounded-xl
-                  bg-purple-500/20
-                  border border-purple-400/20
-                  hover:bg-purple-500/30
-                  transition
-                "
-              >
-                Generate Notes
-              </button>
-
-              <button
-                onClick={() =>
-                  generateContent(
-                    "explain"
-                  )
-                }
-                className="
-                  px-5 py-3
-                  rounded-xl
-                  bg-blue-500/20
-                  border border-blue-400/20
-                  hover:bg-blue-500/30
-                  transition
-                "
-              >
-                Explain Simply
-              </button>
-
-            </div>
-
-            {
-              aiLoading && (
-                <p className="
-                  mt-8
                   text-center
-                  text-cyan-400
-                ">
-                  Gemini is thinking...
-                </p>
-              )
-            }
+                "
+              >
 
-            {
-              aiResult && (
-                <motion.div
-                  initial={{
-                    opacity: 0,
-                    y: 20,
-                  }}
-                  animate={{
-                    opacity: 1,
-                    y: 0,
-                  }}
+                <h3
                   className="
-                    mt-8
-                    border border-white/10
-                    bg-white/5
-                    backdrop-blur-xl
-                    rounded-3xl
-                    p-6
-                    whitespace-pre-wrap
-                    leading-relaxed
-                    text-gray-200
+                    text-lg sm:text-xl
+                    font-semibold
+                    text-cyan-300
+                  "
+                >
+                  AI is Understanding
+                  Your Document
+                </h3>
+
+                <p
+                  className="
+                    text-gray-400
+                    mt-2
+                    text-sm sm:text-base
+                  "
+                >
+                  Generating structured
+                  learning experience...
+                </p>
+
+              </div>
+
+            </motion.div>
+          )}
+
+          {aiResult && (
+
+            <motion.div
+
+              initial={{
+                opacity: 0,
+                y: 40,
+              }}
+
+              animate={{
+                opacity: 1,
+                y: 0,
+              }}
+
+              transition={{
+                duration: 0.5,
+              }}
+
+              className="
+                mt-12
+                relative
+              "
+            >
+
+              <div
+                className="
+                  absolute
+                  inset-0
+                  bg-gradient-to-r
+                  from-cyan-500/10
+                  via-blue-500/10
+                  to-purple-500/10
+                  blur-3xl
+                "
+              />
+
+              <div
+                className="
+                  relative
+                  border border-white/10
+                  bg-black/30
+                  backdrop-blur-2xl
+                  rounded-2xl sm:rounded-[32px]
+                  overflow-hidden
+                  shadow-[0_0_40px_rgba(0,255,255,0.08)]
+                "
+              >
+
+                <div
+                  className="
+                    p-4 sm:p-6
+                    border-b border-white/10
+                    flex items-center
+                    justify-between
+                    gap-4
+                    flex-wrap
                   "
                 >
 
-                  {aiResult}
+                  <div>
 
-                </motion.div>
-              )
-            }
+                    <h3
+                      className="
+                        text-lg sm:text-2xl
+                        font-bold
+                        bg-gradient-to-r
+                        from-cyan-300
+                        to-blue-400
+                        bg-clip-text
+                        text-transparent
+                      "
+                    >
+                      AI Learning Response
+                    </h3>
 
-          </motion.div>
-        )
-      }
+                    <p
+                      className="
+                        text-sm
+                        text-gray-400
+                        mt-1
+                      "
+                    >
+                      Structured and optimized
+                      for easy understanding
+                    </p>
+
+                  </div>
+
+                  <button
+
+                    onClick={() =>
+                      navigator.clipboard
+                      .writeText(aiResult)
+                    }
+
+                    className="
+                      px-4 py-2
+                      rounded-xl
+                      bg-white/5
+                      border border-white/10
+                      hover:bg-white/10
+                      transition
+                      text-sm
+                    "
+                  >
+                    Copy Response
+                  </button>
+
+                </div>
+
+                <div
+                  className="
+                    p-4 sm:p-8
+                    max-h-[75vh]
+                    overflow-y-auto
+                  "
+                >
+
+                  <ResponseViewer
+                    content={aiResult}
+                  />
+
+                </div>
+
+              </div>
+
+            </motion.div>
+          )}
+
+        </motion.div>
+      )}
 
     </motion.div>
   );
