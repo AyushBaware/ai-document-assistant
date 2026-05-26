@@ -14,9 +14,12 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "mammoth": "^1.12.0",
     "mongoose": "^9.6.2",
     "multer": "^2.1.1",
-    "pdfjs-dist": "^5.7.284"
+    "officeparser": "^7.1.0",
+    "pdfjs-dist": "^5.7.284",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

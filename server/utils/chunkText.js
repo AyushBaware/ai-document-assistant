@@ -1,15 +1,25 @@
 export const chunkText = (
   text,
-  maxLength = 12000
+  chunkSize = 10000
 ) => {
 
-  if (
-    text.length <= maxLength
+  if (!text) return [];
+
+  const chunks = [];
+
+  for (
+    let i = 0;
+    i < text.length;
+    i += chunkSize
   ) {
-    return text;
+
+    chunks.push(
+      text.slice(
+        i,
+        i + chunkSize
+      )
+    );
   }
 
-  return (
-    text.slice(0, maxLength)
-  );
+  return chunks;
 };

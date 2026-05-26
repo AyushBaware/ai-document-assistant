@@ -4,243 +4,403 @@ import { processDocument } from "../utils/processDocument.js";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_URL =
+  `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-const generateGeminiResponse = async (prompt, apiKey) => {
-  const response = await fetch(GEMINI_URL, {
-    method: "POST",
+// ======================================================
+// GEMINI REQUEST
+// ======================================================
 
-    headers: {
-      "Content-Type": "application/json",
+const generateGeminiResponse = async (
+  prompt,
+  apiKey
+) => {
 
-      "x-goog-api-key": apiKey,
-    },
+  const response = await fetch(
+    GEMINI_URL,
+    {
+      method: "POST",
 
-    body: JSON.stringify({
-      contents: [
-        {
-          role: "user",
+      headers: {
+        "Content-Type":
+          "application/json",
 
-          parts: [
-            {
-              text: prompt,
-            },
-          ],
-        },
-      ],
-
-      generationConfig: {
-        temperature: 0.3,
-        topK: 32,
-        topP: 0.9,
-        maxOutputTokens: 1800,
+        "x-goog-api-key":
+          apiKey,
       },
-    }),
-  });
 
-  const data = await response.json();
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+
+            parts: [
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
+
+        generationConfig: {
+          temperature: 0.3,
+          topK: 32,
+          topP: 0.9,
+          maxOutputTokens: 1500,
+        },
+      }),
+    }
+  );
+
+  const data =
+    await response.json();
 
   if (!response.ok) {
+
     console.log(data);
 
-    throw new Error(data.error?.message || "Gemini failed");
+    throw new Error(
+      data.error?.message ||
+      "Gemini failed"
+    );
   }
 
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  return (
+    data.candidates?.[0]
+      ?.content?.parts?.[0]?.text || ""
+  );
 };
 
-const buildPrompt = (type, document) => {
+// ======================================================
+// MAIN RESPONSE PROMPTS
+// ======================================================
+
+const buildPrompt = (
+  type,
+  knowledge
+) => {
+
   switch (type) {
+
+    // ==========================================
+    // SUMMARY
+    // ==========================================
+
     case "summary":
+
       return `
 You are an elite AI document summarizer.
 
-Your job is to help users
-understand documents quickly.
-
-IMPORTANT:
-The summary should SAVE time.
+Generate a COMPLETE and ACCURATE summary.
 
 STRICT RULES:
-- Maximum 220 words
-- Extremely concise
+- Maximum 350 words
+- Cover COMPLETE document
 - Avoid repetition
-- Avoid unnecessary details
 - Professional tone
-- Easy to skim quickly
-- Focus only on most important concepts
-- Keep cognitive load low
-- Response should feel premium
-- Use proper markdown formatting
-- Use bullets wherever useful
+- Easy to skim
+- Use markdown
+- Use bullet points
+- Keep only important ideas
 
-FORMAT STRICTLY:
+FORMAT:
 
 # Overview
-- short overview
 
 # Key Takeaways
-- important points
 
 # Important Concepts
-- major concepts explained briefly
 
 # Final Conclusion
-- final understanding
 
-DOCUMENT:
-${document}
+DOCUMENT KNOWLEDGE:
+
+${knowledge}
 `;
 
+    // ==========================================
+    // NOTES
+    // ==========================================
+
     case "notes":
+
       return `
-You are a world-class AI study assistant.
+You are an elite AI study-notes generator.
 
-Generate BEAUTIFUL and
-REVISION-FRIENDLY notes.
-
-IMPORTANT:
-The notes should help students
-revise quickly before exams.
+Generate COMPLETE revision-friendly notes.
 
 STRICT RULES:
+- Cover COMPLETE document
 - No giant paragraphs
 - Use headings everywhere
 - Use bullet points heavily
-- Add spacing between sections
-- Keep information structured
-- Keep explanations concise
-- Highlight important concepts
-- Use clean markdown formatting
-- Make notes visually scannable
-- Keep notes complete but compact
-- Make learning effortless
+- Make notes easy to revise
+- Keep important details
+- Avoid unnecessary theory
+- Professional markdown formatting
 
-FORMAT STRICTLY:
+FORMAT:
 
 # Topic Overview
 
 # Definitions
-- important definitions
 
 # Important Concepts
-- bullet points
 
 # Examples
-- useful examples
+
+# Key Points
 
 # Quick Revision
-- short revision points
 
-DOCUMENT:
-${document}
+DOCUMENT KNOWLEDGE:
+
+${knowledge}
 `;
 
+    // ==========================================
+    // EXPLAIN
+    // ==========================================
+
     case "explain":
+
       return `
-You are an expert teacher.
+You are an expert teacher and mentor.
 
-Explain this content in a
-clear, intelligent,
-and professional way.
-
-IMPORTANT:
-The explanation should feel like:
-- a great mentor
-- NOT childish
-- NOT robotic
-- NOT overly academic
+Explain the COMPLETE document clearly.
 
 STRICT RULES:
-- Explain concepts clearly
-- Use simple but intelligent language
-- Break difficult ideas into smaller parts
+- Cover ALL major concepts
+- Explain step-by-step
+- Professional tone
+- Easy to understand
+- No childish language
+- No unnecessary storytelling
 - Use examples only where useful
-- Avoid unnecessary storytelling
-- Avoid long paragraphs
-- Keep explanation structured
+- Use markdown formatting
+- Break difficult concepts simply
 - Keep explanation engaging
-- Keep cognitive load low
-- Focus on understanding, not complexity
-- Use markdown formatting professionally
 
-FORMAT STRICTLY:
+FORMAT:
 
 # Topic Overview
 
 # Core Concepts Explained
 
+# Important Details
+
 # Real-World Understanding
 
 # Important Things To Remember
 
-DOCUMENT:
-${document}
+DOCUMENT KNOWLEDGE:
+
+${knowledge}
 `;
 
     default:
+
       return `
 Summarize this document:
 
-${document}
+${knowledge}
 `;
   }
 };
 
-export const generateAIResponse = async (req, res) => {
-  try {
-    const { extractedText, type } = req.body;
+// ======================================================
+// CHUNK COMPRESSION
+// ======================================================
 
-    if (!extractedText) {
-      return res.status(400).json({
-        success: false,
+const compressChunk = async (
+  chunk,
+  apiKey
+) => {
 
-        message: "No extracted text",
-      });
-    }
+  const compressionPrompt = `
+You are an intelligent document analyzer.
 
-    const apiKey = process.env.GEMINI_API_KEY;
+Extract ONLY the MOST IMPORTANT information.
 
-    if (!apiKey) {
-      return res.status(500).json({
-        success: false,
+STRICT RULES:
+- Very concise
+- No repetition
+- No long explanations
+- Extract:
+  - headings
+  - key concepts
+  - definitions
+  - formulas
+  - examples
+  - important conclusions
 
-        message: "Gemini API key missing",
-      });
-    }
+FORMAT:
+- Bullet points only
+- Maximum 180 words
 
-    // STEP 1:
-    // CLEAN DOCUMENT
+DOCUMENT:
 
-    const processedText = processDocument(extractedText);
+${chunk}
+`;
 
-    // STEP 2:
-    // OPTIMIZE LENGTH
-
-    const optimizedText = chunkText(processedText);
-
-    // STEP 3:
-    // BUILD SMART PROMPT
-
-    const prompt = buildPrompt(type, optimizedText);
-
-    // STEP 4:
-    // GENERATE RESPONSE
-
-    const finalResponse = await generateGeminiResponse(prompt, apiKey);
-
-    return res.status(200).json({
-      success: true,
-
-      result: finalResponse,
-    });
-  } catch (error) {
-    console.log("Gemini Error:", error);
-
-    return res.status(500).json({
-      success: false,
-
-      message: error.message || "AI generation failed",
-    });
-  }
+  return await generateGeminiResponse(
+    compressionPrompt,
+    apiKey
+  );
 };
+
+// ======================================================
+// MAIN CONTROLLER
+// ======================================================
+
+export const generateAIResponse =
+  async (req, res) => {
+
+    try {
+
+      const {
+        extractedText,
+        type,
+      } = req.body;
+
+      // ==========================================
+      // VALIDATION
+      // ==========================================
+
+      if (
+        !extractedText ||
+        typeof extractedText !==
+          "string"
+      ) {
+
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "No valid extracted text found.",
+          });
+      }
+
+      const apiKey =
+        process.env.GEMINI_API_KEY;
+
+      if (!apiKey) {
+
+        return res
+          .status(500)
+          .json({
+            success: false,
+
+            message:
+              "Gemini API key missing.",
+          });
+      }
+
+      // ==========================================
+      // CLEAN DOCUMENT
+      // ==========================================
+
+      const processedText =
+        processDocument(
+          extractedText
+        );
+
+      if (
+        !processedText ||
+        processedText.trim()
+          .length < 50
+      ) {
+
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Unable to extract meaningful content from document.",
+          });
+      }
+
+      // ==========================================
+      // SPLIT INTO CHUNKS
+      // ==========================================
+
+      const chunks =
+        chunkText(
+          processedText,
+          12000
+        );
+
+      // ==========================================
+      // COMPRESS EACH CHUNK
+      // ==========================================
+
+      let compressedKnowledge =
+        "";
+
+      for (const chunk of chunks) {
+
+        const compressedChunk =
+          await compressChunk(
+            chunk,
+            apiKey
+          );
+
+        compressedKnowledge +=
+          "\n\n" +
+          compressedChunk;
+      }
+
+      // ==========================================
+      // BUILD FINAL PROMPT
+      // ==========================================
+
+      const finalPrompt =
+        buildPrompt(
+          type,
+          compressedKnowledge
+        );
+
+      // ==========================================
+      // FINAL AI RESPONSE
+      // ==========================================
+
+      const finalResponse =
+        await generateGeminiResponse(
+          finalPrompt,
+          apiKey
+        );
+
+      // ==========================================
+      // RESPONSE
+      // ==========================================
+
+      return res
+        .status(200)
+        .json({
+          success: true,
+
+          result:
+            finalResponse,
+        });
+
+    } catch (error) {
+
+      console.log(
+        "Gemini Error:",
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          success: false,
+
+          message:
+            error.message ||
+            "AI generation failed",
+        });
+    }
+  };

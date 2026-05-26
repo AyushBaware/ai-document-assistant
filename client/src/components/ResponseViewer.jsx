@@ -4,77 +4,46 @@ from "react-markdown";
 import remarkGfm
 from "remark-gfm";
 
-const SectionBlock = ({
-  title,
-  children,
-}) => {
+const getSectionStyle =
+(title = "") => {
 
-  let glow = "";
+  const lower =
+    title.toLowerCase();
 
   if (
-    title.includes(
-      "Key"
-    )
+    lower.includes("overview")
   ) {
-    glow =
-      "from-cyan-500/10 to-blue-500/10";
+
+    return `
+      border-cyan-500/10
+      bg-cyan-500/[0.03]
+    `;
   }
 
-  else if (
-    title.includes(
-      "Important"
-    )
+  if (
+    lower.includes("important")
   ) {
-    glow =
-      "from-purple-500/10 to-pink-500/10";
+
+    return `
+      border-purple-500/10
+      bg-purple-500/[0.03]
+    `;
   }
 
-  else if (
-    title.includes(
-      "Definition"
-    )
+  if (
+    lower.includes("revision")
   ) {
-    glow =
-      "from-green-500/10 to-emerald-500/10";
+
+    return `
+      border-green-500/10
+      bg-green-500/[0.03]
+    `;
   }
 
-  else {
-
-    glow =
-      "from-white/5 to-white/5";
-  }
-
-  return (
-
-    <div
-      className={`
-        my-8
-        rounded-3xl
-        border border-white/10
-        bg-gradient-to-br
-        ${glow}
-        p-5 sm:p-7
-        backdrop-blur-xl
-      `}
-    >
-
-      <h2
-        className="
-          text-xl sm:text-2xl
-          font-bold
-          mb-5
-          text-white
-        "
-      >
-        {title}
-      </h2>
-
-      <div>
-        {children}
-      </div>
-
-    </div>
-  );
+  return `
+    border-white/5
+    bg-white/[0.02]
+  `;
 };
 
 const ResponseViewer = ({
@@ -100,18 +69,40 @@ const ResponseViewer = ({
 
           h1: ({
             children,
-          }) => (
+          }) => {
 
-            <SectionBlock
-              title={
-                children?.toString()
-              }
-            >
+            const title =
+              children?.toString();
 
-              <div />
+            return (
 
-            </SectionBlock>
-          ),
+              <div
+                className={`
+                  mt-6 mb-4
+                  rounded-2xl
+                  border
+                  px-4 sm:px-5
+                  py-3 sm:py-4
+                  backdrop-blur-lg
+                  ${getSectionStyle(title)}
+                `}
+              >
+
+                <h1
+                  className="
+                    text-lg sm:text-2xl
+                    font-semibold
+                    tracking-tight
+                    text-white
+                    leading-tight
+                  "
+                >
+                  {children}
+                </h1>
+
+              </div>
+            );
+          },
 
           h2: ({
             children,
@@ -119,10 +110,11 @@ const ResponseViewer = ({
 
             <h2
               className="
-                text-xl sm:text-3xl
+                text-base sm:text-xl
                 font-semibold
                 text-cyan-200
-                mt-10 mb-5
+                mt-6 mb-3
+                tracking-tight
               "
             >
               {children}
@@ -135,10 +127,10 @@ const ResponseViewer = ({
 
             <h3
               className="
-                text-lg sm:text-2xl
+                text-sm sm:text-lg
                 font-medium
                 text-white
-                mt-8 mb-4
+                mt-5 mb-2
               "
             >
               {children}
@@ -151,11 +143,11 @@ const ResponseViewer = ({
 
             <p
               className="
-                leading-8
+                leading-7
                 text-gray-300
-                mb-5
-                text-[15px]
-                sm:text-base
+                mb-4
+                text-[14px]
+                sm:text-[15px]
               "
             >
               {children}
@@ -168,9 +160,9 @@ const ResponseViewer = ({
 
             <ul
               className="
-                space-y-3
-                ml-4
-                mb-6
+                space-y-2
+                ml-5
+                mb-5
                 list-disc
                 marker:text-cyan-400
               "
@@ -187,6 +179,8 @@ const ResponseViewer = ({
               className="
                 leading-7
                 text-gray-300
+                text-[14px]
+                sm:text-[15px]
               "
             >
               {children}
@@ -213,12 +207,12 @@ const ResponseViewer = ({
 
             <blockquote
               className="
-                border-l-4
-                border-cyan-400
+                border-l-2
+                border-cyan-400/40
                 pl-4
                 italic
                 text-gray-400
-                my-6
+                my-5
               "
             >
               {children}

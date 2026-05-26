@@ -1,48 +1,63 @@
-import path from "path";
-import { extractTextFromPDF } from "../utils/extractText.js";
+import fs from "fs";
 
-export const uploadFile = async (req, res) => {
+import { extractText }
+from "../utils/extractText.js";
+
+export const uploadFile =
+async (req, res) => {
 
   try {
 
     if (!req.file) {
-      return res.status(400).json({
+
+      return res.status(400)
+      .json({
+
         success: false,
-        message: "No file uploaded",
+
+        message:
+          "No file uploaded",
       });
     }
 
-    const filePath = req.file.path;
+    const extractedText =
+      await extractText(
 
-    const extension = path.extname(
-      req.file.originalname
+        req.file.path,
+
+        req.file.mimetype
+      );
+
+    // Optional cleanup
+    fs.unlinkSync(
+      req.file.path
     );
 
-    let extractedText = "";
+    return res.status(200)
+    .json({
 
-    if (extension === ".pdf") {
-
-      extractedText =
-        await extractTextFromPDF(filePath);
-
-    } else {
-
-      extractedText =
-        "Text extraction for this file type coming soon.";
-    }
-
-    res.status(200).json({
       success: true,
-      message: "File uploaded successfully",
-      file: req.file,
+
+      message:
+        "File uploaded successfully",
+
       extractedText,
     });
 
   } catch (error) {
 
-    res.status(500).json({
+    console.log(
+      "Upload Error:",
+      error
+    );
+
+    return res.status(500)
+    .json({
+
       success: false,
-      message: error.message,
+
+      message:
+        "File processing failed",
     });
   }
 };
