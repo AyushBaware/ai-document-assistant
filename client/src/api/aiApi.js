@@ -1,18 +1,14 @@
 import axios from "axios";
 
-const API =
-  "http://localhost:5000/api/ai/generate";
+const AI_API = "http://localhost:5000/api/ai/generate";
 
-export const generateAI = async (
-  extractedText,
-  type
-) => {
+// NOTE: We do NOT send extractedText from frontend.
+// The backend (aiController) reads directly from knowledgeStore,
+// which was populated during the upload step.
+// Frontend only tells the backend WHAT to do (type),
+// backend decides HOW using stored document knowledge.
 
-  const response =
-    await axios.post(API, {
-      extractedText,
-      type,
-    });
-
+export const generateAI = async (_extractedText, type) => {
+  const response = await axios.post(AI_API, { type });
   return response.data;
 };

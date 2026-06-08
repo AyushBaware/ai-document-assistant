@@ -1,21 +1,33 @@
 import axios from "axios";
 
-const API = "http://localhost:5000/api/upload";
+const API =
+  "http://localhost:5000/api/upload";
 
-export const uploadFile = async (file) => {
-  const formData = new FormData();
+export const uploadFiles =
+  async (files) => {
 
-  formData.append("file", file);
+    const formData =
+      new FormData();
 
-  const response = await axios.post(
-    API,
-    formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    }
-  );
+    files.forEach((file) => {
 
-  return response.data;
+      formData.append(
+        "files",
+        file
+      );
+    });
+
+    const response =
+      await axios.post(
+        API,
+        formData,
+        {
+          headers: {
+            "Content-Type":
+              "multipart/form-data",
+          },
+        }
+      );
+
+    return response.data;
 };
