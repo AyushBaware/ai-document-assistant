@@ -44,9 +44,12 @@ function UploadBox() {
   const [error, setError] = useState("");
   const [isProcessed, setIsProcessed] = useState(false);
   const [processedFileNames, setProcessedFileNames] = useState([]);
+  const [processedDocs, setProcessedDocs] = useState([]); // { id, fileName, chunkCount }
+  const [selectedIds, setSelectedIds] = useState([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [activeMode, setActiveMode] = useState(null);
   const [aiResult, setAiResult] = useState("");
+  const [analysisStage, setAnalysisStage] = useState("");
   const [copied, setCopied] = useState(false);
 
   // ── CACHING ──────────────────────────────────────────
@@ -108,6 +111,9 @@ function UploadBox() {
         `${data.files.length} file${data.files.length > 1 ? "s" : ""} processed successfully`
       );
       setProcessedFileNames(data.files.map((f) => f.fileName));
+      setProcessedDocs(data.files);
+      // Select all documents by default for analysis
+      setSelectedIds(data.files.map((f) => f.id));
       setIsProcessed(true);
     } catch (err) {
       setError(err.response?.data?.message || "Upload failed. Please try again.");
@@ -121,9 +127,18 @@ function UploadBox() {
   // ==========================================
 
   const generateContent = async (type) => {
+    if (selectedIds.length === 0) {
+      setError("Please select at least one document to analyze.");
+      return;
+    }
+
+    // ── CREATE CACHE KEY from mode type and selected documents ──
+    // This ensures different document selections get different cache entries
+    const cacheKey = `${type}_${selectedIds.sort().join(",")}`;
+
     // ── CACHE HIT: show stored result, no API call ──
-    if (cachedResults[type]) {
-      setAiResult(cachedResults[type]);
+    if (cachedResults[cacheKey]) {
+      setAiResult(cachedResults[cacheKey]);
       setActiveMode(type);
       return; // Zero tokens used
     }
@@ -132,13 +147,14 @@ function UploadBox() {
     try {
       setError("");
       setAiLoading(true);
+      setAnalysisStage("Generating document-level summaries...");
       setActiveMode(type);
       setAiResult("");
 
-      const data = await generateAI(null, type);
+      const data = await generateAI(null, type, selectedIds);
 
-      // Save to cache so next click is instant
-      setCachedResults((prev) => ({ ...prev, [type]: data.result }));
+      // Save to cache so next click with same docs/mode is instant
+      setCachedResults((prev) => ({ ...prev, [cacheKey]: data.result }));
       setAiResult(data.result);
     } catch (err) {
       setError(err.response?.data?.message || "AI generation failed. Please try again.");
@@ -146,6 +162,7 @@ function UploadBox() {
       setActiveMode(null);
     } finally {
       setAiLoading(false);
+      setAnalysisStage("");
     }
   };
 
@@ -164,7 +181,7 @@ function UploadBox() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="mt-10 border border-white/10 bg-white/[0.04] backdrop-blur-2xl rounded-[28px] p-4 sm:p-8 md:p-12 shadow-[0_0_60px_rgba(0,255,255,0.04)]"
+      className="mt-10 border border-white/10 bg-white/4 backdrop-blur-2xl rounded-[28px] p-4 sm:p-8 md:p-12 shadow-[0_0_60px_rgba(0,255,255,0.04)]"
     >
       {/* ── HEADER ── */}
       <div className="flex flex-col items-center text-center">
@@ -186,7 +203,7 @@ function UploadBox() {
 
         <label
           htmlFor="fileUpload"
-          className="mt-8 cursor-pointer inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:scale-[1.03] active:scale-[0.98] transition-all duration-300 font-medium shadow-[0_0_25px_rgba(34,211,238,0.3)] text-white select-none"
+          className="mt-8 cursor-pointer inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-linear-to-r from-cyan-500 to-blue-600 hover:scale-[1.03] active:scale-[0.98] transition-all duration-300 font-medium shadow-[0_0_25px_rgba(34,211,238,0.3)] text-white select-none"
         >
           <FiUploadCloud className="text-lg" />
           Select Documents
@@ -217,7 +234,7 @@ function UploadBox() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className="p-4 rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl flex items-center justify-between gap-3"
+                className="p-4 rounded-2xl border border-white/10 bg-white/3 backdrop-blur-xl flex items-center justify-between gap-3"
               >
                 <div className="flex items-center gap-3 overflow-hidden">
                   <span className="text-2xl shrink-0">{getFileIcon(file.name)}</span>
@@ -305,13 +322,69 @@ function UploadBox() {
             animate={{ opacity: 1, y: 0 }}
             className="mt-10"
           >
-            {processedFileNames.length > 0 && (
-              <p className="text-center text-xs text-gray-500 mb-5">
-                Ready to analyze:{" "}
-                <span className="text-gray-300">
-                  {processedFileNames.join(", ")}
-                </span>
-              </p>
+            {processedDocs.length > 0 && (
+              <div className="mb-5 px-4">
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <p className="text-center text-xs text-gray-400 sm:text-left">
+                      Select documents to include in analysis:
+                    </p>
+                    <div className="flex flex-wrap gap-2 justify-center sm:justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedIds(processedDocs.map((doc) => doc.id));
+                        }}
+                        className="text-xs px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/20 text-cyan-200 hover:bg-cyan-500/20 transition"
+                      >
+                        Select all
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedIds([]);
+                        }}
+                        className="text-xs px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 transition"
+                      >
+                        Clear selection
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-2xl mx-auto">
+                    {processedDocs.map((doc) => {
+                      const isSelected = selectedIds.includes(doc.id);
+                      return (
+                        <label
+                          key={doc.id}
+                          className={`flex items-center justify-between gap-3 p-3 rounded-lg border ${isSelected ? "border-cyan-400/40 bg-cyan-500/6" : "border-white/6 bg-white/2"}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-lg">📄</span>
+                            <div>
+                              <div className="text-sm text-white font-medium truncate max-w-55">{doc.fileName}</div>
+                              <div className="text-xs text-gray-500">{doc.chunkCount} chunks · approx {(doc.chunkCount * 6000 / 1024 / 1024).toFixed(2)} MB</div>
+                            </div>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {
+                              setCachedResults({});
+                              if (isSelected) {
+                                setSelectedIds((prev) => prev.filter((id) => id !== doc.id));
+                              } else {
+                                setSelectedIds((prev) => [...prev, doc.id]);
+                              }
+                            }}
+                            className="w-5 h-5"
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
             )}
 
             <div className="flex flex-wrap justify-center gap-3">
@@ -325,15 +398,21 @@ function UploadBox() {
                     whileHover={{ scale: 1.04 }}
                     whileTap={{ scale: 0.96 }}
                     onClick={() => generateContent(mode.type)}
-                    disabled={aiLoading}
-                    title={isCached ? "Cached — instant, no tokens used" : ""}
+                    disabled={aiLoading || selectedIds.length === 0}
+                    title={
+                      selectedIds.length === 0
+                        ? "Select at least one document to generate output"
+                        : isCached
+                        ? "Cached — instant, no tokens used"
+                        : ""
+                    }
                     className={`
                       relative px-5 py-3 rounded-xl text-sm font-medium transition-all duration-300
                       border flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed
                       ${
                         isActive
                           ? "bg-cyan-500/20 border-cyan-400/40 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.2)]"
-                          : "bg-white/[0.05] border-white/10 text-white hover:bg-white/[0.09] hover:border-white/20"
+                          : "bg-white/5 border-white/10 text-white hover:bg-white/9 hover:border-white/20"
                       }
                     `}
                   >
@@ -367,7 +446,7 @@ function UploadBox() {
                   />
                   <div className="text-center">
                     <p className="text-cyan-300 font-semibold">
-                      Analyzing your documents...
+                      {analysisStage || "Analyzing your documents..."}
                     </p>
                     <p className="text-gray-500 text-sm mt-1">
                       {activeMode === "summary" && "Building a precise overview"}
@@ -388,9 +467,9 @@ function UploadBox() {
                   transition={{ duration: 0.4 }}
                   className="mt-8"
                 >
-                  <div className="border border-white/[0.07] bg-gradient-to-b from-white/[0.04] to-white/[0.01] backdrop-blur-2xl rounded-2xl overflow-hidden">
+                  <div className="border border-white/7 bg-linear-to-b from-white/4 to-white/1 backdrop-blur-2xl rounded-2xl overflow-hidden">
                     {/* Response Header */}
-                    <div className="px-5 py-3.5 border-b border-white/[0.06] flex items-center justify-between">
+                    <div className="px-5 py-3.5 border-b border-white/6 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <span className="text-lg">
                           {AI_MODES.find((m) => m.type === activeMode)?.icon}
@@ -418,7 +497,7 @@ function UploadBox() {
 
                       <button
                         onClick={handleCopy}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.09] transition-all text-xs text-gray-400 hover:text-white"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/8 hover:bg-white/9 transition-all text-xs text-gray-400 hover:text-white"
                       >
                         {copied ? (
                           <>

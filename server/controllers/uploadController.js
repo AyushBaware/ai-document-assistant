@@ -45,6 +45,7 @@ export const uploadFiles = async (req, res) => {
       knowledgeStore.addDocument(documentObject);
 
       processedFiles.push({
+        id: documentObject.id,
         fileName: file.originalname,
         mimetype: file.mimetype,
         extractedText, // Sent back so frontend can confirm extraction worked

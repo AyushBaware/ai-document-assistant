@@ -8,7 +8,12 @@ const AI_API = "http://localhost:5000/api/ai/generate";
 // Frontend only tells the backend WHAT to do (type),
 // backend decides HOW using stored document knowledge.
 
-export const generateAI = async (_extractedText, type) => {
-  const response = await axios.post(AI_API, { type });
+export const generateAI = async (_extractedText, type, selectedDocumentIds = []) => {
+  const body = { type };
+  if (Array.isArray(selectedDocumentIds) && selectedDocumentIds.length > 0) {
+    body.selectedDocumentIds = selectedDocumentIds;
+  }
+
+  const response = await axios.post(AI_API, body);
   return response.data;
 };
