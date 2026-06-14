@@ -134,7 +134,7 @@ function UploadBox() {
 
     // ── CREATE CACHE KEY from mode type and selected documents ──
     // This ensures different document selections get different cache entries
-    const cacheKey = `${type}_${selectedIds.sort().join(",")}`;
+    const cacheKey = `${type}_${[...selectedIds].sort().join(",")}`;
 
     // ── CACHE HIT: show stored result, no API call ──
     if (cachedResults[cacheKey]) {
@@ -357,7 +357,7 @@ function UploadBox() {
                       return (
                         <label
                           key={doc.id}
-                          className={`flex items-center justify-between gap-3 p-3 rounded-lg border ${isSelected ? "border-cyan-400/40 bg-cyan-500/6" : "border-white/6 bg-white/2"}`}
+                          className={`flex min-w-0 items-center justify-between gap-3 p-3 rounded-lg border ${isSelected ? "border-cyan-400/40 bg-cyan-500/6" : "border-white/6 bg-white/2"}`}
                         >
                           <div className="flex items-center gap-3">
                             <span className="text-lg">📄</span>
@@ -390,7 +390,8 @@ function UploadBox() {
             <div className="flex flex-wrap justify-center gap-3">
               {AI_MODES.map((mode) => {
                 const isActive = activeMode === mode.type;
-                const isCached = !!cachedResults[mode.type];
+                const modeCacheKey = `${mode.type}_${[...selectedIds].sort().join(",")}`;
+                const isCached = !!cachedResults[modeCacheKey];
 
                 return (
                   <motion.button
@@ -486,7 +487,7 @@ function UploadBox() {
                           </h3>
                           <p className="text-xs text-gray-500 mt-0.5">
                             {AI_MODES.find((m) => m.type === activeMode)?.description}
-                            {cachedResults[activeMode] && (
+                            {cachedResults[`${activeMode}_${[...selectedIds].sort().join(",")}`] && (
                               <span className="ml-2 text-green-400">
                                 · cached
                               </span>

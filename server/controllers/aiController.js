@@ -67,101 +67,110 @@ const buildPerDocumentPrompt = (type, doc, index, docCount) => {
 
   switch (type) {
     case "summary":
-      return `You are an expert professional summarizer. Produce a clear, accurate, and easy-to-read summary that any professional can understand on first read (not childish, not overly technical).
+      return `You are an expert professional summarizer. Produce a clear, accurate, and easy-to-read summary that covers the entire document. Use professional language, not conversational or childish phrasing.
 
 ${header}
 
-CLARITY RULES:
-- Use short, well-formed sentences (one idea per sentence).
-- Avoid unnecessary jargon; if a technical term is used, immediately provide a 1-line plain-language definition in parentheses.
-- Lead with a 1-2 sentence Plain-Language Summary that anyone can grasp at a glance.
-- After the plain summary, provide structured sections with bullets for easy scanning.
-- If the document is long, include a short "Document Sections Covered" list. If you cannot cover something due to length, append a line: "TRUNCATED: [list missing sections]".
+RULES:
+- Use short, well-formed sentences and avoid long, dense paragraphs.
+- Avoid jargon; if a technical term is used, explain it briefly in parentheses.
+- Cover the document's main thesis, key sections, important facts, and conclusion.
+- Start with a 1-2 sentence overview, then use bullets and clear headings.
+- Do not add unrelated content, filler, or internal reasoning.
 
 OUTPUT FORMAT:
 
 ## ${doc.fileName}
 
-**Plain-Language Summary (1-2 sentences):**
-[A concise summary anyone can understand]
+**Overview:**
+[A one- or two-sentence summary of the document's main idea]
 
-**Key Points (bullets):**
-- [3-7 bullets with the most important facts or findings, each 1-2 short sentences]
+**Key Points:**
+- [3-6 short bullets with the most important findings or ideas]
 
-**Readable Explanation:**
-[2-4 short paragraphs that explain the main ideas in simple professional language]
+**Important Details:**
+- [Specific facts, examples, names, numbers, or methods]
 
-**Practical Implications & Takeaway:**
-- [What this means; 2-3 short bullets]
-
-**Document Sections Covered:**
-- [List major sections you included]
+**Bottom Line:**
+- [A concise closing statement about the document's main message]
 
 DOCUMENT:
 ${excerpt}`;
 
     case "notes":
-      return `You are a world-class academic tutor creating study notes that are clear, concise, and immediately useful for revision. Use short sentences and hierarchical bullets so readers can learn on first pass.
+      return `You are a top academic tutor creating study notes that are accurate, structured, and easy to review. Use professional, straightforward language and avoid informal or childish wording.
 
 ${header}
 
-CLARITY RULES:
-- Prefer short sentences and clear definitions.
-- Bold key terms and provide a 1-line plain-language explanation for any technical term.
-- Organize with headings and nested bullets; each bullet should be 1-2 sentences maximum.
-- End with a short Revision Summary for quick recall.
+RULES:
+- Use short sentences and clear language.
+- Bold key terms and give a one-line explanation if a concept is technical.
+- Organize notes into headings and short bullets.
+- Cover the document's major concepts, details, examples, and conclusions.
+- Keep each bullet concise and specific.
+- Do not invent content that is not present in the document.
 
 OUTPUT FORMAT:
 
 ## Study Notes: ${doc.fileName}
 
-### Overview (1-2 sentences)
+### Overview
+[A brief statement of the main topic]
 
-### Core Concepts & Definitions
-- **Term** — one-line definition (plain language)
+### Core Concepts
+- **Term** — brief plain explanation
 
-### Key Facts & Processes
-- Bullet points with short, actionable descriptions and examples
+### Key Details
+- Short bullets with important facts, processes, or examples
 
-### Important Examples / Case Studies
-- Short, concrete examples pulled from the document
+### Practical Examples
+- Short examples from the document
 
-### Quick Revision Summary (3-6 bullets)
-- Key facts, numbers, or actions to remember
+### Key Takeaways
+- 3-5 concise points to remember
+
+### Quick Review
+- 4-6 short bullets for revision
 
 DOCUMENT:
 ${excerpt}`;
 
     case "explain":
-      return `You are an exceptionally clear educator whose explanations are professional, precise, and easy to understand on first read. Use short sentences, plain-language summaries, and analogies where helpful.
+      return `You are an expert educator who explains documents in a professional, clear, and easy-to-understand way. Use plain language, short sentences, and concrete examples. Avoid informal or childish phrasing.
 
 ${header}
 
-CLARITY RULES:
-- Begin with a 1-2 sentence Plain-Language Summary.
-- For each major idea: state the idea, provide a one-line plain-language explanation, then a short example or analogy.
-- Keep paragraphs short (1-3 sentences). Use bullet lists for steps or processes.
-- If any technical term appears, provide a one-line definition immediately.
-- Include a "Document Sections Covered" list and, if anything could not be covered due to length, append: "TRUNCATED: [sections missing]".
+RULES:
+- Start with a 1-2 sentence overview of what the document is about.
+- Explain each major idea clearly and directly.
+- Use short bullets or short paragraphs, not long blocks of text.
+- If a technical term is used, explain it briefly in parentheses.
+- Include examples or scenarios from the document to make ideas concrete.
+- Keep the tone professional and readable.
+- Do not invent content that is not present in the document.
 
 OUTPUT FORMAT:
 
 ## Understanding ${doc.fileName}
 
-**Plain-Language Summary (1-2 sentences):**
+**Overview:**
+[A one- or two-sentence description of the document's subject]
 
-**Major Ideas & Clear Explanations:**
-- Idea 1 — one-line plain explanation. Example/analogy: ...
-- Idea 2 — one-line plain explanation. Example/analogy: ...
+**Main Ideas:**
+- Idea 1 — short explanation and brief example
+- Idea 2 — short explanation and brief example
 
-**How It Works (step-by-step if applicable):**
-- Short numbered or bulleted steps with brief explanations
+**How It Works:**
+- Short bullets explaining processes or logic
 
-**Concrete Examples & Practical Significance:**
-- Short examples drawn from the document and what they imply
+**Examples & Practical Meaning:**
+- Short examples from the document with what they show
 
-**Summary & Key Takeaways (3-5 bullets):**
-- Important final points to remember
+**Why It Matters:**
+- 2-3 short bullets explaining the document's importance
+
+**Key Takeaways:**
+- 3-5 concise points to remember
 
 DOCUMENT:
 ${excerpt}`;
@@ -186,106 +195,86 @@ const buildSynthesisPrompt = (type, perDocResults, documents) => {
     )
     .join("\n\n");
 
-  const instructions = `You are synthesizing comprehensive analysis from ${docCount} documents. Your task: Create a unified, professional response that presents each document fully, shows genuine connections, and delivers insights worthy of Claude or Perplexity.`;
+  const instructions = `You are synthesizing comprehensive analysis from ${docCount} documents. Your task: Create a unified, professional response that presents each document fully, shows genuine connections, and delivers insights worthy of Claude or Perplexity. If there are many documents, remain precise and cover each document's key ideas.`;
 
   switch (type) {
     case "summary":
       return `${instructions}
 
-CLARITY RULES: Produce plain-language, short-sentence writing. Lead with a very short Per-Document completeness check, then the document sections, then a readable synthesis. Avoid dense paragraphs; use bullets where helpful.
+CLARITY RULES: Produce a professional, easy-to-read summary. Use short sentences, clear headings, and bullets. Cover each document fully and then show how the documents relate.
 
-PER-DOCUMENT CONTENT (as received):
+PER-DOCUMENT CONTENT:
 ${perDocSections}
 
 OUTPUT FORMAT:
 
-## COMPLETENESS CHECK
-- For each document, write: Document N (${documents.map(d=>d.fileName).join(', ')}): COMPLETE or TRUNCATED (list missing sections if TRUNCATED)
-
----
-
-# Document-Level Summaries
+# Document Summaries
 
 ${documents
         .map(
           (doc, index) =>
-            `## ${doc.fileName}\n\n[Write a clear, plain-language summary of this document based on the per-document content above. Start with a 1-2 sentence plain summary, then 3-6 key bullets.]
+            `## ${doc.fileName}\n\n[Write a concise, professional summary of this document based on the per-document content above. Start with a brief overview sentence, then 3-5 clear bullets. Be specific and avoid vague language.]
 `
         )
         .join("\n\n")}
 
 ---
 
-## 🔗 Readable Synthesis: Key Connections & Unified Insights
+## Combined Insights
 
-[Write a professional, easy-to-understand synthesis that:
-- Identifies shared themes across documents
-- Explains how ideas connect or conflict (short bullets)
-- Highlights unique contributions of each document
-- States practical implications and recommended next steps (if any)
-- Keep language plain and sentences short]
+[Write a direct professional summary of shared themes, differences, and the most important insights across all documents. Keep the language precise and avoid filler. Do not add unrelated content.]
 `;
 
     case "notes":
       return `${instructions}
 
-CLARITY RULES: Produce study notes in plain professional language. Start with a per-document completeness check. Use bolded terms and 1-line definitions. Keep bullets short and scannable.
+CLARITY RULES: Produce accurate, review-ready notes in professional language. Use clear headings, bold key terms, and concise bullets. Cover each document fully and keep each section easy to scan.
 
-PER-DOCUMENT CONTENT (as received):
+PER-DOCUMENT CONTENT:
 ${perDocSections}
 
 OUTPUT FORMAT:
-
-## COMPLETENESS CHECK
-- For each document: COMPLETE or TRUNCATED (list missing sections if TRUNCATED)
-
----
 
 # Complete Study Notes
 
 ${documents
         .map(
           (doc, index) =>
-            `## 📄 ${doc.fileName}\n\n[Expand into clear notes: Overview (1-2 sentences), Core Concepts (bold + 1-line def), Key Facts, Examples, and Takeaways in short bullets.]`
+            `## 📄 ${doc.fileName}\n\n[Create clear, professional notes based on the document content above. Include Overview, Core Concepts, Key Details, Examples, and Key Takeaways in short bullets.]`
         )
         .join("\n\n---\n\n")}
 
 ---
 
-## ⚡ Master Quick Revision — All Documents
+## Master Quick Revision — All Documents
 
-[A combined bullet list of essential terms (bold), formulas, numbers, and short definitions across all documents.]
+[Create a combined revision section with the most important terms, facts, and key points from all documents. Keep it concise and actionable.]
 `;
 
     case "explain":
       return `${instructions}
 
-CLARITY RULES: Produce a plain-language explanatory synthesis. Begin with per-document completeness checks. For each document include a 1-2 sentence plain summary, then clear explanation items: definition, why it matters, short example/analogy. Finish with a unified, easy-to-read framework.
+CLARITY RULES: Produce a professional, easy-to-understand explanation. Write in short sentences, explain key ideas clearly, and use concrete examples. Cover each document fully and keep the tone direct.
 
-PER-DOCUMENT CONTENT (as received):
+PER-DOCUMENT CONTENT:
 ${perDocSections}
 
 OUTPUT FORMAT:
-
-## COMPLETENESS CHECK
-- For each document: COMPLETE or TRUNCATED (list missing sections)
-
----
 
 # Comprehensive Explanation
 
 ${documents
         .map(
           (doc, index) =>
-            `## Understanding ${doc.fileName}\n\n[Plain-Language Summary (1-2 sentences)]\n\n- Major Idea A — short plain explanation + brief example/analogy\n- Major Idea B — short plain explanation + brief example/analogy\n\n(Include simple numbered steps if explaining a process.)`
+            `## Understanding ${doc.fileName}\n\n[Write a clear explanation of this document based on the content above. Include a brief overview, the main ideas, how it works, and a short example for each major point.]`
         )
         .join("\n\n---\n\n")}
 
 ---
 
-## 🔗 Unified Framework: How It All Connects
+## Unified Framework: How It All Connects
 
-[Summarize connections, patterns, and practical implications in short bullets.]
+[Summarize the most important connections and insights across the documents in short, clear bullets. Keep the language formal and avoid filler.]
 `;
 
     default:
@@ -364,7 +353,7 @@ const buildPrompt = (type, knowledge, documents) => {
     )
     .join("\n\n---\n\n");
   const docContext = multiDoc
-    ? `You have been given ${docCount} documents. Cover EACH document with its own section and explicitly note any overlap or connections between them.`
+    ? `You have been given ${docCount} documents. Cover EACH document with its own section, explicitly note any overlap or connections between them, and do not omit any major idea.`
     : `You have been given 1 document. Cover it completely.`;
 
   switch (type) {
@@ -374,7 +363,7 @@ const buildPrompt = (type, knowledge, documents) => {
     // Goal: Executive-level overview, skimmable in 60s
     // --------------------------------------------------
     case "summary":
-      return `You are an expert academic summarizer. Your summaries are known for being precise, complete, and easy to skim.
+      return `You are an expert professional summarizer. Produce a clear, accurate, and easy-to-read summary that covers the full document. Write in plain professional English so a busy reader can understand it on first read.
 
 ${docContext}
 
@@ -382,13 +371,12 @@ DOCUMENTS:
 ${fileTitleList}
 
 RULES:
-- Write in clean markdown.
-- Be specific — include actual names, numbers, techniques, case studies from the documents.
-- No filler phrases like "This document discusses..." — go straight to the substance.
-- Each bullet must carry real information, not vague descriptions.
-- If multiple documents, give each its own titled section using the actual file name.
-- Do not repeat the same bullets across document sections.
-- If multiple documents cover related topics, add a combined insights section with the connections.
+- Use short, well-formed sentences and avoid long, dense paragraphs.
+- Avoid jargon; if a technical term is used, explain it briefly in parentheses.
+- Cover the document's main thesis, key sections, important facts, and conclusion.
+- Start with a short overview, then use bullets and clear headings.
+- Do not add unrelated content or filler.
+- If multiple documents are present, give each document its own section and include a final combined insight.
 - Total length: 400–600 words.
 
 OUTPUT FORMAT (use exactly these headers):
@@ -405,17 +393,17 @@ ${knowledge}`;
     // Goal: Revision-ready, exam-focused structured notes
     // --------------------------------------------------
     case "notes":
-      return `You are a top academic tutor creating revision notes for a student preparing for exams. Your notes are structured, dense with information, and easy to revise from quickly.
+      return `You are a top academic tutor creating revision notes that are clear, accurate, and easy to review. Cover the full document with structured headings, bold key terms, and concise bullets.
 
 ${docContext}
 
 RULES:
-- Use **bold** for every key term, concept name, or important fact
-- Use bullet points and sub-bullets — no long paragraphs
-- Include actual definitions, formulas, examples, and case study details from the documents
-- Every section should be independently useful — someone reading only that section should learn something complete
-- If multiple documents, create separate note blocks per document, then a Quick Revision section combining all key terms
-- Total length: comprehensive — don't cut content to save space
+- Use short sentences and clear language.
+- Bold key terms and provide brief definitions when needed.
+- Organize notes into headings and concise bullets.
+- Cover the document's major concepts, details, examples, and conclusions.
+- If multiple documents are present, create separate note sections for each document and a combined review section.
+- Total length: comprehensive but readable.
 
 OUTPUT FORMAT:
 
@@ -431,19 +419,18 @@ ${knowledge}`;
     // Goal: Deep teaching, concept-by-concept clarity
     // --------------------------------------------------
     case "explain":
-      return `You are an expert professor and mentor. You explain complex concepts in a way that makes them genuinely easy to understand — clear, logical, and engaging without being childish.
+      return `You are an expert educator who explains documents in a professional, clear, and easy-to-understand way. Use plain language, short sentences, and concrete examples.
 
 ${docContext}
 
 RULES:
-- Explain what each concept IS, WHY it matters, and HOW it works
-- Use real examples from the documents (case studies, code, data, scenarios)
-- For technical topics: explain the logic/intuition behind techniques, not just definitions
-- For case studies: explain what happened, why it worked or failed, and what to learn from it
-- Professional tone — treat the reader as an intelligent person learning something new
-- Never use filler like "Great question!" or "This is interesting" — just explain
-- If multiple documents cover different topics, give each a clear section with its own explanation flow
-- Total length: thorough — the goal is genuine understanding
+- Explain each major idea clearly and directly.
+- Describe what it is, why it matters, and how it works.
+- Use real examples from the documents.
+- Keep paragraphs short and use bullets for clarity.
+- If a technical term appears, explain it briefly in parentheses.
+- Do not add unrelated content or filler.
+- Total length: thorough but readable.
 
 OUTPUT FORMAT:
 
@@ -513,9 +500,9 @@ export const generateAIResponse = async (req, res) => {
 
     // Token budgets per mode — more generous for explain to ensure complete coverage
     const tokenBudgets = {
-      summary: { single: 2200, perDoc: 1400, synthesis: 2200 },
-      notes: { single: 2400, perDoc: 1600, synthesis: 2400 },
-      explain: { single: 2600, perDoc: 1800, synthesis: 2800 }, // Explain needs more tokens for depth
+      summary: { single: 2600, perDoc: 1800, synthesis: 2600 },
+      notes: { single: 2800, perDoc: 2000, synthesis: 2800 },
+      explain: { single: 3000, perDoc: 2200, synthesis: 3200 },
     };
 
     const budget = tokenBudgets[type] || tokenBudgets.summary;
@@ -546,25 +533,12 @@ export const generateAIResponse = async (req, res) => {
 
     for (const [index, doc] of runDocuments.entries()) {
       const perDocPrompt = buildPerDocumentPrompt(type, doc, index, runDocuments.length);
-      let perDocOutput = await callGemini(perDocPrompt, apiKey, budget.perDoc);
-
-      // If model signals truncation, retry once with a larger token budget
-      if (perDocOutput && perDocOutput.toUpperCase().includes("TRUNCATED")) {
-        const retryTokens = Math.min(Math.floor(budget.perDoc * 1.5), 3200);
-        perDocOutput = await callGemini(perDocPrompt, apiKey, retryTokens);
-      }
-
+      const perDocOutput = await callGemini(perDocPrompt, apiKey, budget.perDoc);
       perDocResults.push({ fileName: doc.fileName, text: perDocOutput.trim() });
     }
 
     const synthesisPrompt = buildSynthesisPrompt(type, perDocResults, runDocuments);
-    let result = await callGemini(synthesisPrompt, apiKey, budget.synthesis);
-
-    // If synthesis indicates truncation or incompleteness, retry once with larger budget
-    if (result && result.toUpperCase().includes("TRUNCATED")) {
-      const synthRetry = Math.min(Math.floor(budget.synthesis * 1.25), 4000);
-      result = await callGemini(synthesisPrompt, apiKey, synthRetry);
-    }
+    const result = await callGemini(synthesisPrompt, apiKey, budget.synthesis);
 
     if (!result || result.trim().length < 50) {
       return res.status(500).json({

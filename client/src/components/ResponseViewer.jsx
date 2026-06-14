@@ -40,7 +40,7 @@ const ResponseViewer = ({ content }) => {
 
   return (
     <motion.div
-      className="max-w-none text-gray-200 prose prose-invert max-w-none"
+      className="text-gray-200 prose prose-sm sm:prose lg:prose-lg prose-invert max-w-none"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -111,7 +111,7 @@ const ResponseViewer = ({ content }) => {
           ),
 
           strong: ({ children }) => (
-            <strong className="text-white font-bold bg-gradient-to-r from-cyan-400/20 to-blue-400/20 px-1 py-0.5 rounded">
+            <strong className="text-white font-bold bg-linear-to-r from-cyan-400/20 to-blue-400/20 px-1 py-0.5 rounded">
               {children}
             </strong>
           ),
@@ -119,7 +119,7 @@ const ResponseViewer = ({ content }) => {
           blockquote: ({ children }) => (
             <motion.blockquote
               variants={itemVariants}
-              className="border-l-4 border-cyan-400/50 pl-4 sm:pl-5 lg:pl-6 italic text-gray-300 my-6 bg-cyan-500/[0.08] py-4 px-4 rounded-r-lg text-base sm:text-lg lg:text-[17px]"
+              className="border-l-4 border-cyan-400/50 pl-4 sm:pl-5 lg:pl-6 italic text-gray-300 my-6 bg-cyan-500/8 py-4 px-4 rounded-r-lg text-base sm:text-lg lg:text-[17px]"
             >
               {children}
             </motion.blockquote>
@@ -128,7 +128,7 @@ const ResponseViewer = ({ content }) => {
           hr: () => (
             <motion.div
               variants={itemVariants}
-              className="my-8 h-px bg-gradient-to-r from-white/0 via-white/20 to-white/0 rounded-full"
+              className="my-8 h-px bg-linear-to-r from-white/0 via-white/20 to-white/0 rounded-full"
             />
           ),
 
