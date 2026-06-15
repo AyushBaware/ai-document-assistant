@@ -296,19 +296,28 @@ ${perDocSections}`;
 const buildKnowledge = (documents) => {
   return documents
     .map((doc, i) => {
-      // Smart truncation: take from start and end
-      // so we capture intro context AND conclusions
       const text = doc.extractedText || "";
       let content;
 
       if (text.length <= MAX_CHARS_PER_DOC) {
         content = text;
       } else {
-        const half = Math.floor(MAX_CHARS_PER_DOC / 2);
-        content =
-          text.slice(0, half) +
-          "\n\n[... middle section ...]\n\n" +
-          text.slice(text.length - half);
+        // Line-aware smart boundary truncation
+        const halfSize = Math.floor(MAX_CHARS_PER_DOC / 2);
+        
+        let headSlice = text.slice(0, halfSize);
+        const lastLineBreakHead = headSlice.lastIndexOf("\n");
+        if (lastLineBreakHead > halfSize * 0.7) {
+          headSlice = headSlice.slice(0, lastLineBreakHead);
+        }
+
+        let tailSlice = text.slice(text.length - halfSize);
+        const firstLineBreakTail = tailSlice.indexOf("\n");
+        if (firstLineBreakTail !== -1 && firstLineBreakTail < halfSize * 0.3) {
+          tailSlice = tailSlice.slice(firstLineBreakTail + 1);
+        }
+
+        content = `${headSlice}\n\n[... Omitted sections for context token efficiency ...] \n\n${tailSlice}`;
       }
 
       return `
