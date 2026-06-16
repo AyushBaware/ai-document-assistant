@@ -214,7 +214,7 @@ function UploadBox() {
           >
             {files.map((file, index) => (
               <motion.div
-                key={`${file.name}-${index}`}
+                key={`${file.name}-${file.size}-${index}`}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
