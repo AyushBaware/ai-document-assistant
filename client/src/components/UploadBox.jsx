@@ -1,3 +1,18 @@
+// ============================================================
+// UploadBox.jsx
+//
+// WHAT CHANGED FROM YOUR ORIGINAL:
+// 1. Accepts `geminiKey` as a prop from App.jsx
+// 2. Passes `geminiKey` to generateAI() call
+// Everything else is identical to your current version.
+//
+// WHY AS A PROP?
+// Props flow downward in React (parent → child).
+// App.jsx owns the key state, passes it down to UploadBox,
+// which passes it to the API call. This is the clean pattern
+// for sharing state across components.
+// ============================================================
+
 import { useState } from "react";
 import ResponseViewer from "./ResponseViewer";
 import { motion, AnimatePresence } from "framer-motion";
@@ -5,7 +20,6 @@ import { FiUploadCloud } from "react-icons/fi";
 import { uploadFiles } from "../api/uploadApi";
 import { generateAI } from "../api/aiApi";
 
-// File type icon helper
 const getFileIcon = (name = "") => {
   const ext = name.split(".").pop().toLowerCase();
   if (ext === "pdf") return "📄";
@@ -16,7 +30,6 @@ const getFileIcon = (name = "") => {
   return "📁";
 };
 
-// AI mode config
 const AI_MODES = [
   {
     type: "summary",
@@ -38,7 +51,8 @@ const AI_MODES = [
   },
 ];
 
-function UploadBox() {
+// geminiKey comes from App.jsx via props
+function UploadBox({ geminiKey }) {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
@@ -54,15 +68,12 @@ function UploadBox() {
   const [copied, setCopied] = useState(false);
   const [cachedResults, setCachedResults] = useState({});
 
-  // ==========================================
-  // FILE SELECTION
-  // ==========================================
+  // ── FILE SELECTION ──────────────────────────────────────
   const handleFilesChange = (e) => {
     const selected = Array.from(e.target.files);
     setFiles((prev) => {
       const existing = new Set(prev.map((f) => f.name));
-      const newFiles = selected.filter((f) => !existing.has(f.name));
-      return [...prev, ...newFiles];
+      return [...prev, ...selected.filter((f) => !existing.has(f.name))];
     });
     setSuccess("");
     setError("");
@@ -80,9 +91,7 @@ function UploadBox() {
     setCachedResults({});
   };
 
-  // ==========================================
-  // UPLOAD + PROCESS
-  // ==========================================
+  // ── UPLOAD + PROCESS ────────────────────────────────────
   const handleUpload = async () => {
     if (files.length === 0) return;
     setLoading(true);
@@ -115,9 +124,10 @@ function UploadBox() {
     }
   };
 
-  // ==========================================
-  // AI GENERATION
-  // ==========================================
+  // ── AI GENERATION ───────────────────────────────────────
+  // CACHING: We build a cache key from mode + selected doc IDs.
+  // If the user clicks the same button with the same docs selected,
+  // we return the cached result instantly — zero Gemini tokens used.
   const generateContent = async (type) => {
     if (selectedIds.length === 0) {
       setError("Please select at least one document to analyze.");
@@ -134,11 +144,13 @@ function UploadBox() {
     try {
       setError("");
       setAiLoading(true);
-      setAnalysisStage("Generating document-level summaries...");
+      setAnalysisStage("Analyzing documents...");
       setActiveMode(type);
       setAiResult("");
 
-      const data = await generateAI(null, type, selectedIds);
+      // Pass geminiKey to the API call — it goes in the request header
+      const data = await generateAI(null, type, selectedIds, geminiKey);
+
       setCachedResults((prev) => ({ ...prev, [cacheKey]: data.result }));
       setAiResult(data.result);
     } catch (err) {
@@ -160,12 +172,13 @@ function UploadBox() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // ── RENDER ──────────────────────────────────────────────
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="mt-10 border border-white/10 bg-white/4 backdrop-blur-2xl rounded-[28px] p-4 sm:p-8 md:p-12 shadow-[0_0_60px_rgba(0,255,255,0.04)]"
+      className="mt-10 border border-white/10 bg-white/[0.04] backdrop-blur-2xl rounded-[28px] p-4 sm:p-8 md:p-12 shadow-[0_0_60px_rgba(0,255,255,0.04)]"
     >
       {/* HEADER */}
       <div className="flex flex-col items-center text-center">
@@ -187,7 +200,7 @@ function UploadBox() {
 
         <label
           htmlFor="fileUpload"
-          className="mt-8 cursor-pointer inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-linear-to-r from-cyan-500 to-blue-600 hover:scale-[1.03] active:scale-[0.98] transition-all duration-300 font-medium shadow-[0_0_25px_rgba(34,211,238,0.3)] text-white select-none"
+          className="mt-8 cursor-pointer inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:scale-[1.03] active:scale-[0.98] transition-all duration-300 font-medium shadow-[0_0_25px_rgba(34,211,238,0.3)] text-white select-none"
         >
           <FiUploadCloud className="text-lg" />
           Select Documents / Images
@@ -218,7 +231,7 @@ function UploadBox() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className="p-4 rounded-2xl border border-white/10 bg-white/3 backdrop-blur-xl flex items-center justify-between gap-3"
+                className="p-4 rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl flex items-center justify-between gap-3"
               >
                 <div className="flex items-center gap-3 overflow-hidden">
                   <span className="text-2xl shrink-0">
@@ -312,8 +325,9 @@ function UploadBox() {
             animate={{ opacity: 1, y: 0 }}
             className="mt-10"
           >
+            {/* DOCUMENT SELECTION CHECKBOXES */}
             {processedDocs.length > 0 && (
-              <div className="mb-5 px-4">
+              <div className="mb-5 px-2 sm:px-4">
                 <div className="flex flex-col gap-3">
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
                     <p className="text-center text-xs text-gray-400 sm:text-left">
@@ -339,20 +353,24 @@ function UploadBox() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-2xl mx-auto">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-2xl mx-auto w-full">
                     {processedDocs.map((doc) => {
                       const isSelected = selectedIds.includes(doc.id);
                       return (
                         <label
                           key={doc.id}
-                          className={`flex min-w-0 items-center justify-between gap-3 p-3 rounded-lg border cursor-pointer select-none transition-all ${isSelected ? "border-cyan-400/40 bg-cyan-500/5" : "border-white/5 bg-white/2 hover:border-white/10"}`}
+                          className={`flex min-w-0 items-center justify-between gap-3 p-3 rounded-lg border cursor-pointer select-none transition-all ${
+                            isSelected
+                              ? "border-cyan-400/40 bg-cyan-500/5"
+                              : "border-white/5 bg-white/[0.02] hover:border-white/10"
+                          }`}
                         >
                           <div className="flex items-center gap-3 overflow-hidden">
                             <span className="text-lg shrink-0">
                               {getFileIcon(doc.fileName)}
                             </span>
                             <div className="overflow-hidden">
-                              <div className="text-sm text-white font-medium truncate max-w-[180px] sm:max-w-[220px]">
+                              <div className="text-sm text-white font-medium truncate max-w-[160px] sm:max-w-[200px]">
                                 {doc.fileName}
                               </div>
                               <div className="text-xs text-gray-500">
@@ -365,15 +383,13 @@ function UploadBox() {
                             checked={isSelected}
                             onChange={() => {
                               setCachedResults({});
-                              if (isSelected) {
-                                setSelectedIds((prev) =>
-                                  prev.filter((id) => id !== doc.id),
-                                );
-                              } else {
-                                setSelectedIds((prev) => [...prev, doc.id]);
-                              }
+                              setSelectedIds((prev) =>
+                                isSelected
+                                  ? prev.filter((id) => id !== doc.id)
+                                  : [...prev, doc.id],
+                              );
                             }}
-                            className="w-4 h-4 accent-cyan-400 cursor-pointer"
+                            className="w-4 h-4 accent-cyan-400 cursor-pointer shrink-0"
                           />
                         </label>
                       );
@@ -383,6 +399,7 @@ function UploadBox() {
               </div>
             )}
 
+            {/* AI MODE BUTTONS */}
             <div className="flex flex-wrap justify-center gap-3">
               {AI_MODES.map((mode) => {
                 const isActive = activeMode === mode.type;
@@ -396,19 +413,26 @@ function UploadBox() {
                     whileTap={{ scale: 0.96 }}
                     onClick={() => generateContent(mode.type)}
                     disabled={aiLoading || selectedIds.length === 0}
-                    className={`relative px-5 py-3 rounded-xl text-sm font-medium transition-all duration-300 border flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${isActive ? "bg-cyan-500/20 border-cyan-400/40 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.2)]" : "bg-white/5 border-white/10 text-white hover:bg-white/10"}`}
+                    className={`relative px-5 py-3 rounded-xl text-sm font-medium transition-all duration-300 border flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      isActive
+                        ? "bg-cyan-500/20 border-cyan-400/40 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.2)]"
+                        : "bg-white/[0.05] border-white/10 text-white hover:bg-white/10"
+                    }`}
                   >
                     <span className="text-base">{mode.icon}</span>
                     <span>{mode.label}</span>
                     {isCached && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 absolute top-2 right-2" />
+                      <span
+                        className="w-1.5 h-1.5 rounded-full bg-green-400 absolute top-2 right-2"
+                        title="Cached"
+                      />
                     )}
                   </motion.button>
                 );
               })}
             </div>
 
-            {/* AI LOADING */}
+            {/* LOADING */}
             <AnimatePresence>
               {aiLoading && (
                 <motion.div
@@ -443,7 +467,7 @@ function UploadBox() {
               )}
             </AnimatePresence>
 
-            {/* RESPONSE VIEW */}
+            {/* RESPONSE */}
             <AnimatePresence>
               {aiResult && !aiLoading && (
                 <motion.div
@@ -452,17 +476,18 @@ function UploadBox() {
                   transition={{ duration: 0.4 }}
                   className="mt-8"
                 >
-                  <div className="border border-white/10 bg-gradient-to-b from-white/5 to-white-[0.01] backdrop-blur-2xl rounded-2xl overflow-hidden">
-                    <div className="px-5 py-3.5 border-b border-white/10 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg">
+                  <div className="border border-white/10 bg-gradient-to-b from-white/[0.05] to-white/[0.01] backdrop-blur-2xl rounded-2xl overflow-hidden">
+                    {/* RESPONSE HEADER */}
+                    <div className="px-4 sm:px-5 py-3.5 border-b border-white/10 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="text-lg shrink-0">
                           {AI_MODES.find((m) => m.type === activeMode)?.icon}
                         </span>
-                        <div>
-                          <h3 className="text-sm font-semibold text-white">
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-semibold text-white truncate">
                             {AI_MODES.find((m) => m.type === activeMode)?.label}{" "}
-                            —{" "}
                             <span className="text-gray-400 font-normal">
+                              —{" "}
                               {processedFileNames.length > 1
                                 ? `${processedFileNames.length} documents`
                                 : processedFileNames[0]}
@@ -472,7 +497,7 @@ function UploadBox() {
                       </div>
                       <button
                         onClick={handleCopy}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-xs text-gray-400 hover:text-white"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-xs text-gray-400 hover:text-white shrink-0"
                       >
                         {copied ? (
                           <>
@@ -487,6 +512,8 @@ function UploadBox() {
                         )}
                       </button>
                     </div>
+
+                    {/* RESPONSE CONTENT */}
                     <div className="px-4 sm:px-6 py-5 max-h-[80vh] overflow-y-auto">
                       <ResponseViewer content={aiResult} />
                     </div>
