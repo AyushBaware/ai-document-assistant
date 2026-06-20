@@ -1,0 +1,277 @@
+// ============================================================
+// sessionController.js
+//
+// ARCHITECTURE NOTE (Phase 3 design decision):
+// createSession does NOT receive extractedText from the
+// frontend. uploadController.js intentionally strips that
+// field from its response to keep the upload payload light —
+// the browser never needs to hold 50,000+ characters of raw
+// document text just to display it.
+//
+// Instead, the frontend sends only DOCUMENT IDS (the same ids
+// used for the checkbox selection in UploadBox.jsx). The
+// backend then pulls the actual extractedText from
+// knowledgeStore.js — which already has it in memory from the
+// upload step that just ran. This avoids a wasteful round-trip
+// AND prevents a tampered frontend request from injecting fake
+// content directly into MongoDB.
+//
+// TRADEOFF: knowledgeStore is in-memory and per-server-process.
+// This works correctly for a single-server local/dev setup
+// (your current architecture). If you later deploy with
+// multiple server instances behind a load balancer, in-memory
+// storage breaks (request might land on a different instance
+// than the upload did). That's a known limitation documented
+// here for when Phase 7 (deployment) is reached — the fix then
+// would be moving knowledgeStore into Redis or directly into
+// MongoDB as a temporary "pending documents" collection.
+// ============================================================
+
+import Session from "../models/Session.js";
+import knowledgeStore from "../utils/knowledgeStore.js";
+import { generateSessionTitle, enforceSessionLimit } from "../utils/sessionHelpers.js";
+
+// ============================================================
+// POST /api/sessions
+// Frontend sends: { documentIds: ["id1", "id2"] }
+// Backend looks these up in knowledgeStore (populated during
+// the upload that just happened) and saves the full session.
+// ============================================================
+
+export const createSession = async (req, res) => {
+  try {
+    const { documentIds } = req.body;
+    const userId = req.userId;
+
+    if (!documentIds || !Array.isArray(documentIds) || documentIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No document IDs provided to save.",
+      });
+    }
+
+    // Pull full document data (including extractedText) from
+    // the in-memory store — this is the same store aiController.js
+    // already reads from when generating AI responses.
+    const allDocuments = knowledgeStore.getAllDocuments();
+    const matchedDocuments = allDocuments.filter((doc) =>
+      documentIds.includes(doc.id)
+    );
+
+    if (matchedDocuments.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Documents not found. Please re-upload and try again.",
+      });
+    }
+
+    const title = generateSessionTitle(matchedDocuments.map((d) => d.fileName));
+
+    const session = await Session.create({
+      userId,
+      title,
+      documents: matchedDocuments.map((doc) => ({
+        fileName: doc.fileName,
+        mimetype: doc.mimetype,
+        extractedText: doc.extractedText,
+        chunkCount: doc.chunkCount || (doc.chunks ? doc.chunks.length : 0),
+      })),
+      responses: {
+        summary: {},
+        notes: {},
+        explain: {},
+      },
+    });
+
+    await enforceSessionLimit(userId);
+
+    return res.status(201).json({
+      success: true,
+      session: {
+        id: session._id,
+        title: session.title,
+        createdAt: session.createdAt,
+      },
+    });
+
+  } catch (error) {
+    console.error("Create Session Error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save session.",
+    });
+  }
+};
+
+// ============================================================
+// GET /api/sessions
+// Lightweight list for the sidebar — title, dates, document
+// names, and which AI modes already have cached responses.
+// ============================================================
+
+export const getAllSessions = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const sessions = await Session.find({ userId })
+      .sort({ lastOpenedAt: -1 })
+      .select("title createdAt lastOpenedAt documents.fileName responses");
+
+    const sessionList = sessions.map((s) => ({
+      id: s._id,
+      title: s.title,
+      createdAt: s.createdAt,
+      lastOpenedAt: s.lastOpenedAt,
+      documentNames: s.documents.map((d) => d.fileName),
+      hasResponses: {
+        summary: !!s.responses?.summary?.result,
+        notes: !!s.responses?.notes?.result,
+        explain: !!s.responses?.explain?.result,
+      },
+    }));
+
+    return res.status(200).json({
+      success: true,
+      sessions: sessionList,
+    });
+
+  } catch (error) {
+    console.error("Get All Sessions Error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch sessions.",
+    });
+  }
+};
+
+// ============================================================
+// GET /api/sessions/:id
+// Full session detail. Security check: filters by userId too,
+// so users can never fetch another user's session by guessing
+// the MongoDB _id in the URL.
+// ============================================================
+
+export const getSessionById = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { id } = req.params;
+
+    const session = await Session.findOne({ _id: id, userId });
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: "Session not found.",
+      });
+    }
+
+    session.lastOpenedAt = new Date();
+    await session.save();
+
+    return res.status(200).json({
+      success: true,
+      session: {
+        id: session._id,
+        title: session.title,
+        documents: session.documents,
+        responses: session.responses,
+        createdAt: session.createdAt,
+      },
+    });
+
+  } catch (error) {
+    console.error("Get Session By Id Error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch session.",
+    });
+  }
+};
+
+// ============================================================
+// PATCH /api/sessions/:id
+// Saves an AI response (summary/notes/explain) into the session.
+// ============================================================
+
+export const updateSessionResponse = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { id } = req.params;
+    const { type, result, tokenBudget } = req.body;
+
+    if (!type || !["summary", "notes", "explain"].includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid response type.",
+      });
+    }
+
+    if (!result) {
+      return res.status(400).json({
+        success: false,
+        message: "No result provided to save.",
+      });
+    }
+
+    const session = await Session.findOne({ _id: id, userId });
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: "Session not found.",
+      });
+    }
+
+    session.responses[type] = {
+      result,
+      generatedAt: new Date(),
+      tokenBudget: tokenBudget || null,
+    };
+
+    await session.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `${type} response saved.`,
+    });
+
+  } catch (error) {
+    console.error("Update Session Response Error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save response.",
+    });
+  }
+};
+
+// ============================================================
+// DELETE /api/sessions/:id
+// ============================================================
+
+export const deleteSession = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { id } = req.params;
+
+    const session = await Session.findOneAndDelete({ _id: id, userId });
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: "Session not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Session deleted.",
+    });
+
+  } catch (error) {
+    console.error("Delete Session Error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete session.",
+    });
+  }
+};

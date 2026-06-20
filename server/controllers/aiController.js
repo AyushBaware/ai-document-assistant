@@ -60,12 +60,11 @@ const MAX_TOKENS = 7800; // safely under Gemini 2.5 Flash's 8192 ceiling
 
 const calculateTokenBudget = (documents, mode) => {
   const totalChars = documents.reduce(
-    (sum, doc) => sum + (doc.extractedText?.length || 0),
-    0,
+    (sum, doc) => sum + (doc.extractedText?.length || 0), 0
   );
   const docCount = documents.length;
 
-  const ratio = MODE_RATIO[mode] || 0.1;
+  const ratio = MODE_RATIO[mode] || 0.10;
   const floor = STRUCTURAL_FLOOR[mode] || 300;
   const min = MIN_TOKENS[mode] || 400;
 
@@ -85,39 +84,32 @@ const calculateTokenBudget = (documents, mode) => {
 
 const buildContentProfile = (documents, mode) => {
   const totalChars = documents.reduce(
-    (sum, doc) => sum + (doc.extractedText?.length || 0),
-    0,
+    (sum, doc) => sum + (doc.extractedText?.length || 0), 0
   );
   const docCount = documents.length;
 
-  const docProfiles = documents
-    .map((doc, i) => {
-      const chars = doc.extractedText?.length || 0;
-      const ext = doc.fileName.split(".").pop().toLowerCase();
-      const sizeLabel =
-        chars < 2000
-          ? "very short (1-2 pages)"
-          : chars < 6000
-            ? "short (3-5 pages)"
-            : chars < 15000
-              ? "medium (6-15 pages)"
-              : chars < 30000
-                ? "long (15-30 pages)"
-                : "very long (30+ pages)";
+  const docProfiles = documents.map((doc, i) => {
+    const chars = doc.extractedText?.length || 0;
+    const ext = doc.fileName.split(".").pop().toLowerCase();
+    const sizeLabel =
+      chars < 2000  ? "very short (1-2 pages)" :
+      chars < 6000  ? "short (3-5 pages)" :
+      chars < 15000 ? "medium (6-15 pages)" :
+      chars < 30000 ? "long (15-30 pages)" :
+                      "very long (30+ pages)";
 
-      // Detect if this doc was flagged as image-heavy by extractText.js
-      const hasGapWarning = doc.extractedText?.includes("[SYSTEM NOTE:");
+    // Detect if this doc was flagged as image-heavy by extractText.js
+    const hasGapWarning = doc.extractedText?.includes("[SYSTEM NOTE:");
 
-      return `  Document ${i + 1}: "${doc.fileName}" — ${ext.toUpperCase()}, ${sizeLabel}, ${chars} characters${hasGapWarning ? " ⚠️ CONTAINS LOW-TEXT-DENSITY WARNING — see content for details" : ""}`;
-    })
-    .join("\n");
+    return `  Document ${i + 1}: "${doc.fileName}" — ${ext.toUpperCase()}, ${sizeLabel}, ${chars} characters${hasGapWarning ? " ⚠️ CONTAINS LOW-TEXT-DENSITY WARNING — see content for details" : ""}`;
+  }).join("\n");
 
   const depthInstruction =
     mode === "summary"
       ? "Produce a summary proportional to each document's size. Short docs get concise overviews, long docs get thorough coverage. Do not pad or truncate."
       : mode === "notes"
-        ? "Produce revision notes proportional to content. Brief docs need focused notes, dense docs need comprehensive notes with all concepts covered."
-        : "Produce explanations proportional to depth. Brief docs need clear focused teaching, dense docs need thorough concept-by-concept coverage.";
+      ? "Produce revision notes proportional to content. Brief docs need focused notes, dense docs need comprehensive notes with all concepts covered."
+      : "Produce explanations proportional to depth. Brief docs need clear focused teaching, dense docs need thorough concept-by-concept coverage.";
 
   return `CONTENT PROFILE:
 You are processing ${docCount} document${docCount > 1 ? "s" : ""} with ${totalChars} total characters.
@@ -132,13 +124,22 @@ IMPORTANT: Adjust response depth to match actual content. Never end before cover
 };
 
 // ── GEMINI API CALL ──────────────────────────────────────────
+// THIN-RESPONSE PROTECTION (fixes the "1-2 line summary" bug):
+// Gemini occasionally returns a very short response (just
+// headers, no real content) even with finishReason: "STOP" —
+// this happens when the model treats the rigid template
+// structure as "complete" without filling it in, especially
+// at low temperature with heavily structured system
+// instructions. This is NOT a token budget problem — it can
+// happen even with thousands of tokens still available.
+// FIX: if the response is suspiciously short relative to the
+// input content, retry ONCE with a stronger explicit
+// instruction and slightly higher temperature.
 
-const callGemini = async (
-  systemInstruction,
-  userContent,
-  apiKey,
-  maxTokens,
-) => {
+const MIN_ACCEPTABLE_RESPONSE_RATIO = 0.03; // response should be at least ~3% of input length
+const MIN_ACCEPTABLE_RESPONSE_CHARS = 300;  // absolute floor regardless of input size
+
+const callGemini = async (systemInstruction, userContent, apiKey, maxTokens, retryCount = 0) => {
   const response = await fetch(GEMINI_URL, {
     method: "POST",
     headers: {
@@ -149,9 +150,14 @@ const callGemini = async (
       system_instruction: {
         parts: [{ text: systemInstruction }],
       },
-      contents: [{ role: "user", parts: [{ text: userContent }] }],
+      contents: [
+        { role: "user", parts: [{ text: userContent }] },
+      ],
       generationConfig: {
-        temperature: 0.2,
+        // On retry, raise temperature — gives the model more
+        // freedom to generate actual prose instead of collapsing
+        // to a minimal template match.
+        temperature: retryCount === 0 ? 0.2 : 0.4,
         topK: 40,
         topP: 0.95,
         maxOutputTokens: maxTokens,
@@ -166,15 +172,34 @@ const callGemini = async (
     throw new Error(data.error?.message || "Gemini request failed");
   }
 
-  // Check finish reason — helps debug truncation issues
-  const finishReason = data.candidates?.[0]?.finishReason;
-  if (finishReason === "MAX_TOKENS") {
-    console.warn(
-      "⚠️ Gemini response was cut off due to MAX_TOKENS limit. Consider raising token budget for this request.",
-    );
+  const candidate = data.candidates?.[0];
+  const finishReason = candidate?.finishReason;
+  const text = candidate?.content?.parts?.[0]?.text || "";
+
+  // Log every non-STOP finish reason — real signal for why a
+  // response might be short, empty, or blocked.
+  if (finishReason && finishReason !== "STOP") {
+    console.warn(`⚠️ Gemini finishReason: ${finishReason} (not a normal completion)`);
   }
 
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  // ── THIN RESPONSE CHECK ──────────────────────────────────
+  const inputLength = userContent.length;
+  const isTooShort =
+    text.trim().length < MIN_ACCEPTABLE_RESPONSE_CHARS ||
+    text.trim().length < inputLength * MIN_ACCEPTABLE_RESPONSE_RATIO;
+
+  if (isTooShort && retryCount === 0) {
+    console.warn(
+      `⚠️ Thin response detected (${text.trim().length} chars for ${inputLength} chars of input). Retrying once with adjusted parameters.`
+    );
+    const strengthenedInstruction =
+      systemInstruction +
+      `\n\n[CRITICAL REMINDER]: Your previous attempt to follow this format produced only headers with no actual content. You MUST fill in every section with real, specific information extracted from the documents. Do not output section headers without substantial content beneath each one.`;
+
+    return callGemini(strengthenedInstruction, userContent, apiKey, maxTokens, retryCount + 1);
+  }
+
+  return text;
 };
 
 // ── KNOWLEDGE BUILDER ────────────────────────────────────────
@@ -192,8 +217,7 @@ const buildKnowledge = (documents) => {
 
         let headSlice = text.slice(0, halfSize);
         const lastBreakHead = headSlice.lastIndexOf("\n");
-        if (lastBreakHead > halfSize * 0.7)
-          headSlice = headSlice.slice(0, lastBreakHead);
+        if (lastBreakHead > halfSize * 0.7) headSlice = headSlice.slice(0, lastBreakHead);
 
         let tailSlice = text.slice(text.length - halfSize);
         const firstBreakTail = tailSlice.indexOf("\n");
@@ -384,13 +408,12 @@ export const generateAIResponse = async (req, res) => {
     // API KEY RESOLUTION — user's header key takes priority over .env
     const userKey = req.headers["x-gemini-key"];
     const serverKey = process.env.GEMINI_API_KEY;
-    const apiKey = userKey && userKey.startsWith("AIza") ? userKey : serverKey;
+    const apiKey = (userKey && userKey.startsWith("AIza")) ? userKey : serverKey;
 
     if (!apiKey) {
       return res.status(401).json({
         success: false,
-        message:
-          "No Gemini API key found. Please add your API key in the app settings.",
+        message: "No Gemini API key found. Please add your API key in the app settings.",
       });
     }
 
@@ -405,9 +428,7 @@ export const generateAIResponse = async (req, res) => {
     let docsToUse = allDocuments;
 
     if (Array.isArray(selectedDocumentIds) && selectedDocumentIds.length > 0) {
-      const filtered = allDocuments.filter((d) =>
-        selectedDocumentIds.includes(d.id),
-      );
+      const filtered = allDocuments.filter((d) => selectedDocumentIds.includes(d.id));
       if (filtered.length > 0) docsToUse = filtered;
     }
 
@@ -434,12 +455,7 @@ Analyze the following documents strictly according to your system instructions. 
 
 ${knowledge}`;
 
-    const result = await callGemini(
-      systemInstruction,
-      userContent,
-      apiKey,
-      tokenBudget,
-    );
+    const result = await callGemini(systemInstruction, userContent, apiKey, tokenBudget);
 
     if (!result || result.trim().length < 30) {
       return res.status(500).json({
@@ -455,6 +471,7 @@ ${knowledge}`;
       documentNames: docsToUse.map((d) => d.fileName),
       tokenBudget,
     });
+
   } catch (error) {
     console.error("AI Controller Error:", error.message);
 
@@ -473,8 +490,8 @@ ${knowledge}`;
       message: isRateLimit
         ? "Gemini rate limit reached. Please wait 1-2 minutes and try again."
         : isInvalidKey
-          ? "Invalid API key. Please check your Gemini API key in settings."
-          : error.message || "AI generation failed.",
+        ? "Invalid API key. Please check your Gemini API key in settings."
+        : error.message || "AI generation failed.",
     });
   }
 };

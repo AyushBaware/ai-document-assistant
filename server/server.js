@@ -1,13 +1,9 @@
 // ============================================================
 // server.js
 //
-// WHAT CHANGED FROM YOUR ORIGINAL:
-// 1. Added connectDB() call — connects to MongoDB Atlas on
-//    server startup, before accepting any requests.
-// 2. Added authRoutes mounted at /api/auth
-//
-// Everything else (uploadRoutes, aiRoutes, CORS, JSON parsing)
-// is identical to your original file.
+// WHAT CHANGED FROM PHASE 2:
+// Added sessionRoutes mounted at /api/sessions.
+// Everything else is unchanged.
 // ============================================================
 
 import express from "express";
@@ -21,11 +17,8 @@ import connectDB from "./config/db.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import sessionRoutes from "./routes/sessionRoutes.js";
 
-// Connect to MongoDB Atlas before the server starts handling
-// requests. If this fails, db.js exits the process with a
-// clear error — better than a server that "works" but silently
-// can't save anything.
 connectDB();
 
 const app = express();
@@ -41,6 +34,7 @@ app.use(
 app.use("/api/upload", uploadRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/sessions", sessionRoutes);
 
 app.get("/", (req, res) => {
   res.json({

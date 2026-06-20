@@ -1,25 +1,17 @@
 // ============================================================
 // App.jsx
 //
-// WHAT THIS FILE NOW HANDLES:
-// 1. Gemini API key (Phase 1 — unchanged logic, still required
-//    to use the app, still stored in localStorage)
-// 2. Google Login (Phase 2 — NEW, completely OPTIONAL)
+// WHAT CHANGED FROM PHASE 2:
+// 1. Imports SessionHistory — the sidebar showing past sessions
+// 2. Tracks `selectedSessionId` — when set via sidebar click,
+//    gets passed into UploadBox as `preloadedSession`
+// 3. Tracks `sessionRefreshTrigger` — a simple counter bumped
+//    every time a new session is saved, so SessionHistory
+//    knows to reload its list (React doesn't auto-detect
+//    changes happening inside a sibling component otherwise)
 //
-// WHY LOGIN IS OPTIONAL HERE:
-// Per your decision — the app must work fully without login.
-// Login only matters for FUTURE features (saved history). So
-// we show a small, dismissible login prompt rather than a
-// blocking modal. The user can close it and keep using the
-// app as before.
-//
-// HOW THE TWO SYSTEMS COEXIST:
-// - geminiKey check still gates the main UploadBox (same as
-//   before — you NEED a Gemini key to generate AI responses)
-// - Google login is independent — it does NOT block anything
-//   right now. It just shows a "Sign in" option in the corner.
-//   When Phase 3 (session history) is built, THAT feature will
-//   check `user` from AuthContext to decide what to show.
+// Everything from Phase 1 (geminiKey) and Phase 2 (auth) is
+// completely unchanged below — Phase 3 is purely additive.
 // ============================================================
 
 import { useState, useEffect } from "react";
@@ -29,6 +21,7 @@ import HeroSection from "./components/HeroSection";
 import UploadBox from "./components/UploadBox";
 import ApiKeyModal from "./components/ApiKeyModal";
 import LoginButton from "./components/LoginButton";
+import SessionHistory from "./components/SessionHistory";
 import { useAuth } from "./context/AuthContext";
 import { FiSettings, FiLogOut, FiUser } from "react-icons/fi";
 
@@ -37,9 +30,13 @@ function App() {
   const [geminiKey, setGeminiKey] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
 
-  // ── AUTH STATE (Phase 2 — new) ────────────────────────────
+  // ── AUTH STATE (Phase 2 — unchanged) ──────────────────────
   const { user, isAuthLoading, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  // ── SESSION HISTORY STATE (Phase 3 — new) ─────────────────
+  const [selectedSessionId, setSelectedSessionId] = useState(null);
+  const [sessionRefreshTrigger, setSessionRefreshTrigger] = useState(0);
 
   useEffect(() => {
     const savedKey = localStorage.getItem("gemini_api_key");
@@ -57,18 +54,36 @@ function App() {
     setShowSettings(false);
   };
 
-  // Wait until BOTH localStorage checks finish before rendering,
-  // to avoid a flash of the wrong UI state.
+  // Called by SessionHistory when user clicks a past session
+  const handleSelectSession = (sessionId) => {
+    setSelectedSessionId(sessionId);
+  };
+
+  // Called by UploadBox right after a NEW session is saved —
+  // bumps the trigger so SessionHistory refreshes its list
+  // next time it's opened.
+  const handleSessionSaved = () => {
+    setSessionRefreshTrigger((prev) => prev + 1);
+  };
+
   if (geminiKey === null || isAuthLoading) return null;
 
   return (
     <div className="relative min-h-screen bg-[#030712] overflow-hidden text-white">
       <BackgroundGlow />
 
+      {/* ── SESSION HISTORY SIDEBAR (Phase 3) ─────────────────
+          Renders nothing if user is not logged in — see the
+          `if (!user) return null` check inside the component.
+      ──────────────────────────────────────────────────────── */}
+      <SessionHistory
+        onSelectSession={handleSelectSession}
+        refreshTrigger={sessionRefreshTrigger}
+      />
+
       {/* ── TOP-RIGHT CONTROLS ─────────────────────────────── */}
       <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
 
-        {/* ── AUTH SECTION — shows login button OR user avatar ── */}
         {user ? (
           <div className="relative">
             <button
@@ -98,6 +113,7 @@ function App() {
                   onClick={() => {
                     logout();
                     setShowUserMenu(false);
+                    setSelectedSessionId(null); // clear any loaded session on logout
                   }}
                   className="w-full flex items-center justify-center gap-2 text-xs py-2 rounded-lg bg-red-500/10 border border-red-400/20 text-red-300 hover:bg-red-500/20 transition"
                 >
@@ -108,13 +124,17 @@ function App() {
             )}
           </div>
         ) : (
-          // Compact login button — does NOT block app usage
-          <div className="hidden sm:block">
+          // SINGLE LoginButton instance — scaled down via CSS for
+          // mobile instead of mounting a second component instance.
+          // FIXED: previously this rendered twice (here + inline in
+          // main content below), causing Google's SDK to call
+          // initialize() twice — the "[GSI_LOGGER] initialize()
+          // called multiple times" console warning.
+          <div className="scale-[0.85] sm:scale-100 origin-right">
             <LoginButton />
           </div>
         )}
 
-        {/* ── SETTINGS BUTTON (Gemini API key — Phase 1) ──────── */}
         <div className="relative">
           <button
             onClick={() => setShowSettings((v) => !v)}
@@ -156,19 +176,21 @@ function App() {
       <div className="relative z-10 max-w-6xl mx-auto px-4 py-16 md:py-24">
         <HeroSection />
 
-        {/* Mobile-only login prompt — shown inline since the
-            top-right button is hidden on small screens to save
-            space. Dismissible, never blocks the app. */}
         {!user && (
-          <div className="sm:hidden flex justify-center mb-6">
-            <LoginButton />
-          </div>
+          <p className="sm:hidden text-center text-gray-500 text-xs mb-6">
+            Sign in (top right) to save your session history.
+          </p>
         )}
 
-        {geminiKey ? <UploadBox geminiKey={geminiKey} /> : null}
+        {geminiKey ? (
+          <UploadBox
+            geminiKey={geminiKey}
+            preloadedSession={selectedSessionId}
+            onSessionSaved={handleSessionSaved}
+          />
+        ) : null}
       </div>
 
-      {/* ── GEMINI API KEY MODAL (Phase 1 — blocking, required) ── */}
       {geminiKey === "" && <ApiKeyModal onKeySaved={handleKeySaved} />}
     </div>
   );
