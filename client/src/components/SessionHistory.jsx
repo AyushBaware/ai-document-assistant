@@ -156,10 +156,25 @@ function SessionHistory({ onSelectSession, refreshTrigger }) {
                 )}
 
                 {sessions.map((session) => (
-                  <button
+                  // FIXED: was a <button> wrapping another <button>
+                  // (the delete icon below) — invalid HTML, browsers
+                  // handle nested interactive elements inconsistently
+                  // and React warns about it as a hydration risk.
+                  // Now this is a <div> with role="button" and full
+                  // keyboard support (Enter/Space activate it, Tab
+                  // can focus it) — same accessibility, valid HTML.
+                  <div
                     key={session.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => handleSelect(session.id)}
-                    className="w-full text-left p-3 rounded-xl hover:bg-white/[0.06] transition-all group mb-1.5 border border-transparent hover:border-white/10"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleSelect(session.id);
+                      }
+                    }}
+                    className="w-full text-left p-3 rounded-xl hover:bg-white/[0.06] transition-all group mb-1.5 border border-transparent hover:border-white/10 cursor-pointer focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
@@ -198,7 +213,7 @@ function SessionHistory({ onSelectSession, refreshTrigger }) {
                         <FiTrash2 className="text-sm" />
                       </button>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
 
