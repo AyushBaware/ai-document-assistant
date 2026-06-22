@@ -1,42 +1,26 @@
 // ============================================================
 // UploadBox.jsx
 //
-// REDESIGNED FOR SIMPLICITY — matches how Claude's file upload
-// actually works:
+// WHAT CHANGED FROM PREVIOUS VERSION:
+// Added drag-and-drop support. The entire upload zone (empty
+// state AND the active file area) now accepts dragged files,
+// not just the click-to-browse button.
 //
-// - ONE persistent "Add files" control, always visible
-// - Clicking it ANY TIME (before or after other files exist,
-//   before or after processing) just adds files to the list
-// - Each file has its own ✕ to remove it individually
-// - There is NO separate "Start Over" / "New Upload" / "Process
-//   New Files" button anymore — that was unnecessary complexity.
-//   If you want to remove everything, remove each file with ✕,
-//   or remove them all and the empty state naturally returns.
-// - "Process Documents" runs whenever you have files staged
-//   that haven't been processed yet. After processing, adding
-//   another file simply marks the whole batch as "needs
-//   reprocessing" again — one button, same label, every time.
+// HOW DRAG-AND-DROP WORKS IN THE BROWSER:
+// Three events matter: dragover (fires continuously while
+// something is dragged over the element — we must call
+// preventDefault() or the browser blocks dropping entirely),
+// dragleave (dragged item left the zone — reset visual state),
+// and drop (the actual file drop — extract files from
+// e.dataTransfer.files, which has the SAME shape as
+// e.target.files from a normal file input, so it plugs into
+// the existing handleFilesChange-style logic directly).
 //
-// WHY THIS IS BETTER THAN THE PREVIOUS VERSION:
-// The previous version had 3 different buttons doing
-// overlapping things (Add Files / Process New Files / Start
-// Over) which forced the user to understand an internal state
-// machine. A good UI hides that complexity. Now there is ONE
-// upload control and ONE process button — exactly like Claude,
-// ChatGPT, and every well-designed AI tool handles attachments.
-//
-// HOW REPROCESSING WORKS NOW:
-// We track `needsProcessing` — true whenever the current file
-// list doesn't match what was last successfully processed.
-// Adding/removing a file sets this true. Clicking "Process
-// Documents" sends the CURRENT full file list (not a diff) —
-// this matches how uploadController.js already works (it
-// always replaces the knowledgeStore with whatever batch it
-// receives), so there's no special "combine old + new" logic
-// needed anymore. One source of truth: `files` state.
+// We track `isDragging` purely for visual feedback (highlight
+// the drop zone border) — it doesn't affect upload logic at all.
 // ============================================================
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import ResponseViewer from "./ResponseViewer";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiUploadCloud, FiPlus } from "react-icons/fi";
@@ -55,6 +39,8 @@ const getFileIcon = (name = "") => {
   return "📁";
 };
 
+const ACCEPTED_EXTENSIONS = [".pdf", ".doc", ".docx", ".ppt", ".pptx", ".txt", ".png", ".jpg", ".jpeg", ".webp"];
+
 const AI_MODES = [
   { type: "summary", label: "Summary", icon: "⚡", description: "Key points at a glance" },
   { type: "notes",   label: "Notes",   icon: "📋", description: "Revision-ready study notes" },
@@ -64,11 +50,6 @@ const AI_MODES = [
 function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
   const { user, token } = useAuth();
 
-  // ── SINGLE SOURCE OF TRUTH FOR FILES ────────────────────
-  // `files` always represents the COMPLETE current set the
-  // user wants analyzed — whether that's their first selection
-  // or after adding/removing items. No separate "staged" vs
-  // "processed" file lists to keep in sync.
   const [files, setFiles] = useState([]);
   const [needsProcessing, setNeedsProcessing] = useState(false);
 
@@ -87,6 +68,13 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
 
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [isLoadingPreload, setIsLoadingPreload] = useState(false);
+
+  // ── DRAG AND DROP STATE ─────────────────────────────────
+  const [isDragging, setIsDragging] = useState(false);
+  // Tracks nested dragenter/dragleave pairs — without this,
+  // dragging over a CHILD element inside the drop zone fires
+  // a spurious dragleave on the parent, causing flicker.
+  const dragCounter = useRef(0);
 
   // ── LOAD A PRELOADED SESSION (from history sidebar click) ──
   useEffect(() => {
@@ -136,28 +124,87 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
     loadPreloadedSession();
   }, [preloadedSession]);
 
-  // ── ADD FILES ────────────────────────────────────────────
-  // Works identically whether this is the very first selection
-  // or adding more after a batch is already processed. Always
-  // merges into the existing list, never replaces it.
-  const handleFilesChange = (e) => {
-    const selected = Array.from(e.target.files);
+  // ── SHARED FILE-ADDING LOGIC ─────────────────────────────
+  // Used by BOTH the file input (click to browse) and drag-drop.
+  // This is the single place new files actually get merged in,
+  // so both entry points behave identically.
+  const addFiles = (newFileList) => {
+    const incoming = Array.from(newFileList);
+
+    // Filter out unsupported file types client-side for instant
+    // feedback — the backend still validates again (never trust
+    // client-side validation alone for security).
+    const valid = incoming.filter((f) => {
+      const ext = "." + f.name.split(".").pop().toLowerCase();
+      return ACCEPTED_EXTENSIONS.includes(ext);
+    });
+
+    const rejected = incoming.length - valid.length;
+
     setFiles((prev) => {
       const existing = new Set(prev.map((f) => `${f.name}-${f.size}`));
-      const newOnes = selected.filter((f) => !existing.has(`${f.name}-${f.size}`));
+      const newOnes = valid.filter((f) => !existing.has(`${f.name}-${f.size}`));
       return [...prev, ...newOnes];
     });
-    setError("");
+
+    if (rejected > 0) {
+      setError(
+        `${rejected} file${rejected > 1 ? "s" : ""} skipped — unsupported format. Accepted: PDF, DOC, DOCX, PPT, PPTX, TXT, PNG, JPG, WEBP.`
+      );
+    } else {
+      setError("");
+    }
+
     setNeedsProcessing(true);
-    // Clear results — the file set changed, old responses no
-    // longer represent "all currently selected files."
     setAiResult("");
     setActiveMode(null);
     setCachedResults({});
-    e.target.value = ""; // allows selecting the same filename again later if removed
   };
 
-  // ── REMOVE A SINGLE FILE ─────────────────────────────────
+  const handleFilesChange = (e) => {
+    addFiles(e.target.files);
+    e.target.value = ""; // allows re-selecting the same filename later if removed
+  };
+
+  // ── DRAG AND DROP HANDLERS ───────────────────────────────
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current += 1;
+    if (e.dataTransfer.types.includes("Files")) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current -= 1;
+    if (dragCounter.current <= 0) {
+      dragCounter.current = 0;
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    // REQUIRED: without preventDefault here, the browser's
+    // default behavior (usually opening the file in a new tab)
+    // takes over and the drop event never fires.
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current = 0;
+    setIsDragging(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      addFiles(e.dataTransfer.files);
+    }
+  };
+
   const removeFile = (index) => {
     setFiles((prev) => {
       const next = prev.filter((_, i) => i !== index);
@@ -268,9 +315,34 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="mt-10 border border-white/10 bg-white/[0.04] backdrop-blur-2xl rounded-[28px] p-4 sm:p-8 md:p-12 shadow-[0_0_60px_rgba(0,255,255,0.04)]"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      className={`mt-10 border backdrop-blur-2xl rounded-[28px] p-4 sm:p-8 md:p-12 shadow-[0_0_60px_rgba(0,255,255,0.04)] transition-all duration-200 ${
+        isDragging
+          ? "border-cyan-400/60 bg-cyan-500/[0.08] scale-[1.01]"
+          : "border-white/10 bg-white/[0.04]"
+      }`}
     >
-      {/* LOADING PRELOADED SESSION */}
+      {/* DRAG OVERLAY — shown on top while dragging, regardless
+          of whether files already exist or it's the empty state */}
+      <AnimatePresence>
+        {isDragging && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 pointer-events-none flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          >
+            <div className="flex flex-col items-center gap-3 px-8 py-6 rounded-3xl border-2 border-dashed border-cyan-400/60 bg-[#0a0e16]/90">
+              <FiUploadCloud className="text-5xl text-cyan-400" />
+              <p className="text-white font-medium">Drop files to upload</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {isLoadingPreload && (
         <div className="flex flex-col items-center justify-center py-16 gap-4">
           <motion.div
@@ -284,7 +356,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
 
       {!isLoadingPreload && (
         <>
-          {/* EMPTY STATE — shown only when nothing has ever been added */}
+          {/* EMPTY STATE */}
           {!hasAnyFiles && (
             <div className="flex flex-col items-center text-center">
               <motion.div
@@ -300,6 +372,9 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
               </h2>
               <p className="mt-3 text-gray-400 max-w-xl text-sm sm:text-base leading-7">
                 Upload PDFs, DOCX, PPTX, TXT or Images — get instant summaries, study notes, and explanations.
+              </p>
+              <p className="mt-1 text-gray-600 text-xs">
+                Drag and drop files anywhere in this box, or click below to browse.
               </p>
 
               <label
@@ -321,12 +396,9 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
             </div>
           )}
 
-          {/* ── ACTIVE STATE: files exist (staged and/or processed) ── */}
+          {/* ACTIVE STATE */}
           {hasAnyFiles && (
             <div>
-              {/* Compact header bar with a persistent "Add" control —
-                  this is the ONLY upload entry point once files exist,
-                  always visible, always just adds to the list. */}
               <div className="flex items-center justify-between gap-3 mb-5">
                 <h2 className="text-lg sm:text-xl font-semibold text-white">
                   {processedFileNames.length > 0 && !needsProcessing
@@ -353,8 +425,6 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                 />
               </div>
 
-              {/* FILE CHIPS — every selected file, with its own ✕.
-                  This is the single list users interact with. */}
               <AnimatePresence>
                 {files.length > 0 && (
                   <motion.div
@@ -392,10 +462,6 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                 )}
               </AnimatePresence>
 
-              {/* PROCESS BUTTON — appears whenever there are
-                  unprocessed changes. Same button, same label,
-                  whether this is the first process or a re-process
-                  after adding/removing files. */}
               <AnimatePresence>
                 {needsProcessing && (
                   <motion.div
@@ -428,7 +494,6 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                 )}
               </AnimatePresence>
 
-              {/* ERROR */}
               <AnimatePresence>
                 {error && (
                   <motion.p
@@ -441,7 +506,6 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                 )}
               </AnimatePresence>
 
-              {/* ── AI CONTROL PANEL — only when current batch is processed ── */}
               <AnimatePresence>
                 {isProcessed && !needsProcessing && (
                   <motion.div
@@ -449,7 +513,6 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                     animate={{ opacity: 1, y: 0 }}
                     className="mt-6"
                   >
-                    {/* DOCUMENT SELECTION CHECKBOXES */}
                     {processedDocs.length > 1 && (
                       <div className="mb-5">
                         <div className="flex flex-col gap-3">
@@ -519,7 +582,6 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                       </div>
                     )}
 
-                    {/* AI MODE BUTTONS */}
                     <div className="flex flex-wrap justify-center gap-3">
                       {AI_MODES.map((mode) => {
                         const isActive = activeMode === mode.type;
@@ -549,7 +611,6 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                       })}
                     </div>
 
-                    {/* LOADING */}
                     <AnimatePresence>
                       {aiLoading && (
                         <motion.div
@@ -577,7 +638,6 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                       )}
                     </AnimatePresence>
 
-                    {/* RESPONSE */}
                     <AnimatePresence>
                       {aiResult && !aiLoading && (
                         <motion.div
