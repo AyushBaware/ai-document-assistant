@@ -1,182 +1,340 @@
 // ============================================================
 // aiController.js
 //
-// ROOT CAUSE FIX — "thin response" bug explained properly:
+// WHAT THIS FILE DOES
+// ───────────────────
+// This is the AI engine of DocuMind. It handles two scenarios:
 //
-// The previous version had ONE rigid template per mode
-// (Summary/Notes/Explain), built for educational documents
-// (lecture notes, textbooks, case studies). When given a
-// SHORT REFERENCE document — a resume, certificate, single
-// page notice — the template demands sections like "Core
-// Concepts", "Real-World Analogy", "5 Key Things to Remember"
-// that genuinely don't apply. Gemini has nothing to put there,
-// so it outputs headers with no content, repeatedly, even
-// across retries — because the PROBLEM ISN'T TOKEN BUDGET,
-// it's that the template doesn't fit the document type.
+//   generateAIResponse   → called after a FRESH UPLOAD.
+//                          Reads document text from the
+//                          in-memory knowledgeStore that
+//                          uploadController.js populated.
 //
-// THE FIX: Document Type Detection.
-// Before building the prompt, we classify each document as
-// either:
-//   - "reference"   → resumes, certificates, short notices,
-//                      forms. Uses a LIGHTER, more flexible
-//                      template that adapts to whatever
-//                      content actually exists.
-//   - "educational" → lecture notes, textbooks, case studies,
-//                      longer technical documents. Uses the
-//                      original structured teaching template.
+//   generateFromSession  → called when the user opens a
+//                          PAST SESSION from history and
+//                          clicks Summary/Notes/Explain.
+//                          Reads document text directly
+//                          from MongoDB (the session's
+//                          stored extractedText fields)
+//                          because knowledgeStore is
+//                          in-memory and loses its data
+//                          on server restart or when a
+//                          different upload runs.
 //
-// Classification heuristic: documents under 4000 characters
-// AND containing resume/CV-like keyword density (objective,
-// education, skills, experience, certifications) are treated
-// as reference documents. This is a pragmatic heuristic, not
-// ML classification — accurate enough for this use case
-// without adding model complexity.
+//
+// WHY TWO SEPARATE FUNCTIONS?
+// ───────────────────────────
+// knowledgeStore only knows about the CURRENT upload batch.
+// When the user loads a past session from history, those
+// documents were uploaded in a previous server session —
+// knowledgeStore no longer has them.
+//
+// UploadBox.jsx assigns fake IDs ("preloaded-0", "preloaded-1")
+// to the documents it renders from a past session. If those
+// IDs are sent to generateAIResponse, the knowledgeStore
+// lookup finds nothing and returns "No documents found."
+//
+// generateFromSession bypasses knowledgeStore entirely and
+// reads the stored extractedText directly from MongoDB.
+// The Session model already stores the full extractedText
+// for each document — this is exactly the data we need.
+//
+//
+// KEY DESIGN DECISIONS (shared by both functions)
+// ────────────────────────────────────────────────
+//
+// ❶  Content-adaptive prompts, not fixed section templates
+//     Instructions describe what good output looks and feels
+//     like with examples of how structure adapts to different
+//     document types. The model chooses structure based on
+//     what is actually in the document.
+//
+// ❷  Smart token budget (fixed ceilings + dynamic floor)
+//     Fixed ceilings per mode scale per additional document.
+//     A dynamic floor (totalChars × ratio) ensures dense long
+//     documents are never under-budgeted by the fixed ceiling.
+//
+// ❸  80,000 character input limit per document
+//     Head+tail trimming for very long documents preserves
+//     both opening context and conclusion — not just the start.
+//
+// ❹  Targeted retry logic
+//     Only retries for two specific diagnosed failures:
+//       - finishReason: MAX_TOKENS → retry at HARD_MAX
+//       - Near-empty response (<80 chars) → genuine failure
 // ============================================================
 
 import knowledgeStore from "../utils/knowledgeStore.js";
+import Session        from "../models/Session.js";
 
+// ── API CONFIGURATION ─────────────────────────────────────────
+// gemini-2.5-flash: fast, large output limit (65,535 tokens),
+// cost-efficient — the right choice for document analysis.
 const GEMINI_MODEL = "gemini-2.5-flash";
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_URL   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-const MAX_CHARS_PER_DOC = 25000;
 
-// ── DOCUMENT TYPE DETECTION ──────────────────────────────────
-// Pragmatic heuristic — not perfect, but solves the real
-// failure mode: short reference documents being forced through
-// a heavy academic template.
+// ── INPUT LIMIT PER DOCUMENT ──────────────────────────────────
+// 80,000 chars ≈ 26 dense A4 pages. Most documents fit in full.
+// For larger documents, buildKnowledge() applies head+tail
+// trimming that preserves opening context AND conclusion.
+const MAX_CHARS_PER_DOC = 80000;
 
-const REFERENCE_DOC_KEYWORDS = [
-  "objective",
-  "education",
-  "skills",
-  "experience",
-  "certifications",
-  "curriculum vitae",
-  "resume",
-  "cv",
-  "references available",
-  "professional summary",
-  "work experience",
-  "contact information",
-];
 
-const SHORT_DOC_THRESHOLD = 4000; // chars
+// ── TOKEN BUDGET ──────────────────────────────────────────────
+// Fixed ceilings per mode, scaling per extra document.
+// A dynamic floor ensures long/dense docs aren't under-budgeted.
+// HARD_MAX is the absolute ceiling used on retries.
+//
+// Why fixed ceilings + a dynamic floor?
+// Fixed ceilings alone under-budget very dense long documents.
+// A pure formula (totalChars × ratio) over-budgets short docs.
+// The combination gives the best result: Gemini naturally stops
+// early for short documents so the ceiling doesn't hurt them;
+// the floor ensures long documents always have enough room.
+const BASE_CEILING  = { summary: 3000, notes: 5000,  explain: 7000  };
+const PER_EXTRA_DOC = { summary: 1500, notes: 2500,  explain: 3500  };
+const HARD_MAX      = 16000;
 
-const classifyDocument = (text) => {
-  if (!text) return "educational";
-
-  const lower = text.toLowerCase();
-  const isShort = text.length < SHORT_DOC_THRESHOLD;
-
-  const keywordMatches = REFERENCE_DOC_KEYWORDS.filter((kw) =>
-    lower.includes(kw),
-  ).length;
-
-  // Short + at least 2 reference-document keywords = treat as reference
-  if (isShort && keywordMatches >= 2) {
-    return "reference";
-  }
-
-  return "educational";
-};
-
-// ── TOKEN BUDGET CALCULATOR ──────────────────────────────────
-// Unchanged formula — token budget was never the actual bug,
-// confirmed via diagnosis. Kept for documents that genuinely
-// need more room.
-
-const MODE_RATIO = { summary: 0.08, notes: 0.14, explain: 0.18 };
-const MIN_TOKENS = { summary: 400, notes: 600, explain: 800 };
-const STRUCTURAL_FLOOR = { summary: 250, notes: 450, explain: 600 };
-const MAX_TOKENS = 7800;
+const FLOOR_RATIO   = { summary: 0.10, notes: 0.18,  explain: 0.22  };
+const MIN_FLOOR     = { summary: 600,  notes: 1000,  explain: 1200  };
 
 const calculateTokenBudget = (documents, mode) => {
+  const count      = documents.length;
   const totalChars = documents.reduce(
-    (sum, doc) => sum + (doc.extractedText?.length || 0),
-    0,
+    (sum, doc) => sum + (doc.extractedText?.length || 0), 0
   );
-  const docCount = documents.length;
 
-  const ratio = MODE_RATIO[mode] || 0.1;
-  const floor = STRUCTURAL_FLOOR[mode] || 300;
-  const min = MIN_TOKENS[mode] || 400;
+  const ceiling  = Math.min(
+    BASE_CEILING[mode] + Math.max(0, count - 1) * PER_EXTRA_DOC[mode],
+    HARD_MAX
+  );
 
-  const contentBudget = Math.round(totalChars * ratio);
-  const structuralBudget = docCount * floor;
-  const total = contentBudget + structuralBudget;
+  const ratio    = FLOOR_RATIO[mode] || 0.12;
+  const minFloor = MIN_FLOOR[mode]   || 600;
+  const floor    = Math.max(Math.round(totalChars * ratio), minFloor);
 
-  return Math.min(Math.max(total, min), MAX_TOKENS);
+  const budget   = Math.min(Math.max(ceiling, floor), HARD_MAX);
+
+  console.log(
+    `[TokenBudget] mode=${mode} | docs=${count} | chars=${totalChars} | ` +
+    `ceiling=${ceiling} | floor=${floor} | final=${budget}`
+  );
+
+  return budget;
 };
 
-// ── CONTENT PROFILE BUILDER ──────────────────────────────────
-// Now also tells Gemini the detected document type per file,
-// so it knows which structural expectations are appropriate.
 
-const buildContentProfile = (documents, mode) => {
-  const totalChars = documents.reduce(
-    (sum, doc) => sum + (doc.extractedText?.length || 0),
-    0,
-  );
-  const docCount = documents.length;
+// ── DOCUMENT PROFILER ─────────────────────────────────────────
+// Builds a profile per document: file type hint, estimated
+// page count, and density warning flag. Used in two places:
+//   - The separator header in buildKnowledge() so Gemini
+//     knows what type/size of file it is reading
+//   - The overview list at the top of the user message so
+//     Gemini can plan its response before reading content
+const profileDocuments = (documents) => {
+  return documents.map((doc, i) => {
+    const text  = doc.extractedText || "";
+    const chars = text.length;
+    const ext   = doc.fileName.split(".").pop().toLowerCase();
 
-  const docProfiles = documents
-    .map((doc, i) => {
-      const chars = doc.extractedText?.length || 0;
-      const ext = doc.fileName.split(".").pop().toLowerCase();
-      const docType = classifyDocument(doc.extractedText);
-      const sizeLabel =
-        chars < 2000
-          ? "very short (1-2 pages)"
-          : chars < 6000
-            ? "short (3-5 pages)"
-            : chars < 15000
-              ? "medium (6-15 pages)"
-              : chars < 30000
-                ? "long (15-30 pages)"
-                : "very long (30+ pages)";
+    const estimatedPages =
+      chars < 1500  ? "1 page"      :
+      chars < 4000  ? "2-3 pages"   :
+      chars < 8000  ? "4-6 pages"   :
+      chars < 16000 ? "7-15 pages"  :
+      chars < 30000 ? "15-30 pages" :
+                      "30+ pages";
 
-      const hasGapWarning = doc.extractedText?.includes("[SYSTEM NOTE:");
+    // extractText.js adds [SYSTEM NOTE: ...] when a PDF has
+    // very little extractable text — signals scanned pages,
+    // diagrams, or charts that couldn't be read as text.
+    const hasLowDensityWarning = text.includes("[SYSTEM NOTE:");
 
-      return `  Document ${i + 1}: "${doc.fileName}" — ${ext.toUpperCase()}, ${sizeLabel}, ${chars} characters, TYPE: ${docType.toUpperCase()}${hasGapWarning ? " ⚠️ CONTAINS LOW-TEXT-DENSITY WARNING — see content for details" : ""}`;
+    const fileTypeHint =
+      ext === "pdf"                                  ? "PDF document"            :
+      ["ppt", "pptx"].includes(ext)                 ? "PowerPoint presentation" :
+      ["doc", "docx"].includes(ext)                 ? "Word document"           :
+      ext === "txt"                                  ? "plain text file"         :
+      ["png", "jpg", "jpeg", "webp"].includes(ext)  ? "image (OCR extracted)"   :
+                                                       "document";
+
+    return {
+      index: i + 1,
+      fileName: doc.fileName,
+      fileTypeHint,
+      estimatedPages,
+      chars,
+      hasLowDensityWarning,
+      extractedText: text,
+    };
+  });
+};
+
+
+// ── KNOWLEDGE BUILDER ─────────────────────────────────────────
+// Formats each document into a clearly labelled block.
+// For documents over MAX_CHARS_PER_DOC, takes head + tail
+// instead of just truncating — preserves both the opening
+// context and the conclusion.
+const buildKnowledge = (profiles) => {
+  return profiles
+    .map((p) => {
+      const text = p.extractedText;
+      let content;
+
+      if (text.length <= MAX_CHARS_PER_DOC) {
+        content = text;
+      } else {
+        const half = Math.floor(MAX_CHARS_PER_DOC / 2);
+
+        let head     = text.slice(0, half);
+        const hBreak = head.lastIndexOf("\n");
+        if (hBreak > half * 0.7) head = head.slice(0, hBreak);
+
+        let tail     = text.slice(text.length - half);
+        const tBreak = tail.indexOf("\n");
+        if (tBreak !== -1 && tBreak < half * 0.3) tail = tail.slice(tBreak + 1);
+
+        content =
+          head +
+          "\n\n[--- Document too long to send in full: middle section omitted. " +
+          "Opening and conclusion are both present. ---]\n\n" +
+          tail;
+
+        console.log(
+          `[KnowledgeBuilder] "${p.fileName}" trimmed: ` +
+          `${text.length} → ${content.length} chars`
+        );
+      }
+
+      const warningLine = p.hasLowDensityWarning
+        ? "⚠️  Very little readable text was extracted. This file likely " +
+          "contains scanned pages, images, charts, or diagrams.\n"
+        : "";
+
+      return (
+        "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+        `DOCUMENT ${p.index}: ${p.fileName}\n` +
+        `Type: ${p.fileTypeHint}  |  Size: ${p.estimatedPages}  |  Characters: ${p.chars}\n` +
+        warningLine +
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+        content.trim() +
+        "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      );
     })
-    .join("\n");
-
-  const depthInstruction =
-    mode === "summary"
-      ? "Produce a summary proportional to each document's size. Short docs get concise overviews, long docs get thorough coverage. Do not pad or truncate."
-      : mode === "notes"
-        ? "Produce revision notes proportional to content. Brief docs need focused notes, dense docs need comprehensive notes with all concepts covered."
-        : "Produce explanations proportional to depth. Brief docs need clear focused teaching, dense docs need thorough concept-by-concept coverage.";
-
-  return `CONTENT PROFILE:
-You are processing ${docCount} document${docCount > 1 ? "s" : ""} with ${totalChars} total characters.
-
-${docProfiles}
-
-DEPTH INSTRUCTION: ${depthInstruction}
-
-DOCUMENT TYPE RULE: For documents marked TYPE: REFERENCE (resumes, certificates, forms, short notices), DO NOT force academic teaching structures like "Core Concepts" or "Real-World Analogy" if they don't naturally apply. Instead, adapt your response to describe what the document actually contains — sections, key facts, structure — using whatever headers genuinely fit the content. For documents marked TYPE: EDUCATIONAL, follow your standard structured format completely.
-
-HONESTY RULE: If any document content includes a "[SYSTEM NOTE:" marker, that means the original file had very little extractable text — it likely contains scanned pages, charts, diagrams, or images that could not be read. When this occurs, explicitly mention in your response that this document may contain visual content (charts/images/diagrams) not captured in this analysis, rather than inventing details to fill the gap. Never fabricate content to compensate for missing text.
-
-IMPORTANT: Adjust response depth to match actual content. Never end before covering all major content in every document, and never stop mid-section — always complete the structure for every document before finishing. If a section genuinely has nothing to say for a REFERENCE document, omit that section entirely rather than leaving it empty.`;
+    .join("\n\n");
 };
 
-// ── GEMINI API CALL ──────────────────────────────────────────
-// Thin-response retry logic preserved — still useful as a
-// safety net for educational documents, now combined with
-// document-type-aware prompting which fixes the root cause
-// for reference documents.
 
-const MIN_ACCEPTABLE_RESPONSE_RATIO = 0.03;
-const MIN_ACCEPTABLE_RESPONSE_CHARS = 200; // lowered slightly — reference docs can legitimately produce shorter, complete responses
+// ── SYSTEM INSTRUCTIONS ───────────────────────────────────────
+// Three mode-specific instructions. No fixed section templates
+// with placeholder brackets — the model chooses structure based
+// on what the document actually contains.
 
+const SUMMARY_SYSTEM = `You are an expert at reading any document and writing a clear, accurate summary.
+
+A summary tells the reader the most important things from the document — short enough to read quickly, complete enough that they understand the full picture. It is not a list of generic sections; it is a faithful account of what THIS specific document actually says.
+
+HOW TO WRITE IT:
+Read the document, understand what it is and what it contains, then organise your summary around that. Choose headings that genuinely match this document — not a fixed list that applies to every document regardless of content. Some examples:
+- A resume or CV → cover who the person is, their education, skills, key projects, and experience
+- A project proposal → cover the problem being solved, the solution, the main features, and how it works
+- A presentation or slide deck → cover the main topics covered and the key points made on each
+- A research paper → cover what was studied, how, what was found, and why it matters
+- A lab report → cover the aim, method, key observations, and results
+- A legal or policy document → cover what it establishes and who it affects
+- A plain text or notes file → organise around whatever structure the content naturally has
+
+QUALITY RULES:
+- Write in plain, easy-to-read English. If a technical word must appear, explain it simply in parentheses — like this: API (a way for two programs to talk to each other)
+- Be specific — use the actual names, numbers, technologies, and facts from the document. Never write vague statements like "the document discusses several important topics"
+- Use **bold** for the most important names, numbers, and terms
+- Use short bullet points for lists of distinct things; short paragraphs for ideas that naturally connect
+- Match length to the document: a 1-page file gets a concise summary, a 30-page document gets a thorough one
+- Do not pad with filler or repeat the same point twice
+- Do not use markdown tables
+- Start directly — no preamble like "Here is a summary of..."
+- Do not invent anything not present in the document
+
+WHEN IMAGES OR VISUAL CONTENT IS FLAGGED:
+If the document header says the file had very little readable text, mention clearly that the document may contain charts, diagrams, or images that could not be read — do not invent content to fill the gap.
+
+MULTIPLE DOCUMENTS:
+Give each document its own section with a clear heading showing the document name. Put --- between sections. At the end, add a short "Combined Insights" note only if there is a genuine connection between the documents — if there is none, leave it out.`;
+
+
+const NOTES_SYSTEM = `You are an expert at turning any document into clear, organised notes that are useful for study or quick reference.
+
+Good notes let someone learn or review content quickly by scanning — more detailed than a summary, organised so each point stands on its own and is easy to find later.
+
+HOW TO ORGANISE THEM:
+Read the document, understand its structure and content, then build notes around what is actually there. Do not force sections that have nothing to fill them. Some examples:
+- A resume or CV → follow the resume's own structure: education, skills, experience, projects, certifications — each as clear bullet points
+- A project proposal or report → follow the document's own sections: problem, solution, features, technology, team — each condensed into bullets
+- A presentation or slide deck → organise by the slides' topics, capturing the key point from each
+- A textbook chapter or lecture notes → organise by topic with key terms, definitions, and examples clearly labelled
+- A lab report or experiment → aim, tools used, steps taken, observations, results — each as clean bullets
+- Content with a comparison table → write it as bullets — never reproduce a markdown table
+
+QUALITY RULES:
+- Use **bold** for every important term, name, number, and fact
+- Use bullet points throughout — avoid paragraphs
+- Write in plain everyday English; explain technical words briefly in parentheses when they first appear
+- Use > blockquotes only for the single most critical rule, formula, or definition — use sparingly
+- Cover everything important — do not skip sections to save space
+- Do not use markdown tables
+- Start directly — no introduction sentence needed
+- Do not invent anything not in the document
+
+WHEN IMAGES OR VISUAL CONTENT IS FLAGGED:
+If the document header says the file had very little readable text, mention clearly that the document may contain charts, diagrams, or images that could not be read as text.
+
+MULTIPLE DOCUMENTS:
+Give each document its own clearly labelled section. Put --- between sections. End with a short "Quick Reference" list combining the most important terms and facts from all documents into one scannable list.`;
+
+
+const EXPLAIN_SYSTEM = `You are an expert teacher who can explain any document clearly to someone reading it for the first time.
+
+Your job is to make the reader genuinely understand the document — not just know what it says, but understand what it means, why it matters, and how its parts fit together. This is the deepest of the three modes: be more thorough and explanatory than a summary or notes.
+
+HOW TO APPROACH THE EXPLANATION:
+Read the document, understand what kind of thing it is, then explain it in the way that makes most sense for that type:
+- A document about concepts or theory → explain each concept: what it means in simple words, why it exists, how it works, with a real example
+- A project proposal or technical report → explain the problem being solved, walk through the solution step by step, explain what each part does and why
+- A presentation or slide deck → explain the story the slides are making and what a reader should take away from each part
+- A resume or personal document → explain what the document tells you about the person: background, what they built, what stands out
+- A process or step-by-step document → walk through each step and explain what happens and why — not just what
+- A document with data or statistics → explain what the numbers mean, what they show, what conclusions to draw
+- Do not force a concept-teaching structure onto a document where it does not fit
+
+QUALITY RULES:
+- Write in plain, friendly but professional English
+- Explain every technical term the first time it appears in parentheses — like this: RAG (a method where AI searches a database before answering so it uses real facts)
+- Be specific — use the actual names, numbers, examples, and technologies from the document throughout
+- Be thorough — this mode should be noticeably more complete than a summary
+- Use a mix of short paragraphs and bullet points — whichever communicates more clearly at each point
+- Do not use markdown tables
+- Do not start with filler openers like "Certainly!" or "Great question!"
+- Do not invent anything not in the document
+
+WHEN IMAGES OR VISUAL CONTENT IS FLAGGED:
+If the document header says the file had very little readable text, acknowledge this clearly and note that the document may contain visual content that could not be extracted.
+
+MULTIPLE DOCUMENTS:
+Give each document a full section with a clear heading. Put --- between sections. At the end, explain how the documents connect only if there is a real, meaningful relationship — if they are unrelated, leave the connection section out.`;
+
+
+// ── GEMINI API CALL ───────────────────────────────────────────
+// Two targeted retries only:
+//   Case 1 — MAX_TOKENS: response was cut off → retry at HARD_MAX
+//   Case 2 — Near-empty (<80 chars): genuine failure → retry once
 const callGemini = async (
   systemInstruction,
   userContent,
   apiKey,
   maxTokens,
-  retryCount = 0,
+  retryCount = 0
 ) => {
   const response = await fetch(GEMINI_URL, {
     method: "POST",
@@ -188,9 +346,11 @@ const callGemini = async (
       system_instruction: {
         parts: [{ text: systemInstruction }],
       },
-      contents: [{ role: "user", parts: [{ text: userContent }] }],
+      contents: [
+        { role: "user", parts: [{ text: userContent }] },
+      ],
       generationConfig: {
-        temperature: retryCount === 0 ? 0.2 : 0.4,
+        temperature: retryCount === 0 ? 0.3 : 0.5,
         topK: 40,
         topP: 0.95,
         maxOutputTokens: maxTokens,
@@ -201,267 +361,103 @@ const callGemini = async (
   const data = await response.json();
 
   if (!response.ok) {
-    console.error("Gemini API error:", data);
+    console.error("[Gemini] API error:", JSON.stringify(data, null, 2));
     throw new Error(data.error?.message || "Gemini request failed");
   }
 
-  const candidate = data.candidates?.[0];
+  const candidate    = data.candidates?.[0];
   const finishReason = candidate?.finishReason;
-  const text = candidate?.content?.parts?.[0]?.text || "";
+  const text         = candidate?.content?.parts?.[0]?.text || "";
 
-  if (finishReason && finishReason !== "STOP") {
+  // Case 1: token ceiling was too small — retry at hard max
+  if (finishReason === "MAX_TOKENS" && retryCount === 0) {
     console.warn(
-      `⚠️ Gemini finishReason: ${finishReason} (not a normal completion)`,
+      `[Gemini] ⚠️ MAX_TOKENS at ceiling=${maxTokens}. Retrying at HARD_MAX=${HARD_MAX}.`
     );
-  }
-
-  const inputLength = userContent.length;
-  const isTooShort =
-    text.trim().length < MIN_ACCEPTABLE_RESPONSE_CHARS ||
-    text.trim().length < inputLength * MIN_ACCEPTABLE_RESPONSE_RATIO;
-
-  if (isTooShort && retryCount === 0) {
-    console.warn(
-      `⚠️ Thin response detected (${text.trim().length} chars for ${inputLength} chars of input). Retrying once with adjusted parameters.`,
-    );
-    const strengthenedInstruction =
-      systemInstruction +
-      `\n\n[CRITICAL REMINDER]: Your previous attempt produced only headers with no actual content. If this is a REFERENCE document (resume, certificate, short notice), adapt your structure to fit the actual content — describe what's genuinely there rather than forcing irrelevant sections. If this is an EDUCATIONAL document, fill in every section with real, specific information extracted from the text.`;
-
     return callGemini(
-      strengthenedInstruction,
-      userContent,
-      apiKey,
-      maxTokens,
-      retryCount + 1,
+      systemInstruction, userContent, apiKey, HARD_MAX, retryCount + 1
     );
   }
 
-  return text;
+  if (finishReason && finishReason !== "STOP" && finishReason !== "MAX_TOKENS") {
+    console.warn(`[Gemini] ⚠️ Unexpected finishReason: ${finishReason}`);
+  }
+
+  // Case 2: near-empty response — genuine model failure
+  if (text.trim().length < 80 && retryCount === 0) {
+    console.warn(
+      `[Gemini] ⚠️ Near-empty response (${text.trim().length} chars). Retrying once.`
+    );
+    return callGemini(
+      systemInstruction, userContent, apiKey, HARD_MAX, retryCount + 1
+    );
+  }
+
+  return { text, finishReason };
 };
 
-// ── KNOWLEDGE BUILDER ────────────────────────────────────────
 
-const buildKnowledge = (documents) => {
-  return documents
-    .map((doc, i) => {
-      const text = doc.extractedText || "";
-      let content;
+// ── SHARED PROMPT BUILDER ─────────────────────────────────────
+// Both controller functions produce the same prompt structure.
+// Extracted here so there is zero duplication between them.
+const buildPrompt = (docsToUse, type) => {
+  const profiles    = profileDocuments(docsToUse);
+  const tokenBudget = calculateTokenBudget(docsToUse, type);
+  const knowledge   = buildKnowledge(profiles);
 
-      if (text.length <= MAX_CHARS_PER_DOC) {
-        content = text;
-      } else {
-        const halfSize = Math.floor(MAX_CHARS_PER_DOC / 2);
+  const overviewLines = profiles
+    .map((p) => `  ${p.index}. ${p.fileName} — ${p.fileTypeHint}, ${p.estimatedPages}`)
+    .join("\n");
 
-        let headSlice = text.slice(0, halfSize);
-        const lastBreakHead = headSlice.lastIndexOf("\n");
-        if (lastBreakHead > halfSize * 0.7)
-          headSlice = headSlice.slice(0, lastBreakHead);
+  const userContent =
+    `You are analyzing ${docsToUse.length} document${docsToUse.length > 1 ? "s" : ""}:\n` +
+    `${overviewLines}\n\n` +
+    `Read the content carefully and respond according to your instructions. ` +
+    `Let what is actually in these documents determine your structure and depth. ` +
+    `Cover every document completely before finishing.\n\n` +
+    knowledge;
 
-        let tailSlice = text.slice(text.length - halfSize);
-        const firstBreakTail = tailSlice.indexOf("\n");
-        if (firstBreakTail !== -1 && firstBreakTail < halfSize * 0.3) {
-          tailSlice = tailSlice.slice(firstBreakTail + 1);
-        }
+  const systemInstruction =
+    type === "summary" ? SUMMARY_SYSTEM :
+    type === "notes"   ? NOTES_SYSTEM   :
+                         EXPLAIN_SYSTEM;
 
-        content = `${headSlice}\n\n[... middle section omitted for token efficiency ...]\n\n${tailSlice}`;
-      }
-
-      return `
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-DOCUMENT ${i + 1}: ${doc.fileName}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${content.trim()}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-`;
-    })
-    .join("\n\n");
+  return { systemInstruction, userContent, tokenBudget };
 };
 
-// ── SYSTEM INSTRUCTIONS ──────────────────────────────────────
-// Each now includes a document-type-adaptive escape hatch —
-// see [DOCUMENT TYPE ADAPTATION] block at the bottom of each.
 
-const SUMMARY_SYSTEM = `You are an expert document intelligence agent producing clear, accurate executive summaries. Every sentence carries real information extracted directly from the source.
+// ── SHARED ERROR CLASSIFIER ───────────────────────────────────
+// Maps raw Gemini/network error messages to user-friendly text.
+const classifyError = (message = "") => {
+  const msg = message.toLowerCase();
+  if (msg.includes("quota") || msg.includes("rate") || msg.includes("limit")) {
+    return "Gemini rate limit reached. Please wait 1-2 minutes and try again.";
+  }
+  if (msg.includes("unavailable") || msg.includes("high demand") || msg.includes("503") || msg.includes("overloaded")) {
+    return "Gemini is temporarily overloaded. This usually clears in 30-60 seconds — please try again.";
+  }
+  if (msg.includes("api key") || msg.includes("invalid") || msg.includes("unauthorized")) {
+    return "Invalid API key. Please check your Gemini API key in settings.";
+  }
+  return message || "AI generation failed.";
+};
 
-[ZERO HALLUCINATION CONTRACT]
-- Extract only what is explicitly present in the text. Do not infer or invent.
-- Start directly with the first markdown header. No preamble or meta-commentary.
-- DO NOT use markdown tables. Use bullet points and headers only.
-- If a document contains a "[SYSTEM NOTE:" marker, mention that this document may include visual content (charts/images) not captured in the text analysis. Never invent details to compensate.
 
-[STYLE]
-- Plain professional English. Explain technical terms briefly in parentheses.
-- Active voice only. No filler words.
-- Every bullet must contain a real specific fact.
-- Response length matches content: short doc = concise summary, long doc = thorough summary.
-- ALWAYS complete every section for every document before finishing your response. Never stop mid-section.
-
-[MULTI-DOC RULE]
-Each document gets its own ## section. Place a horizontal rule (---) between each document's section so the reader can instantly see where one document ends and the next begins — this is the ONLY transition marker allowed. End with ## Combined Key Insights.
-
-[DOCUMENT TYPE ADAPTATION]
-For REFERENCE documents (resumes, certificates, forms): summarize what the document actually establishes — who/what it's about, key qualifications or facts, structure. Skip sections that don't apply rather than leaving them empty.
-For EDUCATIONAL documents: use the full format below.
-
-[FORMAT — for educational documents]
-# Executive Summary
-
-## [Exact Document Filename]
-[2-3 sentence overview of scope and purpose]
-
-### Core Themes & Findings
-- **[Theme]**: [Specific finding with real details from the text]
-  - [Supporting fact from the document]
-
-### Critical Takeaways
-- **[Key fact #1]**
-- **[Key fact #2]**
-
----
-
-## [Next Document Filename]
-[Same structure repeats]
-
-[After all documents, add:]
----
-
-## Combined Key Insights
-- [Cross-document connection or contrast]
-- [Unified takeaway]`;
-
-const NOTES_SYSTEM = `You are an expert academic tutor creating complete, structured revision notes. Dense with real information — definitions, concepts, examples — built for exam revision.
-
-[ZERO HALLUCINATION CONTRACT]
-- Capture every major topic, concept, and keyword from the text. Do not invent.
-- Start directly with the first markdown header. No introductory sentences.
-- If a document contains a "[SYSTEM NOTE:" marker, add a brief note in that document's section mentioning it may include visual content (charts/images) not captured here.
-
-[CRITICAL FORMATTING RULES]
-- NEVER use markdown tables. Use bullet points and headers only throughout.
-- Use **bold** for every key term, concept name, definition, and important fact.
-- Use bullet points and sub-bullets — zero long paragraphs.
-- Place critical rules, formulas, or key definitions inside > blockquotes.
-- Every section must be independently complete.
-- Response length matches content: short doc = focused notes, long doc = comprehensive.
-
-[MULTI-DOC RULE]
-Each document gets its own full ## 📄 [filename] section. Place a horizontal rule (---) between each document's section. End with ## ⚡ Quick Revision combining all.
-
-[DOCUMENT TYPE ADAPTATION]
-For REFERENCE documents (resumes, certificates, forms): create notes that organize the document's actual content — key facts, qualifications, structure. Skip "Definitions" or "Examples" sections if nothing genuinely fits there.
-For EDUCATIONAL documents: use the full format below.
-
-[FORMAT — for educational documents]
-# Study Notes
-
-## 📄 [Exact Document Filename]
-
-### Overview
-- [What this document covers — 2-3 specific bullets]
-
-### Key Concepts
-- **[Concept]**: [What it is and how it works]
-
-### Definitions
-- **[Term]**: [Precise definition]
-
-> [Critical formula, rule, or definition]
-
-### Important Examples & Case Studies
-- **[Example name]**: [What it is, what happened, outcome]
-
-### Key Takeaways
-- [Most important point #1]
-- [Most important point #2]
-
----
-
-## 📄 [Next Document Filename]
-[Same structure repeats]
-
-[After all documents, add:]
----
-
-## ⚡ Quick Revision — All Documents
-- **[Term/Concept]**: [One-line fact or definition]`;
-
-const EXPLAIN_SYSTEM = `You are an expert professor explaining documents to a smart student who is new to the topic. Your job is to teach — not summarize. The student should genuinely understand every concept after reading.
-
-[ZERO HALLUCINATION CONTRACT]
-- Use only facts and concepts explicitly in the text. Do not invent.
-- Start immediately with the first heading. No introductory sentences or filler.
-- If a document contains a "[SYSTEM NOTE:" marker, mention in that document's section that it may include visual content (charts/images) not captured here.
-
-[TEACHING RULES]
-- For every concept: WHAT it is + WHY it matters + HOW it works — all three, always.
-- Use real examples, case studies, and data directly from the documents.
-- Professional direct tone. Never write filler openers.
-- Response length matches content depth. ALWAYS complete every section before finishing.
-
-[MULTI-DOC RULE]
-Each document gets a full ## 📘 [topic] section. Place a horizontal rule (---) between each document's section. End with ## How These Connect.
-
-[DOCUMENT TYPE ADAPTATION]
-For REFERENCE documents (resumes, certificates, forms): explain what the document represents, what it tells the reader, and its purpose — not as a "concept to teach" but as an artifact to understand. Use a simpler structure: What This Document Is, What It Shows, Key Highlights. Do NOT force "Core Concepts" with "Real-World Analogy" structure onto a resume — that produces empty, awkward sections.
-For EDUCATIONAL documents: use the full format below.
-
-[FORMAT — for educational documents]
-# Deep Explanation
-
-## 📘 [Topic — use actual subject, not just filename]
-
-### What This Is About
-[1-2 sentences: what area this covers and what problem it addresses]
-
-### Core Concepts
-
-**[Concept Name]**
-- **What it is**: [Plain English definition]
-- **Why it matters**: [Practical significance]
-- **How it works**: [Mechanism or logic step by step]
-- **Example from document**: [Real example or data point]
-
-[Repeat for every major concept]
-
-### How It All Works Together
-[How the concepts connect and function as a system]
-
-### Why This Matters
-[Real-world significance and applications]
-
-### Key Things to Remember
-- [Takeaway #1]
-- [Takeaway #2]
-- [Takeaway #3]
-
-[If multiple documents:]
-
----
-
-## 📘 [Next Document Topic]
-[Same structure repeats]
-
----
-
-## 🔗 How These Documents Connect
-[How topics relate, contrast, or build on each other — specific]`;
-
-// ── MAIN CONTROLLER ──────────────────────────────────────────
-
+// ── CONTROLLER 1: FRESH UPLOAD ────────────────────────────────
+// Called after a new upload. Reads from in-memory knowledgeStore.
+// Route: POST /api/ai/generate
 export const generateAIResponse = async (req, res) => {
   try {
     const { type, selectedDocumentIds } = req.body;
 
-    const userKey = req.headers["x-gemini-key"];
+    const userKey   = req.headers["x-gemini-key"];
     const serverKey = process.env.GEMINI_API_KEY;
-    const apiKey = userKey && userKey.startsWith("AIza") ? userKey : serverKey;
+    const apiKey    = (userKey && userKey.startsWith("AIza")) ? userKey : serverKey;
 
     if (!apiKey) {
       return res.status(401).json({
         success: false,
-        message:
-          "No Gemini API key found. Please add your API key in the app settings.",
+        message: "No Gemini API key found. Please add your API key in the app settings.",
       });
     }
 
@@ -473,12 +469,10 @@ export const generateAIResponse = async (req, res) => {
     }
 
     const allDocuments = knowledgeStore.getAllDocuments();
-    let docsToUse = allDocuments;
+    let docsToUse      = allDocuments;
 
     if (Array.isArray(selectedDocumentIds) && selectedDocumentIds.length > 0) {
-      const filtered = allDocuments.filter((d) =>
-        selectedDocumentIds.includes(d.id),
-      );
+      const filtered = allDocuments.filter((d) => selectedDocumentIds.includes(d.id));
       if (filtered.length > 0) docsToUse = filtered;
     }
 
@@ -489,26 +483,9 @@ export const generateAIResponse = async (req, res) => {
       });
     }
 
-    const tokenBudget = calculateTokenBudget(docsToUse, type);
-    const contentProfile = buildContentProfile(docsToUse, type);
-    const knowledge = buildKnowledge(docsToUse);
-
-    let systemInstruction;
-    if (type === "summary") systemInstruction = SUMMARY_SYSTEM;
-    else if (type === "notes") systemInstruction = NOTES_SYSTEM;
-    else systemInstruction = EXPLAIN_SYSTEM;
-
-    const userContent = `${contentProfile}
-
-Analyze the following documents strictly according to your system instructions. Cover ALL content in every document. Do not end the response before finishing all documents.
-
-${knowledge}`;
-
-    const result = await callGemini(
-      systemInstruction,
-      userContent,
-      apiKey,
-      tokenBudget,
+    const { systemInstruction, userContent, tokenBudget } = buildPrompt(docsToUse, type);
+    const { text: result, finishReason } = await callGemini(
+      systemInstruction, userContent, apiKey, tokenBudget
     );
 
     if (!result || result.trim().length < 30) {
@@ -519,32 +496,117 @@ ${knowledge}`;
     }
 
     return res.status(200).json({
-      success: true,
+      success:            true,
       result,
       documentsProcessed: docsToUse.length,
-      documentNames: docsToUse.map((d) => d.fileName),
+      documentNames:      docsToUse.map((d) => d.fileName),
       tokenBudget,
+      wasTruncated:       finishReason === "MAX_TOKENS",
     });
+
   } catch (error) {
-    console.error("AI Controller Error:", error.message);
+    console.error("[AIController] Error:", error.message);
+    return res.status(500).json({ success: false, message: classifyError(error.message) });
+  }
+};
 
-    const isRateLimit =
-      error.message?.toLowerCase().includes("quota") ||
-      error.message?.toLowerCase().includes("rate") ||
-      error.message?.toLowerCase().includes("limit");
 
-    const isInvalidKey =
-      error.message?.toLowerCase().includes("api key") ||
-      error.message?.toLowerCase().includes("invalid") ||
-      error.message?.toLowerCase().includes("unauthorized");
+// ── CONTROLLER 2: PAST SESSION ────────────────────────────────
+// Called when the user loads a past session from history and
+// clicks Summary/Notes/Explain. Reads extractedText directly
+// from MongoDB — bypasses knowledgeStore entirely.
+//
+// WHY THIS IS NEEDED:
+// UploadBox.jsx assigns fake IDs ("preloaded-0", "preloaded-1")
+// to documents loaded from a past session. If those IDs are sent
+// to generateAIResponse, knowledgeStore finds nothing and returns
+// "No documents found." This endpoint reads from the session
+// that is already stored in MongoDB instead.
+//
+// SECURITY: we filter by { _id: sessionId, userId } so a user
+// can never read another user's document text by guessing an ID.
+//
+// Route: POST /api/ai/generate-from-session
+export const generateFromSession = async (req, res) => {
+  try {
+    const { type, sessionId } = req.body;
+    const userId = req.userId; // attached by requireAuth middleware
 
-    return res.status(500).json({
-      success: false,
-      message: isRateLimit
-        ? "Gemini rate limit reached. Please wait 1-2 minutes and try again."
-        : isInvalidKey
-          ? "Invalid API key. Please check your Gemini API key in settings."
-          : error.message || "AI generation failed.",
+    const userKey   = req.headers["x-gemini-key"];
+    const serverKey = process.env.GEMINI_API_KEY;
+    const apiKey    = (userKey && userKey.startsWith("AIza")) ? userKey : serverKey;
+
+    if (!apiKey) {
+      return res.status(401).json({
+        success: false,
+        message: "No Gemini API key found. Please add your API key in the app settings.",
+      });
+    }
+
+    if (!type || !["summary", "notes", "explain"].includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid type. Must be: summary, notes, or explain.",
+      });
+    }
+
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: "No session ID provided.",
+      });
+    }
+
+    // Fetch from MongoDB — userId guard prevents cross-user access
+    const session = await Session.findOne({ _id: sessionId, userId });
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: "Session not found.",
+      });
+    }
+
+    // Map the stored documents into the same shape that
+    // profileDocuments() and buildKnowledge() expect —
+    // identical to what knowledgeStore returns for fresh uploads.
+    const docsToUse = session.documents.map((doc) => ({
+      id:            doc._id?.toString() || doc.fileName,
+      fileName:      doc.fileName,
+      mimetype:      doc.mimetype,
+      extractedText: doc.extractedText,
+    }));
+
+    if (!docsToUse || docsToUse.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "This session has no document content.",
+      });
+    }
+
+    const { systemInstruction, userContent, tokenBudget } = buildPrompt(docsToUse, type);
+    const { text: result, finishReason } = await callGemini(
+      systemInstruction, userContent, apiKey, tokenBudget
+    );
+
+    if (!result || result.trim().length < 30) {
+      return res.status(500).json({
+        success: false,
+        message: "Gemini returned an empty response. Please try again.",
+      });
+    }
+
+    return res.status(200).json({
+      success:            true,
+      result,
+      documentsProcessed: docsToUse.length,
+      documentNames:      docsToUse.map((d) => d.fileName),
+      tokenBudget,
+      wasTruncated:       finishReason === "MAX_TOKENS",
     });
+
+  } catch (error) {
+    console.error("[AIController/session] Error:", error.message);
+    return res.status(500).json({ success: false, message: classifyError(error.message) });
   }
 };

@@ -25,9 +25,13 @@ import ResponseViewer from "./ResponseViewer";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiUploadCloud, FiPlus } from "react-icons/fi";
 import { uploadFiles } from "../api/uploadApi";
-import { generateAI } from "../api/aiApi";
+import { generateAI, generateAIFromSession } from "../api/aiApi";
 import { useAuth } from "../context/AuthContext";
-import { createSession, updateSessionResponse, getSessionById } from "../api/sessionApi";
+import {
+  createSession,
+  updateSessionResponse,
+  getSessionById,
+} from "../api/sessionApi";
 
 const getFileIcon = (name = "") => {
   const ext = name.split(".").pop().toLowerCase();
@@ -39,12 +43,38 @@ const getFileIcon = (name = "") => {
   return "📁";
 };
 
-const ACCEPTED_EXTENSIONS = [".pdf", ".doc", ".docx", ".ppt", ".pptx", ".txt", ".png", ".jpg", ".jpeg", ".webp"];
+const ACCEPTED_EXTENSIONS = [
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".ppt",
+  ".pptx",
+  ".txt",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".webp",
+];
 
 const AI_MODES = [
-  { type: "summary", label: "Summary", icon: "⚡", description: "Key points at a glance" },
-  { type: "notes",   label: "Notes",   icon: "📋", description: "Revision-ready study notes" },
-  { type: "explain", label: "Explain", icon: "🧠", description: "Deep concept walkthrough" },
+  {
+    type: "summary",
+    label: "Summary",
+    icon: "⚡",
+    description: "Key points at a glance",
+  },
+  {
+    type: "notes",
+    label: "Notes",
+    icon: "📋",
+    description: "Revision-ready study notes",
+  },
+  {
+    type: "explain",
+    label: "Explain",
+    icon: "🧠",
+    description: "Deep concept walkthrough",
+  },
 ];
 
 function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
@@ -53,18 +83,18 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
   const [files, setFiles] = useState([]);
   const [needsProcessing, setNeedsProcessing] = useState(false);
 
-  const [loading, setLoading]               = useState(false);
-  const [error, setError]                   = useState("");
-  const [isProcessed, setIsProcessed]       = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [isProcessed, setIsProcessed] = useState(false);
   const [processedFileNames, setProcessedFileNames] = useState([]);
-  const [processedDocs, setProcessedDocs]   = useState([]);
-  const [selectedIds, setSelectedIds]       = useState([]);
-  const [aiLoading, setAiLoading]           = useState(false);
-  const [activeMode, setActiveMode]         = useState(null);
-  const [aiResult, setAiResult]             = useState("");
-  const [analysisStage, setAnalysisStage]   = useState("");
-  const [copied, setCopied]                 = useState(false);
-  const [cachedResults, setCachedResults]   = useState({});
+  const [processedDocs, setProcessedDocs] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [activeMode, setActiveMode] = useState(null);
+  const [aiResult, setAiResult] = useState("");
+  const [analysisStage, setAnalysisStage] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [cachedResults, setCachedResults] = useState({});
 
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [isLoadingPreload, setIsLoadingPreload] = useState(false);
@@ -95,7 +125,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
             fileName: d.fileName,
             mimetype: d.mimetype,
             chunkCount: d.chunkCount,
-          }))
+          })),
         );
         setProcessedFileNames(session.documents.map((d) => d.fileName));
         setSelectedIds(session.documents.map((_, i) => `preloaded-${i}`));
@@ -106,14 +136,16 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
         const preloadedCache = {};
         ["summary", "notes", "explain"].forEach((type) => {
           if (session.responses?.[type]?.result) {
-            const cacheKey = `${type}_${session.documents.map((_, i) => `preloaded-${i}`).sort().join(",")}`;
+            const cacheKey = `${type}_${session.documents
+              .map((_, i) => `preloaded-${i}`)
+              .sort()
+              .join(",")}`;
             preloadedCache[cacheKey] = session.responses[type].result;
           }
         });
         setCachedResults(preloadedCache);
         setAiResult("");
         setActiveMode(null);
-
       } catch (err) {
         setError("Failed to load this session.");
       } finally {
@@ -149,7 +181,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
 
     if (rejected > 0) {
       setError(
-        `${rejected} file${rejected > 1 ? "s" : ""} skipped — unsupported format. Accepted: PDF, DOC, DOCX, PPT, PPTX, TXT, PNG, JPG, WEBP.`
+        `${rejected} file${rejected > 1 ? "s" : ""} skipped — unsupported format. Accepted: PDF, DOC, DOCX, PPT, PPTX, TXT, PNG, JPG, WEBP.`,
       );
     } else {
       setError("");
@@ -249,15 +281,22 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
           console.warn("Session save failed (non-blocking):", saveErr.message);
         }
       }
-
     } catch (err) {
-      setError(err.response?.data?.message || "Upload failed. Please try again.");
+      setError(
+        err.response?.data?.message || "Upload failed. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
   // ── AI GENERATION ───────────────────────────────────────
+  // THE KEY CHANGE:
+  // When a past session is loaded (selectedIds contain "preloaded-"
+  // IDs), we detect this and call generateAIFromSession() with
+  // the real currentSessionId instead. The backend then reads
+  // document text from MongoDB rather than knowledgeStore.
+
   const generateContent = async (type) => {
     if (selectedIds.length === 0) {
       setError("Please select at least one document to analyze.");
@@ -278,21 +317,52 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
       setActiveMode(type);
       setAiResult("");
 
-      const data = await generateAI(null, type, selectedIds, geminiKey);
+      // Detect whether we are in "preloaded session" mode.
+      // When UploadBox loads a past session from history, it
+      // assigns fake IDs like "preloaded-0", "preloaded-1"
+      // for display purposes. These don't exist in knowledgeStore
+      // on the server, so we must use the session route instead.
+      const isPreloadedSession = selectedIds.some((id) =>
+        id.startsWith("preloaded-"),
+      );
+
+      let data;
+
+      if (isPreloadedSession && currentSessionId && token) {
+        // Past session: read document text from MongoDB
+        data = await generateAIFromSession(
+          currentSessionId,
+          type,
+          geminiKey,
+          token,
+        );
+      } else {
+        // Fresh upload: read from knowledgeStore (normal flow)
+        data = await generateAI(null, type, selectedIds, geminiKey);
+      }
 
       setCachedResults((prev) => ({ ...prev, [cacheKey]: data.result }));
       setAiResult(data.result);
 
+      // Save the response back to the session in MongoDB
       if (user && token && currentSessionId) {
         try {
-          await updateSessionResponse(currentSessionId, type, data.result, data.tokenBudget, token);
+          await updateSessionResponse(
+            currentSessionId,
+            type,
+            data.result,
+            data.tokenBudget,
+            token,
+          );
         } catch (saveErr) {
           console.warn("Response save failed (non-blocking):", saveErr.message);
         }
       }
-
     } catch (err) {
-      setError(err.response?.data?.message || "AI generation failed. Please try again.");
+      setError(
+        err.response?.data?.message ||
+          "AI generation failed. Please try again.",
+      );
       setAiResult("");
       setActiveMode(null);
     } finally {
@@ -361,7 +431,11 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
             <div className="flex flex-col items-center text-center">
               <motion.div
                 animate={{ y: [0, -6, 0] }}
-                transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+                transition={{
+                  repeat: Infinity,
+                  duration: 3,
+                  ease: "easeInOut",
+                }}
                 className="w-20 h-20 rounded-full bg-cyan-500/10 border border-cyan-400/20 flex items-center justify-center shadow-[0_0_40px_rgba(34,211,238,0.12)]"
               >
                 <FiUploadCloud className="text-4xl text-cyan-400" />
@@ -371,10 +445,12 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                 AI Document Intelligence
               </h2>
               <p className="mt-3 text-gray-400 max-w-xl text-sm sm:text-base leading-7">
-                Upload PDFs, DOCX, PPTX, TXT or Images — get instant summaries, study notes, and explanations.
+                Upload PDFs, DOCX, PPTX, TXT or Images — get instant summaries,
+                study notes, and explanations.
               </p>
               <p className="mt-1 text-gray-600 text-xs">
-                Drag and drop files anywhere in this box, or click below to browse.
+                Drag and drop files anywhere in this box, or click below to
+                browse.
               </p>
 
               <label
@@ -442,9 +518,13 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                         className="p-4 rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl flex items-center justify-between gap-3"
                       >
                         <div className="flex items-center gap-3 overflow-hidden">
-                          <span className="text-2xl shrink-0">{getFileIcon(file.name)}</span>
+                          <span className="text-2xl shrink-0">
+                            {getFileIcon(file.name)}
+                          </span>
                           <div className="overflow-hidden">
-                            <p className="text-sm text-white truncate font-medium">{file.name}</p>
+                            <p className="text-sm text-white truncate font-medium">
+                              {file.name}
+                            </p>
                             <p className="text-xs text-gray-500 mt-0.5">
                               {(file.size / 1024 / 1024).toFixed(2)} MB
                             </p>
@@ -481,7 +561,11 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                         <span className="flex items-center gap-2">
                           <motion.span
                             animate={{ rotate: 360 }}
-                            transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                            transition={{
+                              repeat: Infinity,
+                              duration: 1,
+                              ease: "linear",
+                            }}
                             className="inline-block w-4 h-4 border-2 border-cyan-400/40 border-t-cyan-400 rounded-full"
                           />
                           Processing...
@@ -523,7 +607,11 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                             <div className="flex flex-wrap gap-2 justify-center sm:justify-end">
                               <button
                                 type="button"
-                                onClick={() => setSelectedIds(processedDocs.map((doc) => doc.id))}
+                                onClick={() =>
+                                  setSelectedIds(
+                                    processedDocs.map((doc) => doc.id),
+                                  )
+                                }
                                 className="text-xs px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/20 text-cyan-200 hover:bg-cyan-500/20 transition"
                               >
                                 Select all
@@ -551,7 +639,9 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                                   }`}
                                 >
                                   <div className="flex items-center gap-3 overflow-hidden">
-                                    <span className="text-lg shrink-0">{getFileIcon(doc.fileName)}</span>
+                                    <span className="text-lg shrink-0">
+                                      {getFileIcon(doc.fileName)}
+                                    </span>
                                     <div className="overflow-hidden">
                                       <div className="text-sm text-white font-medium truncate max-w-[160px] sm:max-w-[200px]">
                                         {doc.fileName}
@@ -569,7 +659,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                                       setSelectedIds((prev) =>
                                         isSelected
                                           ? prev.filter((id) => id !== doc.id)
-                                          : [...prev, doc.id]
+                                          : [...prev, doc.id],
                                       );
                                     }}
                                     className="w-4 h-4 accent-cyan-400 cursor-pointer shrink-0"
@@ -604,7 +694,10 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                             <span className="text-base">{mode.icon}</span>
                             <span>{mode.label}</span>
                             {isCached && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-green-400 absolute top-2 right-2" title="Cached" />
+                              <span
+                                className="w-1.5 h-1.5 rounded-full bg-green-400 absolute top-2 right-2"
+                                title="Cached"
+                              />
                             )}
                           </motion.button>
                         );
@@ -621,7 +714,11 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                         >
                           <motion.div
                             animate={{ rotate: 360 }}
-                            transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }}
+                            transition={{
+                              repeat: Infinity,
+                              duration: 1.2,
+                              ease: "linear",
+                            }}
                             className="w-10 h-10 rounded-full border-4 border-cyan-500/20 border-t-cyan-400"
                           />
                           <div className="text-center">
@@ -629,9 +726,12 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                               {analysisStage || "Analyzing documents..."}
                             </p>
                             <p className="text-gray-500 text-sm mt-1">
-                              {activeMode === "summary" && "Building a precise overview..."}
-                              {activeMode === "notes"   && "Creating revision-ready notes..."}
-                              {activeMode === "explain" && "Preparing a clear explanation..."}
+                              {activeMode === "summary" &&
+                                "Building a precise overview..."}
+                              {activeMode === "notes" &&
+                                "Creating revision-ready notes..."}
+                              {activeMode === "explain" &&
+                                "Preparing a clear explanation..."}
                             </p>
                           </div>
                         </motion.div>
@@ -650,11 +750,18 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                             <div className="px-4 sm:px-5 py-3.5 border-b border-white/10 flex items-center justify-between gap-3">
                               <div className="flex items-center gap-3 min-w-0">
                                 <span className="text-lg shrink-0">
-                                  {AI_MODES.find((m) => m.type === activeMode)?.icon}
+                                  {
+                                    AI_MODES.find((m) => m.type === activeMode)
+                                      ?.icon
+                                  }
                                 </span>
                                 <div className="min-w-0">
                                   <h3 className="text-sm font-semibold text-white truncate">
-                                    {AI_MODES.find((m) => m.type === activeMode)?.label}{" "}
+                                    {
+                                      AI_MODES.find(
+                                        (m) => m.type === activeMode,
+                                      )?.label
+                                    }{" "}
                                     <span className="text-gray-400 font-normal">
                                       —{" "}
                                       {processedFileNames.length > 1
@@ -669,9 +776,15 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-xs text-gray-400 hover:text-white shrink-0"
                               >
                                 {copied ? (
-                                  <><span>✓</span><span>Copied</span></>
+                                  <>
+                                    <span>✓</span>
+                                    <span>Copied</span>
+                                  </>
                                 ) : (
-                                  <><span>⧉</span><span>Copy</span></>
+                                  <>
+                                    <span>⧉</span>
+                                    <span>Copy</span>
+                                  </>
                                 )}
                               </button>
                             </div>
