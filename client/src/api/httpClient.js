@@ -11,4 +11,4 @@ export const withAuth = (token) => ({
   headers: { Authorization: `Bearer ${token}` },
 });
 
-export default httpClient;s
+export default httpClient;
