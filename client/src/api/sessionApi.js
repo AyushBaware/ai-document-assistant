@@ -14,10 +14,10 @@
 import httpClient, { withAuth } from "./httpClient";
 
 // Save a new session — sends only document IDs, not full text
-export const createSession = async (documentIds, token) => {
+export const createSession = async (documentIds, batchId, token) => {
   const response = await httpClient.post(
     "/sessions",
-    { documentIds },
+    { documentIds, batchId },
     withAuth(token)
   );
   return response.data;

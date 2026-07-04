@@ -1,13 +1,14 @@
 // ============================================================
 // uploadApi.js
 //
-// OPTIMIZED: uses the shared httpClient instance instead of
-// raw axios + a hardcoded base URL.
+// UPDATED: now sends the Gemini API key on upload too (not just
+// on Summary/Notes/Explain). Uploads now trigger embedding
+// generation on the backend for RAG — that needs a key.
 // ============================================================
 
 import httpClient from "./httpClient";
 
-export const uploadFiles = async (files) => {
+export const uploadFiles = async (files, geminiKey = "") => {
   const formData = new FormData();
 
   files.forEach((file) => {
@@ -15,7 +16,10 @@ export const uploadFiles = async (files) => {
   });
 
   const response = await httpClient.post("/upload", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
+    headers: {
+      "Content-Type": "multipart/form-data",
+      "x-gemini-key": geminiKey,
+    },
   });
 
   return response.data;

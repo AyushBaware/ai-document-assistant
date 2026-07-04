@@ -6,6 +6,11 @@
 // state AND the active file area) now accepts dragged files,
 // not just the click-to-browse button.
 //
+// UPDATED FOR RAG (Step 1+2):
+// Upload now sends the Gemini key so the backend can generate
+// embeddings, and tracks the returned batchId so it can be
+// linked to a Session if the user saves one.
+//
 // HOW DRAG-AND-DROP WORKS IN THE BROWSER:
 // Three events matter: dragover (fires continuously while
 // something is dragged over the element — we must call
@@ -97,6 +102,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
   const [cachedResults, setCachedResults] = useState({});
 
   const [currentSessionId, setCurrentSessionId] = useState(null);
+  const [currentBatchId, setCurrentBatchId] = useState(null);
   const [isLoadingPreload, setIsLoadingPreload] = useState(false);
 
   // ── DRAG AND DROP STATE ─────────────────────────────────
@@ -258,23 +264,28 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
     setActiveMode(null);
     setCachedResults({});
     setCurrentSessionId(null);
+    setCurrentBatchId(null);
 
     try {
       const formData = new FormData();
       files.forEach((file) => formData.append("files", file));
 
-      const data = await uploadFiles(formData);
+      const data = await uploadFiles(formData, geminiKey);
 
       setProcessedFileNames(data.files.map((f) => f.fileName));
       setProcessedDocs(data.files);
       setSelectedIds(data.files.map((f) => f.id));
       setIsProcessed(true);
       setNeedsProcessing(false);
+      setCurrentBatchId(data.batchId);
 
       if (user && token) {
         try {
           const documentIds = data.files.map((f) => f.id);
-          const sessionData = await createSession(documentIds, token);
+          // Use data.batchId directly (not the state var above) —
+          // setState is async, so the state value isn't guaranteed
+          // to be updated yet on this same tick.
+          const sessionData = await createSession(documentIds, data.batchId, token);
           setCurrentSessionId(sessionData.session.id);
           if (onSessionSaved) onSessionSaved();
         } catch (saveErr) {
