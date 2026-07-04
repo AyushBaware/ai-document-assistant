@@ -17,12 +17,12 @@
 // Notes, AND Explain together, just like the UI already groups
 // them per upload.
 //
-// THE FORWARD-COMPATIBLE PART (for RAG later):
-// Each document in `documents[]` already has a `chunks` field.
-// When Phase 4 (RAG) adds embeddings, we'll add an `embeddings`
-// field to this SAME array — no schema rewrite, no migration
-// of old data. This is intentional: building Phase 3 correctly
-// now means Phase 4 plugs in cleanly later.
+// THE FORWARD-COMPATIBLE PART (for RAG):
+// Chunk-level embeddings live in the separate DocumentChunk
+// collection (see models/DocumentChunk.js), linked back here
+// via batchId. Session itself only stores the full extractedText
+// per document (for the existing Summary/Notes/Explain flow) —
+// it doesn't duplicate embeddings, keeping this schema small.
 // ============================================================
 
 import mongoose from "mongoose";
@@ -33,9 +33,6 @@ const documentSubSchema = new mongoose.Schema(
     mimetype: { type: String, required: true },
     extractedText: { type: String, required: true },
     chunkCount: { type: Number, default: 0 },
-    // embeddings: []  ← RAG (Phase 4) will add this field here.
-    //                   Not added now — no point storing empty
-    //                   vector arrays before we actually compute them.
   },
   { _id: false } // sub-documents don't need their own _id here
 );
@@ -64,6 +61,14 @@ const sessionSchema = new mongoose.Schema(
     title: {
       type: String,
       required: true,
+    },
+
+    // Links back to the DocumentChunk batch created at upload
+    // time — lets sessionController flip those chunks from
+    // temporary to permanent once the user saves this session.
+    batchId: {
+      type: String,
+      default: null,
     },
 
     documents: {

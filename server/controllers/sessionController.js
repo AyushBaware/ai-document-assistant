@@ -28,6 +28,7 @@
 // ============================================================
 
 import Session from "../models/Session.js";
+import DocumentChunk from "../models/DocumentChunk.js";
 import knowledgeStore from "../utils/knowledgeStore.js";
 import { generateSessionTitle, enforceSessionLimit } from "../utils/sessionHelpers.js";
 
@@ -40,7 +41,7 @@ import { generateSessionTitle, enforceSessionLimit } from "../utils/sessionHelpe
 
 export const createSession = async (req, res) => {
   try {
-    const { documentIds } = req.body;
+    const { documentIds, batchId } = req.body;
     const userId = req.userId;
 
     if (!documentIds || !Array.isArray(documentIds) || documentIds.length === 0) {
@@ -50,9 +51,6 @@ export const createSession = async (req, res) => {
       });
     }
 
-    // Pull full document data (including extractedText) from
-    // the in-memory store — this is the same store aiController.js
-    // already reads from when generating AI responses.
     const allDocuments = knowledgeStore.getAllDocuments();
     const idSet = new Set(documentIds);
     const matchedDocuments = allDocuments.filter((doc) => idSet.has(doc.id));
@@ -69,6 +67,7 @@ export const createSession = async (req, res) => {
     const session = await Session.create({
       userId,
       title,
+      batchId: batchId || null,
       documents: matchedDocuments.map((doc) => ({
         fileName: doc.fileName,
         mimetype: doc.mimetype,
@@ -81,6 +80,23 @@ export const createSession = async (req, res) => {
         explain: {},
       },
     });
+
+    // Promote this batch's chunks from temporary to permanent so
+    // the 24h TTL cleanup (DocumentChunk.js) never deletes them —
+    // this session now owns them for as long as it exists.
+    if (batchId) {
+      try {
+        await DocumentChunk.updateMany(
+          { batchId, permanent: false },
+          { $set: { permanent: true, sessionId: session._id } }
+        );
+      } catch (linkErr) {
+        // Non-blocking — the session itself saved fine; worst
+        // case this batch's chunks expire in 24h and semantic
+        // search on this session won't work until re-uploaded.
+        console.warn("Failed to link chunks to session (non-blocking):", linkErr.message);
+      }
+    }
 
     await enforceSessionLimit(userId);
 

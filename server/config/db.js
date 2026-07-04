@@ -3,22 +3,21 @@
 //
 // WHAT THIS DOES:
 // Connects your Express server to MongoDB Atlas using Mongoose.
-// Mongoose is an ODM (Object Data Modeling) library — it lets
-// you define data structures (Schemas/Models) in JavaScript
-// instead of writing raw MongoDB queries.
 //
-// WHY A SEPARATE FILE?
-// Keeping the connection logic separate from server.js keeps
-// server.js clean and makes the connection reusable/testable.
-//
-// HOW IT WORKS:
-// mongoose.connect() reads your MONGO_URI from .env, opens a
-// connection pool to Atlas, and keeps it alive for the life
-// of your server process. Every model (like User) uses this
-// same connection automatically once established.
+// FIX: On some Windows machines, Node's internal DNS resolver
+// (c-ares) fails to resolve mongodb+srv:// SRV records even
+// when the OS's own DNS resolution works fine (confirmed via
+// nslookup). Explicitly pointing Node's resolver at public DNS
+// servers (Google + Cloudflare) works around this reliably.
 // ============================================================
 
 import mongoose from "mongoose";
+import dns from "dns";
+
+// Force Node's own resolver to use public DNS servers instead
+// of whatever it was defaulting to — fixes SRV lookup failures
+// that only affect Node, not the OS.
+dns.setServers(["8.8.8.8", "1.1.1.1"]);
 
 const connectDB = async () => {
   try {
