@@ -1,33 +1,22 @@
-import axios from "axios";
+// ============================================================
+// uploadApi.js
+//
+// OPTIMIZED: uses the shared httpClient instance instead of
+// raw axios + a hardcoded base URL.
+// ============================================================
 
-const API =
-  "http://localhost:5000/api/upload";
+import httpClient from "./httpClient";
 
-export const uploadFiles =
-  async (files) => {
+export const uploadFiles = async (files) => {
+  const formData = new FormData();
 
-    const formData =
-      new FormData();
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
 
-    files.forEach((file) => {
+  const response = await httpClient.post("/upload", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
 
-      formData.append(
-        "files",
-        file
-      );
-    });
-
-    const response =
-      await axios.post(
-        API,
-        formData,
-        {
-          headers: {
-            "Content-Type":
-              "multipart/form-data",
-          },
-        }
-      );
-
-    return response.data;
+  return response.data;
 };

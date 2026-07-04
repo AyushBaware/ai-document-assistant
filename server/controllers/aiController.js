@@ -472,7 +472,8 @@ export const generateAIResponse = async (req, res) => {
     let docsToUse      = allDocuments;
 
     if (Array.isArray(selectedDocumentIds) && selectedDocumentIds.length > 0) {
-      const filtered = allDocuments.filter((d) => selectedDocumentIds.includes(d.id));
+      const idSet = new Set(selectedDocumentIds);
+      const filtered = allDocuments.filter((d) => idSet.has(d.id));
       if (filtered.length > 0) docsToUse = filtered;
     }
 
@@ -557,8 +558,8 @@ export const generateFromSession = async (req, res) => {
       });
     }
 
-    // Fetch from MongoDB — userId guard prevents cross-user access
-    const session = await Session.findOne({ _id: sessionId, userId });
+    // Fetch from MongoDB — userId guard prevents cross-user access and used lean() for optimization
+    const session = await Session.findOne({ _id: sessionId, userId }).lean();
 
     if (!session) {
       return res.status(404).json({

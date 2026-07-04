@@ -18,11 +18,12 @@
 // header — the BYOK pattern from Phase 1. The backend uses
 // the user's key if present and valid, otherwise falls back
 // to the server's .env key.
+//
+// OPTIMIZED: uses the shared httpClient instance instead of
+// raw axios + a hardcoded base URL.
 // ============================================================
 
-import axios from "axios";
-
-const BASE = "http://localhost:5000/api/ai";
+import httpClient from "./httpClient";
 
 export const generateAI = async (
   _extractedText,        // unused — backend reads from knowledgeStore
@@ -36,7 +37,7 @@ export const generateAI = async (
     body.selectedDocumentIds = selectedDocumentIds;
   }
 
-  const response = await axios.post(`${BASE}/generate`, body, {
+  const response = await httpClient.post("/ai/generate", body, {
     headers: { "x-gemini-key": geminiKey },
   });
 
@@ -49,8 +50,8 @@ export const generateAIFromSession = async (
   geminiKey = "",
   token = ""             // JWT — required because the backend uses requireAuth
 ) => {
-  const response = await axios.post(
-    `${BASE}/generate-from-session`,
+  const response = await httpClient.post(
+    "/ai/generate-from-session",
     { type, sessionId },
     {
       headers: {

@@ -54,9 +54,8 @@ export const createSession = async (req, res) => {
     // the in-memory store — this is the same store aiController.js
     // already reads from when generating AI responses.
     const allDocuments = knowledgeStore.getAllDocuments();
-    const matchedDocuments = allDocuments.filter((doc) =>
-      documentIds.includes(doc.id)
-    );
+    const idSet = new Set(documentIds);
+    const matchedDocuments = allDocuments.filter((doc) => idSet.has(doc.id));
 
     if (matchedDocuments.length === 0) {
       return res.status(404).json({
@@ -115,7 +114,8 @@ export const getAllSessions = async (req, res) => {
 
     const sessions = await Session.find({ userId })
       .sort({ lastOpenedAt: -1 })
-      .select("title createdAt lastOpenedAt documents.fileName responses");
+      .select("title createdAt lastOpenedAt documents.fileName responses")
+      .lean();
 
     const sessionList = sessions.map((s) => ({
       id: s._id,

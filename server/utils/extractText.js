@@ -111,25 +111,20 @@ const extractPdfText = async (filePath) => {
   const data = new Uint8Array(fs.readFileSync(filePath));
   const pdf = await pdfjsLib.getDocument({ data }).promise;
 
-  let text = "";
-  let totalTextLength = 0;
+  // Extract all pages concurrently — page.getTextContent() calls are
+  // independent, so this avoids serializing N awaits into one long chain.
+  // Promise.all preserves order, so the final text stays page-ordered.
+  const pageTexts = await Promise.all(
+    Array.from({ length: pdf.numPages }, async (_, i) => {
+      const page = await pdf.getPage(i + 1);
+      const content = await page.getTextContent();
+      return groupTextByRows(content.items);
+    })
+  );
 
-  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-    const page = await pdf.getPage(pageNum);
-    const content = await page.getTextContent();
+  const totalTextLength = pageTexts.reduce((sum, t) => sum + t.length, 0);
+  let text = pageTexts.join("\n\n") + "\n\n";
 
-    // Use row-aware grouping instead of flat join — preserves tables
-    const pageText = groupTextByRows(content.items);
-    totalTextLength += pageText.length;
-
-    text += pageText + "\n\n";
-  }
-
-  // ── CONTENT DENSITY CHECK ──────────────────────────────
-  // Average chars per page. A normal text-heavy page has
-  // 1500-3000+ characters. If average is very low, the PDF
-  // likely contains scanned images, charts, or diagrams with
-  // no extractable text layer — flag this honestly.
   const avgCharsPerPage = totalTextLength / pdf.numPages;
   const isLikelyImageHeavy = avgCharsPerPage < 200 && pdf.numPages > 0;
 

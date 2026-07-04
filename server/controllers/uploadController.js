@@ -6,54 +6,64 @@ import knowledgeStore from "../utils/knowledgeStore.js";
 export const uploadFiles = async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
-      return res
-        .status(400)
-        .json({ success: false, message: "No files uploaded." });
+      return res.status(400).json({ success: false, message: "No files uploaded." });
     }
 
     knowledgeStore.clearDocuments();
+
+    // Process all files concurrently instead of one-by-one.
+    // Each file's extraction is independent (own path/buffer), so this
+    // cuts total upload time roughly to the slowest single file
+    // instead of the sum of all files.
+    const results = await Promise.all(
+      req.files.map(async (file) => {
+        try {
+          const extractedText = await extractText(file.path, file.mimetype);
+
+          if (!extractedText || extractedText.trim().length < 20) {
+            console.warn(`Could not extract text from: ${file.originalname}`);
+            if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+            return null;
+          }
+
+          const chunks = createChunks(extractedText);
+
+          const documentObject = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            fileName: file.originalname,
+            mimetype: file.mimetype,
+            extractedText,
+            chunks,
+            chunkCount: chunks.length,
+            uploadedAt: new Date().toISOString(),
+          };
+
+          if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+          return documentObject;
+        } catch (err) {
+          console.error(`Failed processing ${file.originalname}:`, err.message);
+          if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+          return null;
+        }
+      })
+    );
+
     const processedFiles = [];
-
-    for (const file of req.files) {
-      const extractedText = await extractText(file.path, file.mimetype);
-
-      if (!extractedText || extractedText.trim().length < 20) {
-        console.warn(`Could not extract text from: ${file.originalname}`);
-        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-        continue;
-      }
-
-      const chunks = createChunks(extractedText);
-
-      const documentObject = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        fileName: file.originalname,
-        mimetype: file.mimetype,
-        extractedText,
-        chunks,
-        chunkCount: chunks.length,
-        uploadedAt: new Date().toISOString(),
-      };
-
-      knowledgeStore.addDocument(documentObject);
-
-      // OPTIMIZATION: Do not pass raw extractedText back to client.
-      // Keep payload lightweight to protect browser memory performance.
+    for (const doc of results) {
+      if (!doc) continue;
+      knowledgeStore.addDocument(doc);
       processedFiles.push({
-        id: documentObject.id,
-        fileName: file.originalname,
-        mimetype: file.mimetype,
-        chunkCount: chunks.length,
+        id: doc.id,
+        fileName: doc.fileName,
+        mimetype: doc.mimetype,
+        chunkCount: doc.chunkCount,
       });
-
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
     }
 
     if (processedFiles.length === 0) {
       return res.status(400).json({
         success: false,
-        message:
-          "No readable text found in uploaded files. Please check the files.",
+        message: "No readable text found in uploaded files. Please check the files.",
       });
     }
 
@@ -64,11 +74,6 @@ export const uploadFiles = async (req, res) => {
     });
   } catch (error) {
     console.error("Upload Error:", error);
-    return res
-      .status(500)
-      .json({
-        success: false,
-        message: "File processing failed. Please try again.",
-      });
+    return res.status(500).json({ success: false, message: "File processing failed. Please try again." });
   }
 };

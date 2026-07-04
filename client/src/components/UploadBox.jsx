@@ -379,6 +379,10 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
 
   const hasAnyFiles = files.length > 0 || processedDocs.length > 0;
 
+  // Computed once per render instead of calling AI_MODES.find()
+  // twice further down in JSX for the icon and label separately.
+  const activeModeInfo = AI_MODES.find((m) => m.type === activeMode);
+
   // ── RENDER ──────────────────────────────────────────────
   return (
     <motion.div
@@ -750,18 +754,11 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                             <div className="px-4 sm:px-5 py-3.5 border-b border-white/10 flex items-center justify-between gap-3">
                               <div className="flex items-center gap-3 min-w-0">
                                 <span className="text-lg shrink-0">
-                                  {
-                                    AI_MODES.find((m) => m.type === activeMode)
-                                      ?.icon
-                                  }
+                                  {activeModeInfo?.icon}
                                 </span>
                                 <div className="min-w-0">
                                   <h3 className="text-sm font-semibold text-white truncate">
-                                    {
-                                      AI_MODES.find(
-                                        (m) => m.type === activeMode,
-                                      )?.label
-                                    }{" "}
+                                    {activeModeInfo?.label}{" "}
                                     <span className="text-gray-400 font-normal">
                                       —{" "}
                                       {processedFileNames.length > 1
