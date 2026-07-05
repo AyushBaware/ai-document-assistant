@@ -3,6 +3,8 @@
 // In-memory document store — foundation of RAG pipeline.
 // ======================================================
 
+import { retrieveRelevantChunks } from "./retrieveChunks.js";
+
 const knowledgeStore = {
   documents: [],
 
@@ -30,24 +32,19 @@ const knowledgeStore = {
   },
 
   /**
-   * Semantic Retrieval Interface (RAG Readiness Layer)
-   * Right now, it returns the structured document text matching selectedIds.
-   * Later, replace this logic with vector database embeddings and cosine similarity search.
+   * Semantic Retrieval (real implementation)
+   * Embeds `query` and runs MongoDB Atlas Vector Search against
+   * the DocumentChunk collection, scoped to the given documentIds
+   * (or the whole current upload batch if selectedIds is empty).
+   * Requires the Gemini API key so it can embed the query text.
    */
-  async retrieveContext(selectedIds = [], query = "", options = { k: 4 }) {
-    const targets = selectedIds.length > 0 
-      ? this.documents.filter(d => selectedIds.includes(d.id))
-      : this.documents;
+  async retrieveContext(selectedIds = [], query = "", apiKey = "", options = { k: 6 }) {
+    if (!query || !apiKey) return [];
 
-    if (targets.length === 0) return [];
+    const filter =
+      selectedIds.length > 0 ? { documentId: { $in: selectedIds } } : {};
 
-    // Current logic: Whole-document processing (Deterministic baseline)
-    // Future RAG logic: Generate query embedding -> Query Vector Store -> Filter by target IDs -> Return top K chunks
-    return targets.map((doc, i) => ({
-      id: doc.id,
-      fileName: doc.fileName,
-      textPayload: doc.extractedText || ""
-    }));
+    return retrieveRelevantChunks(filter, query, apiKey, options.k || 6);
   }
 };
 

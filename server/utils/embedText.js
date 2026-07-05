@@ -3,9 +3,17 @@
 //
 // WHAT THIS DOES:
 // Converts chunks of text into embedding vectors using Gemini's
-// text-embedding-004 model. These vectors are what MongoDB
-// Atlas Vector Search compares against to find semantically
-// relevant chunks later (retrieval, Step 4+).
+// embedding model. These vectors are what MongoDB Atlas Vector
+// Search compares against to find semantically relevant chunks
+// later (retrieval).
+//
+// MODEL UPDATE (important):
+// text-embedding-004 was shut down by Google on Jan 14, 2026.
+// gemini-embedding-001 is the replacement. Its native output is
+// 3072 dimensions, but we explicitly request 768 dimensions via
+// outputDimensionality — this keeps our Atlas Vector Search index
+// small and fast, and 768 dims is still highly accurate for
+// document retrieval at this project's scale.
 //
 // WHY BATCH INSTEAD OF ONE CALL PER CHUNK:
 // Gemini's batchEmbedContents endpoint embeds up to 100 pieces
@@ -25,8 +33,13 @@
 // not hardcoded.
 // ============================================================
 
-const EMBEDDING_MODEL = "text-embedding-004";
+const EMBEDDING_MODEL = "gemini-embedding-001";
 const EMBEDDING_URL = `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:batchEmbedContents`;
+
+// Must match the "numDimensions" set in the Atlas Vector Search
+// index (vector_index) — changing this requires recreating the
+// index, since vector dimensions can't be changed after creation.
+const EMBEDDING_DIMENSIONS = 768;
 
 // Gemini's batch endpoint caps requests per call. Splitting our
 // own request list keeps us under that ceiling regardless of
@@ -38,6 +51,7 @@ const embedBatch = async (texts, apiKey, taskType) => {
     model: `models/${EMBEDDING_MODEL}`,
     content: { parts: [{ text }] },
     taskType,
+    outputDimensionality: EMBEDDING_DIMENSIONS,
   }));
 
   const response = await fetch(EMBEDDING_URL, {

@@ -21,6 +21,11 @@ export const uploadFiles = async (req, res) => {
 
     knowledgeStore.clearDocuments();
 
+    // Generated up front (not after processing) so each document
+    // object can carry its own batchId — needed so a later semantic
+    // search can be scoped to "this exact upload" via knowledgeStore.
+    const batchId = crypto.randomUUID();
+
     // Process all files concurrently instead of one-by-one.
     // Each file's extraction is independent (own path/buffer), so this
     // cuts total upload time roughly to the slowest single file
@@ -45,6 +50,7 @@ export const uploadFiles = async (req, res) => {
             extractedText,
             chunks,
             chunkCount: chunks.length,
+            batchId,
             uploadedAt: new Date().toISOString(),
           };
 
@@ -70,10 +76,9 @@ export const uploadFiles = async (req, res) => {
     processedDocs.forEach((doc) => knowledgeStore.addDocument(doc));
 
     // ── EMBED + STORE CHUNKS FOR RAG ─────────────────────────
-    // One batchId ties every chunk from this upload together,
-    // so a later Session save can flip them all to permanent
-    // in a single update (see sessionController.js).
-    const batchId = crypto.randomUUID();
+    // Same batchId (declared above) ties every chunk from this
+    // upload together, so a later Session save can flip them all
+    // to permanent in a single update (see sessionController.js).
 
     if (apiKey) {
       try {
