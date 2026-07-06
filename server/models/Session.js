@@ -46,6 +46,16 @@ const responseSubSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const chatMessageSubSchema = new mongoose.Schema(
+  {
+    role: { type: String, enum: ["user", "assistant"], required: true },
+    content: { type: String, required: true },
+    sources: { type: [String], default: [] }, // fileNames the answer was grounded in
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const sessionSchema = new mongoose.Schema(
   {
     userId: {
@@ -82,6 +92,14 @@ const sessionSchema = new mongoose.Schema(
       summary: { type: responseSubSchema, default: () => ({}) },
       notes: { type: responseSubSchema, default: () => ({}) },
       explain: { type: responseSubSchema, default: () => ({}) },
+    },
+
+    // Persisted conversation for the "Ask Questions" feature —
+    // only used for saved sessions (logged-in users). Anonymous
+    // chat stays client-side only, sent back each request.
+    chatHistory: {
+      type: [chatMessageSubSchema],
+      default: [],
     },
 
     lastOpenedAt: {

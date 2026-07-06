@@ -191,6 +191,7 @@ export const getSessionById = async (req, res) => {
         title: session.title,
         documents: session.documents,
         responses: session.responses,
+        chatHistory: session.chatHistory,
         createdAt: session.createdAt,
       },
     });

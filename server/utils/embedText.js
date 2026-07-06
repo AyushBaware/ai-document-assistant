@@ -23,7 +23,7 @@
 //
 // TASK TYPE:
 // Gemini embeddings support a "taskType" hint that improves
-// retrieval accuracy:
+// retrieval accuracy:s
 //   RETRIEVAL_DOCUMENT → used here, when embedding documents
 //                         to be searched (at upload time)
 //   RETRIEVAL_QUERY     → used later when embedding a user's

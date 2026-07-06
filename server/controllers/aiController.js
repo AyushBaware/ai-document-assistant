@@ -329,7 +329,7 @@ Give each document a full section with a clear heading. Put --- between sections
 // Two targeted retries only:
 //   Case 1 — MAX_TOKENS: response was cut off → retry at HARD_MAX
 //   Case 2 — Near-empty (<80 chars): genuine failure → retry once
-const callGemini = async (
+export const callGemini = async (
   systemInstruction,
   userContent,
   apiKey,
@@ -428,7 +428,7 @@ const buildPrompt = (docsToUse, type) => {
 
 // ── SHARED ERROR CLASSIFIER ───────────────────────────────────
 // Maps raw Gemini/network error messages to user-friendly text.
-const classifyError = (message = "") => {
+export const classifyError = (message = "") => {
   const msg = message.toLowerCase();
   if (msg.includes("quota") || msg.includes("rate") || msg.includes("limit")) {
     return "Gemini rate limit reached. Please wait 1-2 minutes and try again.";

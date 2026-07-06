@@ -27,6 +27,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import ResponseViewer from "./ResponseViewer";
+import ChatPanel from "./ChatPanel";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiUploadCloud, FiPlus } from "react-icons/fi";
 import { uploadFiles } from "../api/uploadApi";
@@ -100,9 +101,11 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
   const [analysisStage, setAnalysisStage] = useState("");
   const [copied, setCopied] = useState(false);
   const [cachedResults, setCachedResults] = useState({});
+  const [showChat, setShowChat] = useState(false);
 
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [currentBatchId, setCurrentBatchId] = useState(null);
+  const [preloadedChatHistory, setPreloadedChatHistory] = useState([]);
   const [isLoadingPreload, setIsLoadingPreload] = useState(false);
 
   // ── DRAG AND DROP STATE ─────────────────────────────────
@@ -152,6 +155,14 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
         setCachedResults(preloadedCache);
         setAiResult("");
         setActiveMode(null);
+
+        // Convert stored chatHistory into the shape ChatPanel expects
+        const savedMessages = (session.chatHistory || []).map((m) => ({
+          role: m.role,
+          content: m.content,
+          sources: m.sources || [],
+        }));
+        setPreloadedChatHistory(savedMessages);
       } catch (err) {
         setError("Failed to load this session.");
       } finally {
@@ -197,6 +208,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
     setAiResult("");
     setActiveMode(null);
     setCachedResults({});
+    setShowChat(false);
   };
 
   const handleFilesChange = (e) => {
@@ -252,6 +264,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
     setAiResult("");
     setActiveMode(null);
     setCachedResults({});
+    setShowChat(false);
   };
 
   // ── PROCESS (initial or re-process after changes) ────────
@@ -265,6 +278,8 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
     setCachedResults({});
     setCurrentSessionId(null);
     setCurrentBatchId(null);
+    setPreloadedChatHistory([]);
+    setShowChat(false);
 
     try {
       const formData = new FormData();
@@ -285,7 +300,11 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
           // Use data.batchId directly (not the state var above) —
           // setState is async, so the state value isn't guaranteed
           // to be updated yet on this same tick.
-          const sessionData = await createSession(documentIds, data.batchId, token);
+          const sessionData = await createSession(
+            documentIds,
+            data.batchId,
+            token,
+          );
           setCurrentSessionId(sessionData.session.id);
           if (onSessionSaved) onSessionSaved();
         } catch (saveErr) {
@@ -327,15 +346,6 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
       setAnalysisStage("Analyzing documents...");
       setActiveMode(type);
       setAiResult("");
-
-      // Detect whether we are in "preloaded session" mode.
-      // When UploadBox loads a past session from history, it
-      // assigns fake IDs like "preloaded-0", "preloaded-1"
-      // for display purposes. These don't exist in knowledgeStore
-      // on the server, so we must use the session route instead.
-      const isPreloadedSession = selectedIds.some((id) =>
-        id.startsWith("preloaded-"),
-      );
 
       let data;
 
@@ -393,6 +403,13 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
   // Computed once per render instead of calling AI_MODES.find()
   // twice further down in JSX for the icon and label separately.
   const activeModeInfo = AI_MODES.find((m) => m.type === activeMode);
+
+  // Shared between generateContent() and ChatPanel — true when the
+  // currently selected documents came from a loaded history session
+  // rather than a fresh upload (see fake "preloaded-" IDs above).
+  const isPreloadedSession = selectedIds.some((id) =>
+    id.startsWith("preloaded-"),
+  );
 
   // ── RENDER ──────────────────────────────────────────────
   return (
@@ -698,7 +715,10 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                             key={mode.type}
                             whileHover={{ scale: 1.04 }}
                             whileTap={{ scale: 0.96 }}
-                            onClick={() => generateContent(mode.type)}
+                            onClick={() => {
+                              setShowChat(false);
+                              generateContent(mode.type);
+                            }}
                             disabled={aiLoading || selectedIds.length === 0}
                             className={`relative px-5 py-3 rounded-xl text-sm font-medium transition-all duration-300 border flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                               isActive
@@ -717,6 +737,25 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                           </motion.button>
                         );
                       })}
+
+                      <motion.button
+                        whileHover={{ scale: 1.04 }}
+                        whileTap={{ scale: 0.96 }}
+                        onClick={() => {
+                          setActiveMode(null);
+                          setAiResult("");
+                          setShowChat(true);
+                        }}
+                        disabled={selectedIds.length === 0}
+                        className={`relative px-5 py-3 rounded-xl text-sm font-medium transition-all duration-300 border flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                          showChat
+                            ? "bg-cyan-500/20 border-cyan-400/40 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.2)]"
+                            : "bg-white/[0.05] border-white/10 text-white hover:bg-white/10"
+                        }`}
+                      >
+                        <span className="text-base">💬</span>
+                        <span>Ask Questions</span>
+                      </motion.button>
                     </div>
 
                     <AnimatePresence>
@@ -749,6 +788,27 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                                 "Preparing a clear explanation..."}
                             </p>
                           </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <AnimatePresence>
+                      {showChat && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.4 }}
+                          className="mt-8"
+                        >
+                          <ChatPanel
+                            key={selectedIds.join(",")}
+                            selectedIds={selectedIds}
+                            isPreloadedSession={isPreloadedSession}
+                            currentSessionId={currentSessionId}
+                            geminiKey={geminiKey}
+                            token={token}
+                            initialMessages={preloadedChatHistory}
+                          />
                         </motion.div>
                       )}
                     </AnimatePresence>
