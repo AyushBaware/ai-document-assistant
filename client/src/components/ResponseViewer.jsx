@@ -54,11 +54,11 @@ const ResponseViewer = ({ content }) => {
             return (
               <motion.div
                 variants={itemVariants}
-                className={`mt-8 mb-5 rounded-2xl border px-4 sm:px-6 lg:px-7 py-4 sm:py-5 lg:py-6 backdrop-blur-lg ${getSectionStyle(
+                className={`mt-6 mb-4 rounded-xl sm:rounded-2xl border px-3 sm:px-6 lg:px-7 py-3 sm:py-5 lg:py-6 backdrop-blur-lg ${getSectionStyle(
                   title
                 )}`}
               >
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-white leading-tight m-0">
+                <h1 className="text-xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-white leading-tight m-0">
                   {children}
                 </h1>
               </motion.div>
@@ -68,7 +68,7 @@ const ResponseViewer = ({ content }) => {
           h2: ({ children }) => (
             <motion.h2
               variants={itemVariants}
-              className="text-xl sm:text-2xl lg:text-3xl font-bold text-cyan-200 mt-8 mb-4 tracking-tight"
+              className="text-lg sm:text-2xl lg:text-3xl font-bold text-cyan-200 mt-6 sm:mt-8 mb-3 sm:mb-4 tracking-tight"
             >
               {children}
             </motion.h2>
@@ -77,7 +77,7 @@ const ResponseViewer = ({ content }) => {
           h3: ({ children }) => (
             <motion.h3
               variants={itemVariants}
-              className="text-lg sm:text-xl lg:text-2xl font-semibold text-white mt-6 mb-3"
+              className="text-base sm:text-xl lg:text-2xl font-semibold text-white mt-5 sm:mt-6 mb-2 sm:mb-3"
             >
               {children}
             </motion.h3>
@@ -86,7 +86,7 @@ const ResponseViewer = ({ content }) => {
           p: ({ children }) => (
             <motion.p
               variants={itemVariants}
-              className="leading-8 sm:leading-8 lg:leading-9 text-gray-300 mb-5 text-base sm:text-lg lg:text-[17px] font-normal"
+              className="leading-7 sm:leading-8 lg:leading-9 text-gray-300 mb-4 sm:mb-5 text-[15px] sm:text-lg lg:text-[17px] font-normal"
             >
               {children}
             </motion.p>
@@ -95,7 +95,7 @@ const ResponseViewer = ({ content }) => {
           ul: ({ children }) => (
             <motion.ul
               variants={itemVariants}
-              className="space-y-3 sm:space-y-4 ml-5 sm:ml-6 lg:ml-7 mb-6 list-disc marker:text-cyan-400"
+              className="space-y-2 sm:space-y-4 ml-4 sm:ml-6 lg:ml-7 mb-5 sm:mb-6 list-disc marker:text-cyan-400"
             >
               {children}
             </motion.ul>
@@ -104,7 +104,7 @@ const ResponseViewer = ({ content }) => {
           li: ({ children }) => (
             <motion.li
               variants={itemVariants}
-              className="leading-8 sm:leading-8 lg:leading-9 text-gray-300 text-base sm:text-lg lg:text-[17px] pl-2 sm:pl-3 font-normal"
+              className="leading-7 sm:leading-8 lg:leading-9 text-gray-300 text-[15px] sm:text-lg lg:text-[17px] pl-1 sm:pl-3 font-normal"
             >
               {children}
             </motion.li>
@@ -119,7 +119,7 @@ const ResponseViewer = ({ content }) => {
           blockquote: ({ children }) => (
             <motion.blockquote
               variants={itemVariants}
-              className="border-l-4 border-cyan-400/50 pl-4 sm:pl-5 lg:pl-6 italic text-gray-300 my-6 bg-cyan-500/8 py-4 px-4 rounded-r-lg text-base sm:text-lg lg:text-[17px]"
+              className="border-l-4 border-cyan-400/50 pl-3 sm:pl-5 lg:pl-6 italic text-gray-300 my-4 sm:my-6 bg-cyan-500/8 py-3 sm:py-4 px-3 sm:px-4 rounded-r-lg text-[15px] sm:text-lg lg:text-[17px]"
             >
               {children}
             </motion.blockquote>

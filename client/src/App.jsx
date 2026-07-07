@@ -38,6 +38,11 @@ function App() {
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [sessionRefreshTrigger, setSessionRefreshTrigger] = useState(0);
 
+  // Hidden as soon as the user has files in play (uploading, processing,
+  // or viewing a response) — no point burning screen space on the pitch
+  // copy once they're actually using the tool, especially on mobile.
+  const [hideHero, setHideHero] = useState(false);
+
   useEffect(() => {
     const savedKey = localStorage.getItem("gemini_api_key");
     setGeminiKey(savedKey || "");
@@ -173,10 +178,16 @@ function App() {
       </div>
 
       {/* ── MAIN CONTENT ─────────────────────────────────────── */}
-      <div className="relative z-10 max-w-6xl mx-auto px-4 py-16 md:py-24">
-        <HeroSection />
+      <div
+        className={`relative z-10 max-w-6xl mx-auto px-4 transition-all duration-300 ${
+          hideHero
+            ? "pt-20 pb-6 sm:pt-24 sm:pb-8"
+            : "pt-24 pb-16 md:pt-28 md:pb-24"
+        }`}
+      >
+        {!hideHero && <HeroSection />}
 
-        {!user && (
+        {!hideHero && !user && (
           <p className="sm:hidden text-center text-gray-500 text-xs mb-6">
             Sign in (top right) to save your session history.
           </p>
@@ -187,6 +198,7 @@ function App() {
             geminiKey={geminiKey}
             preloadedSession={selectedSessionId}
             onSessionSaved={handleSessionSaved}
+            onHeroVisibilityChange={setHideHero}
           />
         ) : null}
       </div>

@@ -83,7 +83,7 @@ const AI_MODES = [
   },
 ];
 
-function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
+function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibilityChange }) {
   const { user, token } = useAuth();
 
   const [files, setFiles] = useState([]);
@@ -114,6 +114,14 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
   // dragging over a CHILD element inside the drop zone fires
   // a spurious dragleave on the parent, causing flicker.
   const dragCounter = useRef(0);
+
+  // Tell App.jsx whether the hero copy should be hidden — true the moment
+  // there's any file in play (selected, processing, or already processed).
+  useEffect(() => {
+    if (onHeroVisibilityChange) {
+      onHeroVisibilityChange(files.length > 0 || processedDocs.length > 0);
+    }
+  }, [files.length, processedDocs.length, onHeroVisibilityChange]);
 
   // ── LOAD A PRELOADED SESSION (from history sidebar click) ──
   useEffect(() => {
@@ -508,7 +516,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
           {hasAnyFiles && (
             <div>
               <div className="flex items-center justify-between gap-3 mb-5">
-                <h2 className="text-lg sm:text-xl font-semibold text-white">
+                <h2 className="text-lg sm:text-xl font-semibold text-white truncate min-w-0 flex-1">
                   {processedFileNames.length > 0 && !needsProcessing
                     ? processedFileNames.length > 1
                       ? `${processedFileNames.length} documents ready`
@@ -549,11 +557,11 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                         transition={{ delay: index * 0.04 }}
                         className="p-4 rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl flex items-center justify-between gap-3"
                       >
-                        <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="flex items-center gap-3 overflow-hidden min-w-0 flex-1">
                           <span className="text-2xl shrink-0">
                             {getFileIcon(file.name)}
                           </span>
-                          <div className="overflow-hidden">
+                          <div className="overflow-hidden min-w-0">
                             <p className="text-sm text-white truncate font-medium">
                               {file.name}
                             </p>
@@ -670,12 +678,12 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                                       : "border-white/5 bg-white/[0.02] hover:border-white/10"
                                   }`}
                                 >
-                                  <div className="flex items-center gap-3 overflow-hidden">
+                                  <div className="flex items-center gap-3 overflow-hidden min-w-0 flex-1">
                                     <span className="text-lg shrink-0">
                                       {getFileIcon(doc.fileName)}
                                     </span>
-                                    <div className="overflow-hidden">
-                                      <div className="text-sm text-white font-medium truncate max-w-[160px] sm:max-w-[200px]">
+                                    <div className="overflow-hidden min-w-0 flex-1">
+                                      <div className="text-sm text-white font-medium truncate">
                                         {doc.fileName}
                                       </div>
                                       <div className="text-xs text-gray-500">
@@ -704,7 +712,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                       </div>
                     )}
 
-                    <div className="flex flex-wrap justify-center gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {AI_MODES.map((mode) => {
                         const isActive = activeMode === mode.type;
                         const modeCacheKey = `${mode.type}_${[...selectedIds].sort().join(",")}`;
@@ -720,7 +728,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                               generateContent(mode.type);
                             }}
                             disabled={aiLoading || selectedIds.length === 0}
-                            className={`relative px-5 py-3 rounded-xl text-sm font-medium transition-all duration-300 border flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                            className={`relative w-full px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 border flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                               isActive
                                 ? "bg-cyan-500/20 border-cyan-400/40 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.2)]"
                                 : "bg-white/[0.05] border-white/10 text-white hover:bg-white/10"
@@ -747,7 +755,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                           setShowChat(true);
                         }}
                         disabled={selectedIds.length === 0}
-                        className={`relative px-5 py-3 rounded-xl text-sm font-medium transition-all duration-300 border flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                        className={`relative w-full px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 border flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                           showChat
                             ? "bg-cyan-500/20 border-cyan-400/40 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.2)]"
                             : "bg-white/[0.05] border-white/10 text-white hover:bg-white/10"
@@ -821,8 +829,8 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                           transition={{ duration: 0.4 }}
                           className="mt-8"
                         >
-                          <div className="border border-white/10 bg-gradient-to-b from-white/[0.05] to-white/[0.01] backdrop-blur-2xl rounded-2xl overflow-hidden">
-                            <div className="px-4 sm:px-5 py-3.5 border-b border-white/10 flex items-center justify-between gap-3">
+                          <div className="border border-white/10 bg-white/[0.02] sm:bg-gradient-to-b sm:from-white/[0.05] sm:to-white/[0.01] backdrop-blur-2xl rounded-2xl overflow-hidden">
+                            <div className="px-3 sm:px-5 py-3 sm:py-3.5 border-b border-white/10 flex items-center justify-between gap-3">
                               <div className="flex items-center gap-3 min-w-0">
                                 <span className="text-lg shrink-0">
                                   {activeModeInfo?.icon}
@@ -857,7 +865,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved }) {
                               </button>
                             </div>
 
-                            <div className="px-4 sm:px-6 py-5 max-h-[80vh] overflow-y-auto">
+                            <div className="px-3 sm:px-6 py-4 sm:py-5 max-h-[78vh] sm:max-h-[80vh] overflow-y-auto">
                               <ResponseViewer content={aiResult} />
                             </div>
                           </div>
