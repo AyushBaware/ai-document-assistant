@@ -18,24 +18,62 @@ import { askQuestion, askQuestionFromSession } from "../api/chatApi";
 
 const MAX_QUESTION_LENGTH = 500;
 
-function ChatPanel({ selectedIds, isPreloadedSession, currentSessionId, geminiKey, token, initialMessages = [] }) {
+function ChatPanel({
+  selectedIds,
+  isPreloadedSession,
+  currentSessionId,
+  geminiKey,
+  token,
+  initialMessages = [],
+}) {
   const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const scrollRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const inputRef = useRef(null);
 
+  // Scroll only the chat's own inner list — NOT the page.
+  // scrollIntoView() was scrolling the whole document (since the
+  // target sits deep in the page), which pushed the header off
+  // screen every time the chat opened. Setting scrollTop directly
+  // on the container fixes this without touching page scroll.
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = messagesContainerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages, loading]);
+
+  // Nice touch: focus the input the moment the panel opens.
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  // Caches answers by exact question text (case-insensitive) for
+  // this chat session. Students often re-ask the same question —
+  // this avoids burning another Gemini call for an identical repeat.
+  // Resets naturally whenever ChatPanel remounts (new doc selection).
+  const answerCacheRef = useRef(new Map());
 
   const handleSend = async () => {
     const question = input.trim();
     if (!question || loading) return;
 
+    const cacheKey = question.toLowerCase();
+    const cached = answerCacheRef.current.get(cacheKey);
+
     setInput("");
     setError("");
     setMessages((prev) => [...prev, { role: "user", content: question }]);
+
+    if (cached) {
+      // Instant, zero-cost repeat answer — no API call.
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: cached.answer, sources: cached.sources, cached: true },
+      ]);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -47,17 +85,31 @@ function ChatPanel({ selectedIds, isPreloadedSession, currentSessionId, geminiKe
 
       let data;
       if (isPreloadedSession && currentSessionId && token) {
-        data = await askQuestionFromSession(question, currentSessionId, history, geminiKey, token);
+        data = await askQuestionFromSession(
+          question,
+          currentSessionId,
+          history,
+          geminiKey,
+          token,
+        );
       } else {
         data = await askQuestion(question, selectedIds, history, geminiKey);
       }
+
+      answerCacheRef.current.set(cacheKey, {
+        answer: data.answer,
+        sources: data.sources || [],
+      });
 
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: data.answer, sources: data.sources || [] },
       ]);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to get an answer. Please try again.");
+      setError(
+        err.response?.data?.message ||
+          "Failed to get an answer. Please try again.",
+      );
       setMessages((prev) => prev.slice(0, -1)); // remove the pending question on failure
     } finally {
       setLoading(false);
@@ -78,23 +130,39 @@ function ChatPanel({ selectedIds, isPreloadedSession, currentSessionId, geminiKe
         <h3 className="text-sm font-semibold text-white">Ask Questions</h3>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-4">
+      <div
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-4"
+      >
         {messages.length === 0 && (
           <p className="text-gray-500 text-sm text-center py-10">
-            Ask anything about your document(s) — answers are grounded only in what they actually contain.
+            Ask anything about your document(s) — answers are grounded only in
+            what they actually contain.
           </p>
         )}
 
         {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} group`}>
             <div
-              className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-6 ${
+              className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-6 relative ${
                 msg.role === "user"
                   ? "bg-cyan-500/20 border border-cyan-400/30 text-white"
                   : "bg-white/[0.05] border border-white/10 text-gray-200"
               }`}
             >
+              {msg.role === "assistant" && (
+                <button
+                  onClick={() => navigator.clipboard.writeText(msg.content)}
+                  className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-full bg-white/10 border border-white/10 text-gray-400 hover:text-white hover:bg-white/20 flex items-center justify-center text-xs"
+                  title="Copy answer"
+                >
+                  ⧉
+                </button>
+              )}
               <p className="whitespace-pre-wrap">{msg.content}</p>
+              {msg.cached && (
+                <p className="text-[10px] text-cyan-400/70 mt-1">⚡ Instant — repeated question</p>
+              )}
               {msg.sources && msg.sources.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-white/10">
                   {msg.sources.map((src, j) => (
@@ -124,8 +192,6 @@ function ChatPanel({ selectedIds, isPreloadedSession, currentSessionId, geminiKe
             </div>
           </div>
         )}
-
-        <div ref={scrollRef} />
       </div>
 
       <AnimatePresence>
@@ -142,6 +208,7 @@ function ChatPanel({ selectedIds, isPreloadedSession, currentSessionId, geminiKe
 
       <div className="px-4 sm:px-5 py-3.5 border-t border-white/10 flex items-end gap-2">
         <textarea
+          ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value.slice(0, MAX_QUESTION_LENGTH))}
           onKeyDown={handleKeyDown}

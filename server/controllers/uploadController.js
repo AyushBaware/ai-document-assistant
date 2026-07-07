@@ -12,24 +12,14 @@ export const uploadFiles = async (req, res) => {
       return res.status(400).json({ success: false, message: "No files uploaded." });
     }
 
-    // Same BYOK pattern as aiController.js — user's key wins,
-    // falls back to server key. Only used for embeddings here;
-    // extraction itself never needed a key and still doesn't.
     const userKey = req.headers["x-gemini-key"];
     const serverKey = process.env.GEMINI_API_KEY;
     const apiKey = (userKey && userKey.startsWith("AIza")) ? userKey : serverKey;
 
     knowledgeStore.clearDocuments();
 
-    // Generated up front (not after processing) so each document
-    // object can carry its own batchId — needed so a later semantic
-    // search can be scoped to "this exact upload" via knowledgeStore.
     const batchId = crypto.randomUUID();
 
-    // Process all files concurrently instead of one-by-one.
-    // Each file's extraction is independent (own path/buffer), so this
-    // cuts total upload time roughly to the slowest single file
-    // instead of the sum of all files.
     const results = await Promise.all(
       req.files.map(async (file) => {
         try {
@@ -43,6 +33,14 @@ export const uploadFiles = async (req, res) => {
 
           const chunks = createChunks(extractedText);
 
+          // Hash the full extracted text — identical documents
+          // (same content) always produce the same hash, letting
+          // us detect "already embedded this exact file before".
+          const contentHash = crypto
+            .createHash("sha256")
+            .update(extractedText)
+            .digest("hex");
+
           const documentObject = {
             id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
             fileName: file.originalname,
@@ -51,6 +49,7 @@ export const uploadFiles = async (req, res) => {
             chunks,
             chunkCount: chunks.length,
             batchId,
+            contentHash,
             uploadedAt: new Date().toISOString(),
           };
 
@@ -75,18 +74,38 @@ export const uploadFiles = async (req, res) => {
 
     processedDocs.forEach((doc) => knowledgeStore.addDocument(doc));
 
-    // ── EMBED + STORE CHUNKS FOR RAG ─────────────────────────
-    // Same batchId (declared above) ties every chunk from this
-    // upload together, so a later Session save can flip them all
-    // to permanent in a single update (see sessionController.js).
-
+    // ── EMBED + STORE CHUNKS FOR RAG (with dedupe) ───────────
     if (apiKey) {
       try {
-        // Flatten every document's chunks into one list so the
-        // whole upload embeds in as few Gemini calls as possible
-        // (embedTexts batches internally, up to 100 per call).
+        // For each document, check if this exact content was
+        // embedded before (any prior upload — permanent or not).
+        // If a full match exists, reuse those vectors instead of
+        // calling Gemini again — same content always retrieves
+        // identically, so this changes nothing about accuracy.
+        const reuseMap = new Map(); // documentId -> ordered embeddings[]
+
+        await Promise.all(
+          processedDocs.map(async (doc) => {
+            const existing = await DocumentChunk.find({ contentHash: doc.contentHash })
+              .sort({ chunkIndex: 1 })
+              .limit(doc.chunks.length)
+              .lean();
+
+            if (existing.length === doc.chunks.length) {
+              reuseMap.set(doc.id, existing.map((e) => e.embedding));
+              console.log(
+                `[Upload] Reusing existing embeddings for "${doc.fileName}" — skipped Gemini call.`
+              );
+            }
+          })
+        );
+
+        // Only chunks from documents WITHOUT a reuse match get
+        // sent to Gemini — flattened across docs so it's still
+        // as few batched calls as possible.
         const flatChunks = [];
         processedDocs.forEach((doc) => {
+          if (reuseMap.has(doc.id)) return;
           doc.chunks.forEach((text, chunkIndex) => {
             flatChunks.push({
               documentId: doc.id,
@@ -94,16 +113,17 @@ export const uploadFiles = async (req, res) => {
               mimetype: doc.mimetype,
               chunkIndex,
               text,
+              contentHash: doc.contentHash,
             });
           });
         });
 
-        const embeddings = await embedTexts(
-          flatChunks.map((c) => c.text),
-          apiKey
-        );
+        const embeddings =
+          flatChunks.length > 0
+            ? await embedTexts(flatChunks.map((c) => c.text), apiKey)
+            : [];
 
-        const chunkDocs = flatChunks.map((chunk, i) => ({
+        const freshChunkDocs = flatChunks.map((chunk, i) => ({
           batchId,
           documentId: chunk.documentId,
           fileName: chunk.fileName,
@@ -111,14 +131,32 @@ export const uploadFiles = async (req, res) => {
           chunkIndex: chunk.chunkIndex,
           text: chunk.text,
           embedding: embeddings[i],
+          contentHash: chunk.contentHash,
         }));
 
-        await DocumentChunk.insertMany(chunkDocs);
+        // Rebuild chunk records for reused documents too — same
+        // batchId as this upload, so downstream retrieval scoping
+        // (by batchId/documentId) works exactly like a fresh embed.
+        const reusedChunkDocs = [];
+        processedDocs.forEach((doc) => {
+          if (!reuseMap.has(doc.id)) return;
+          const vectors = reuseMap.get(doc.id);
+          doc.chunks.forEach((text, chunkIndex) => {
+            reusedChunkDocs.push({
+              batchId,
+              documentId: doc.id,
+              fileName: doc.fileName,
+              mimetype: doc.mimetype,
+              chunkIndex,
+              text,
+              embedding: vectors[chunkIndex],
+              contentHash: doc.contentHash,
+            });
+          });
+        });
+
+        await DocumentChunk.insertMany([...freshChunkDocs, ...reusedChunkDocs]);
       } catch (embedErr) {
-        // Embedding failure must NOT block the upload — existing
-        // Summary/Notes/Explain modes work off knowledgeStore
-        // regardless. Semantic search just won't be available
-        // for this batch until it's re-uploaded.
         console.warn("[Upload] Embedding failed (non-blocking):", embedErr.message);
       }
     } else {

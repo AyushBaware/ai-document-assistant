@@ -38,6 +38,12 @@ const documentChunkSchema = new mongoose.Schema(
     text: { type: String, required: true },
     embedding: { type: [Number], required: true },
 
+    // SHA-256 of the source document's full extracted text.
+    // Lets uploadController detect "this exact file was already
+    // embedded before" and skip a redundant Gemini API call —
+    // a real quota saver for repeat uploads during testing/study.
+    contentHash: { type: String, index: true },
+
     // Set true once a logged-in user saves this batch as a
     // Session — see sessionController.js createSession().
     permanent: { type: Boolean, default: false },
