@@ -40,7 +40,7 @@ const formatRelativeTime = (dateString) => {
   return new Date(dateString).toLocaleDateString();
 };
 
-function SessionHistory({ onSelectSession, refreshTrigger }) {
+function SessionHistory({ onSelectSession, refreshTrigger, activeSessionId }) {
   const { user, token } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [sessions, setSessions] = useState([]);
@@ -155,7 +155,9 @@ function SessionHistory({ onSelectSession, refreshTrigger }) {
                   </p>
                 )}
 
-                {sessions.map((session) => (
+                {sessions.map((session) => {
+                  const isActiveSession = session.id === activeSessionId;
+                  return (
                   // FIXED: was a <button> wrapping another <button>
                   // (the delete icon below) — invalid HTML, browsers
                   // handle nested interactive elements inconsistently
@@ -174,11 +176,21 @@ function SessionHistory({ onSelectSession, refreshTrigger }) {
                         handleSelect(session.id);
                       }
                     }}
-                    className="w-full text-left p-3 rounded-xl hover:bg-white/[0.06] transition-all group mb-1.5 border border-transparent hover:border-white/10 cursor-pointer focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
+                    className={`w-full text-left p-3 rounded-xl transition-all group mb-1.5 border cursor-pointer focus:outline-none focus:ring-1 focus:ring-cyan-400/40 ${
+                      isActiveSession
+                        ? "bg-white/10 border-white/10"
+                        : "hover:bg-white/[0.06] border-transparent hover:border-white/10"
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm text-white font-medium truncate">
+                        <p
+                          className={`text-sm truncate ${
+                            isActiveSession
+                              ? "text-white font-bold"
+                              : "text-white font-medium"
+                          }`}
+                        >
                           {session.title}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
@@ -214,7 +226,8 @@ function SessionHistory({ onSelectSession, refreshTrigger }) {
                       </button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* FOOTER NOTE */}

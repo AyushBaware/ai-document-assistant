@@ -1,6 +1,7 @@
 import fs from "fs";
 import crypto from "crypto";
 import { extractText } from "../utils/extractText.js";
+import { generateDisplayName } from "../utils/generateDisplayName.js";
 import { createChunks } from "../utils/createChunks.js";
 import { embedTexts } from "../utils/embedText.js";
 import knowledgeStore from "../utils/knowledgeStore.js";
@@ -32,6 +33,7 @@ export const uploadFiles = async (req, res) => {
           }
 
           const chunks = createChunks(extractedText);
+          const displayName = generateDisplayName(extractedText, file.originalname);
 
           // Hash the full extracted text — identical documents
           // (same content) always produce the same hash, letting
@@ -44,6 +46,7 @@ export const uploadFiles = async (req, res) => {
           const documentObject = {
             id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
             fileName: file.originalname,
+            displayName,
             mimetype: file.mimetype,
             extractedText,
             chunks,
@@ -166,6 +169,7 @@ export const uploadFiles = async (req, res) => {
     const processedFiles = processedDocs.map((doc) => ({
       id: doc.id,
       fileName: doc.fileName,
+      displayName: doc.displayName,
       mimetype: doc.mimetype,
       chunkCount: doc.chunkCount,
     }));

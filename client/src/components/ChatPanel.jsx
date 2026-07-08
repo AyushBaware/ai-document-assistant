@@ -89,8 +89,15 @@ function ChatPanel({
         .slice(-6)
         .map((m) => ({ role: m.role, content: m.content }));
 
+      // Persist to MongoDB whenever a session exists (fresh upload that
+      // just auto-saved, OR a reopened past session) — isPreloadedSession
+      // only distinguishes where document content is read from, it must
+      // not gate whether the conversation gets saved. Previously this
+      // required isPreloadedSession === true, which meant fresh-upload
+      // chats (session created, but not "preloaded") were silently
+      // never persisted and vanished on refresh.
       let data;
-      if (isPreloadedSession && currentSessionId && token) {
+      if (currentSessionId && token) {
         data = await askQuestionFromSession(
           question,
           currentSessionId,
@@ -148,12 +155,14 @@ function ChatPanel({
         </div>
       )}
 
-      <div
-        ref={messagesContainerRef}
-        className={`flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-4 ${
-          fullScreen ? "max-w-3xl w-full mx-auto" : ""
-        }`}
-      >
+      <div className="relative flex-1 min-h-0">
+        <div className="pointer-events-none absolute top-0 inset-x-0 h-6 sm:h-8 z-10 backdrop-blur-sm [mask-image:linear-gradient(to_bottom,black,transparent)]" />
+        <div
+          ref={messagesContainerRef}
+          className={`h-full overflow-y-auto px-4 sm:px-5 py-4 space-y-4 ${
+            fullScreen ? "max-w-3xl w-full mx-auto" : ""
+          }`}
+        >
         <AnimatePresence>
           {messages.length === 0 && (
             <motion.div
@@ -232,7 +241,7 @@ function ChatPanel({
                 </button>
               )}
               {msg.role === "assistant" ? (
-                <div className="prose prose-sm prose-invert max-w-none prose-p:my-1.5 prose-p:leading-6 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-white prose-strong:text-white prose-code:text-cyan-300 prose-code:bg-white/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-a:text-cyan-400">
+                <div className="prose prose-sm sm:prose lg:prose-lg prose-invert max-w-none prose-headings:text-white prose-strong:text-white prose-code:text-cyan-300 prose-code:bg-white/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-a:text-cyan-400">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {msg.content}
                   </ReactMarkdown>
@@ -272,6 +281,7 @@ function ChatPanel({
             </div>
           </div>
         )}
+        </div>
       </div>
 
       <AnimatePresence>

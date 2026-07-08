@@ -188,11 +188,14 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
         session.documents.map((d, i) => ({
           id: `preloaded-${i}`,
           fileName: d.fileName,
+          displayName: d.displayName || d.fileName,
           mimetype: d.mimetype,
           chunkCount: d.chunkCount,
         })),
       );
-      setProcessedFileNames(session.documents.map((d) => d.fileName));
+      setProcessedFileNames(
+        session.documents.map((d) => d.displayName || d.fileName),
+      );
       setSelectedIds(session.documents.map((_, i) => `preloaded-${i}`));
       setIsProcessed(true);
       setNeedsProcessing(false);
@@ -379,7 +382,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
 
       const data = await uploadFiles(formData, geminiKey);
 
-      setProcessedFileNames(data.files.map((f) => f.fileName));
+      setProcessedFileNames(data.files.map((f) => f.displayName || f.fileName));
       setProcessedDocs(data.files);
       setSelectedIds(data.files.map((f) => f.id));
       setIsProcessed(true);
@@ -614,13 +617,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
                 <FiUploadCloud className="text-4xl text-cyan-400" />
               </motion.div>
 
-              <h2 className="mt-6 text-2xl sm:text-4xl font-bold tracking-tight">
-                AI Document Intelligence
-              </h2>
-              <p className="mt-3 text-gray-400 max-w-xl text-sm sm:text-base leading-7">
-                Upload PDFs, DOCX, PPTX, TXT or Images — get instant summaries,
-                study notes, and explanations.
-              </p>
+              
               <p className="mt-1 text-gray-600 text-xs">
                 Drag and drop files anywhere in this box, or click below to
                 browse.
@@ -817,7 +814,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
                                     </span>
                                     <div className="overflow-hidden min-w-0 flex-1">
                                       <div className="text-sm text-white font-medium truncate">
-                                        {doc.fileName}
+                                        {doc.displayName || doc.fileName}
                                       </div>
                                       <div className="text-xs text-gray-500">
                                         {doc.chunkCount} chunks parsed
@@ -998,8 +995,11 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
                               </button>
                             </div>
 
-                            <div className="px-3 sm:px-6 py-4 sm:py-5 max-h-[78vh] sm:max-h-[80vh] overflow-y-auto">
-                              <ResponseViewer content={aiResult} />
+                            <div className="relative max-h-[78vh] sm:max-h-[80vh]">
+                              <div className="pointer-events-none absolute top-0 inset-x-0 h-6 sm:h-8 z-10 backdrop-blur-sm [mask-image:linear-gradient(to_bottom,black,transparent)] rounded-t-2xl" />
+                              <div className="h-full overflow-y-auto px-3 sm:px-6 py-4 sm:py-5">
+                                <ResponseViewer content={aiResult} />
+                              </div>
                             </div>
                           </div>
                         </motion.div>
@@ -1099,24 +1099,39 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
                       No saved sessions yet.
                     </p>
                   )}
-                  {deskSessions.map((s) => (
-                    <div
-                      key={s.id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => loadSessionById(s.id)}
-                      className="group flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg hover:bg-white/[0.06] cursor-pointer"
-                    >
-                      <span className="text-xs text-gray-300 truncate">{s.title}</span>
-                      <button
-                        onClick={(e) => handleDeleteDeskSession(e, s.id)}
-                        className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-opacity shrink-0"
-                        title="Delete session"
+                  {deskSessions.map((s) => {
+                    const isActiveSession = s.id === currentSessionId;
+                    return (
+                      <div
+                        key={s.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => loadSessionById(s.id)}
+                        className={`group flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg cursor-pointer transition-all ${
+                          isActiveSession
+                            ? "bg-white/10"
+                            : "hover:bg-white/[0.06]"
+                        }`}
                       >
-                        <FiTrash2 className="text-xs" />
-                      </button>
-                    </div>
-                  ))}
+                        <span
+                          className={`text-xs truncate ${
+                            isActiveSession
+                              ? "text-white font-semibold"
+                              : "text-gray-300"
+                          }`}
+                        >
+                          {s.title}
+                        </span>
+                        <button
+                          onClick={(e) => handleDeleteDeskSession(e, s.id)}
+                          className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-opacity shrink-0"
+                          title="Delete session"
+                        >
+                          <FiTrash2 className="text-xs" />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -1230,7 +1245,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
                                   className="w-3.5 h-3.5 accent-cyan-400 shrink-0"
                                 />
                                 <span className="text-xs text-gray-300 truncate">
-                                  {doc.fileName}
+                                  {doc.displayName || doc.fileName}
                                 </span>
                               </label>
                             );
@@ -1248,7 +1263,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
             {activeMode === null ? (
               <ChatPanel
-                key={selectedIds.join(",")}
+                key={`${currentSessionId || "session"}-${selectedIds.join(",")}`}
                 selectedIds={selectedIds}
                 isPreloadedSession={isPreloadedSession}
                 currentSessionId={currentSessionId}
@@ -1261,7 +1276,9 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
                 fullScreen
               />
             ) : (
-              <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-5">
+              <div className="relative flex-1 min-h-0">
+                <div className="pointer-events-none absolute top-0 inset-x-0 h-6 sm:h-8 z-10 backdrop-blur-sm [mask-image:linear-gradient(to_bottom,black,transparent)]" />
+                <div className="h-full overflow-y-auto px-4 sm:px-6 py-5">
                 <div className="max-w-3xl mx-auto">
                   {aiLoading && (
                     <div className="flex flex-col items-center gap-4 py-16">
@@ -1302,6 +1319,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
                       <ResponseViewer content={aiResult} />
                     </>
                   )}
+                </div>
                 </div>
               </div>
             )}

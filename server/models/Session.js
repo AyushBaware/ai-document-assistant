@@ -30,11 +30,12 @@ import mongoose from "mongoose";
 const documentSubSchema = new mongoose.Schema(
   {
     fileName: { type: String, required: true },
+    displayName: { type: String, default: null },
     mimetype: { type: String, required: true },
     extractedText: { type: String, required: true },
     chunkCount: { type: Number, default: 0 },
   },
-  { _id: false } // sub-documents don't need their own _id here
+  { _id: false }
 );
 
 const responseSubSchema = new mongoose.Schema(

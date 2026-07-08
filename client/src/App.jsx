@@ -89,6 +89,7 @@ function App() {
         <SessionHistory
           onSelectSession={handleSelectSession}
           refreshTrigger={sessionRefreshTrigger}
+          activeSessionId={selectedSessionId}
         />
       )}
 

@@ -62,7 +62,9 @@ export const createSession = async (req, res) => {
       });
     }
 
-    const title = generateSessionTitle(matchedDocuments.map((d) => d.fileName));
+    const title = generateSessionTitle(
+      matchedDocuments.map((d) => d.displayName || d.fileName)
+    );
 
     const session = await Session.create({
       userId,
@@ -70,6 +72,7 @@ export const createSession = async (req, res) => {
       batchId: batchId || null,
       documents: matchedDocuments.map((doc) => ({
         fileName: doc.fileName,
+        displayName: doc.displayName || doc.fileName,
         mimetype: doc.mimetype,
         extractedText: doc.extractedText,
         chunkCount: doc.chunkCount || (doc.chunks ? doc.chunks.length : 0),
@@ -138,7 +141,7 @@ export const getAllSessions = async (req, res) => {
       title: s.title,
       createdAt: s.createdAt,
       lastOpenedAt: s.lastOpenedAt,
-      documentNames: s.documents.map((d) => d.fileName),
+      documentNames: s.documents.map((d) => d.displayName || d.fileName),
       hasResponses: {
         summary: !!s.responses?.summary?.result,
         notes: !!s.responses?.notes?.result,
