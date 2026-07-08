@@ -601,10 +601,17 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
       )}
 
       {!isLoadingPreload && (
-        <>
+        <AnimatePresence mode="wait">
           {/* EMPTY STATE */}
           {!hasAnyFiles && (
-            <div className="flex flex-col items-center text-center">
+            <motion.div
+              key="empty-state"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="flex flex-col items-center text-center"
+            >
               <motion.div
                 animate={{ y: [0, -6, 0] }}
                 transition={{
@@ -639,12 +646,18 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
                 onChange={handleFilesChange}
                 className="hidden"
               />
-            </div>
+            </motion.div>
           )}
 
           {/* ACTIVE STATE */}
           {hasAnyFiles && (
-            <div>
+            <motion.div
+              key="active-state"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+            >
               <div className="flex items-center justify-between gap-3 mb-5">
                 <h2 className="text-lg sm:text-xl font-semibold text-white truncate min-w-0 flex-1">
                   {processedFileNames.length > 0 && !needsProcessing
@@ -1008,17 +1021,19 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>
+            </motion.div>
           )}
-        </>
+        </AnimatePresence>
       )}
     </motion.div>
 
     <AnimatePresence>
       {isProcessed && !needsProcessing && showChat && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 12 }}
+          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           className="fixed inset-0 z-50 bg-[#030712] flex"
         >
           {/* DESKTOP SIDEBAR — Claude/Gemini-style persistent nav +

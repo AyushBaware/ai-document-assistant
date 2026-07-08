@@ -15,6 +15,7 @@
 // ============================================================
 
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import "./App.css";
 import BackgroundGlow from "./components/BackgroundGlow";
 import HeroSection from "./components/HeroSection";
@@ -78,7 +79,12 @@ function App() {
   if (geminiKey === null || isAuthLoading) return null;
 
   return (
-    <div className="relative min-h-screen bg-[#030712] overflow-hidden text-white">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="relative min-h-screen bg-[#030712] overflow-hidden text-white"
+    >
       <BackgroundGlow />
 
       {/* ── SESSION HISTORY SIDEBAR (Phase 3) ─────────────────
@@ -226,7 +232,7 @@ function App() {
       </div>
 
       {geminiKey === "" && <ApiKeyModal onKeySaved={handleKeySaved} />}
-    </div>
+    </motion.div>
   );
 }
 
