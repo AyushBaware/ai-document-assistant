@@ -29,7 +29,21 @@ import { useState, useEffect, useRef } from "react";
 import ResponseViewer from "./ResponseViewer";
 import ChatPanel from "./ChatPanel";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiUploadCloud, FiPlus } from "react-icons/fi";
+import {
+  FiUploadCloud,
+  FiPlus,
+  FiMenu,
+  FiX,
+  FiMessageCircle,
+  FiZap,
+  FiFileText,
+  FiBookOpen,
+  FiCheck,
+  FiCopy,
+  FiChevronLeft,
+  FiChevronRight,
+  FiTrash2,
+} from "react-icons/fi";
 import { uploadFiles } from "../api/uploadApi";
 import { generateAI, generateAIFromSession } from "../api/aiApi";
 import { useAuth } from "../context/AuthContext";
@@ -37,6 +51,8 @@ import {
   createSession,
   updateSessionResponse,
   getSessionById,
+  getAllSessions,
+  deleteSession,
 } from "../api/sessionApi";
 
 const getFileIcon = (name = "") => {
@@ -83,7 +99,26 @@ const AI_MODES = [
   },
 ];
 
-function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibilityChange }) {
+// Shown as clickable starter pills in the full-screen chat when no
+// messages exist yet — generic, document-agnostic prompts (no extra
+// API call needed to generate these).
+const CHAT_SUGGESTIONS = [
+  "Summarize the key points",
+  "What are the main topics covered?",
+  "Explain this in simple terms",
+  "What should I focus on for revision?",
+];
+
+// Hamburger nav items for the full-screen view — "Chat" (type: null)
+// plus the three AI modes. Real icon components, not emoji.
+const NAV_ITEMS = [
+  { type: null, label: "Chat", Icon: FiMessageCircle },
+  { type: "summary", label: "Summary", Icon: FiZap },
+  { type: "notes", label: "Notes", Icon: FiFileText },
+  { type: "explain", label: "Explain", Icon: FiBookOpen },
+];
+
+function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibilityChange, onFullScreenChatChange }) {
   const { user, token } = useAuth();
 
   const [files, setFiles] = useState([]);
@@ -102,6 +137,10 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
   const [copied, setCopied] = useState(false);
   const [cachedResults, setCachedResults] = useState({});
   const [showChat, setShowChat] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [deskSessions, setDeskSessions] = useState([]);
+  const [deskSessionsLoading, setDeskSessionsLoading] = useState(false);
 
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [currentBatchId, setCurrentBatchId] = useState(null);
@@ -123,63 +162,108 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     }
   }, [files.length, processedDocs.length, onHeroVisibilityChange]);
 
-  // ── LOAD A PRELOADED SESSION (from history sidebar click) ──
+  // Tell App.jsx when the full-screen chat is open, so it can hide the
+  // history + settings icons — a full-screen view should have zero
+  // competing chrome, matching Claude/Gemini's chat screen.
+  const isFullScreenOpen = isProcessed && !needsProcessing && showChat;
+  useEffect(() => {
+    if (onFullScreenChatChange) {
+      onFullScreenChatChange(isFullScreenOpen);
+    }
+  }, [isFullScreenOpen, onFullScreenChatChange]);
+
+  // Loads any past session into the current view — used both when
+  // App.jsx passes a `preloadedSession` id (mobile history sidebar) and
+  // when a session is clicked directly from the new desktop sidebar.
+  const loadSessionById = async (sessionId) => {
+    try {
+      setIsLoadingPreload(true);
+      setError("");
+
+      const data = await getSessionById(sessionId, token);
+      const session = data.session;
+
+      setCurrentSessionId(session.id);
+      setProcessedDocs(
+        session.documents.map((d, i) => ({
+          id: `preloaded-${i}`,
+          fileName: d.fileName,
+          mimetype: d.mimetype,
+          chunkCount: d.chunkCount,
+        })),
+      );
+      setProcessedFileNames(session.documents.map((d) => d.fileName));
+      setSelectedIds(session.documents.map((_, i) => `preloaded-${i}`));
+      setIsProcessed(true);
+      setNeedsProcessing(false);
+      setFiles([]);
+
+      const preloadedCache = {};
+      ["summary", "notes", "explain"].forEach((type) => {
+        if (session.responses?.[type]?.result) {
+          const cacheKey = `${type}_${session.documents
+            .map((_, i) => `preloaded-${i}`)
+            .sort()
+            .join(",")}`;
+          preloadedCache[cacheKey] = session.responses[type].result;
+        }
+      });
+      setCachedResults(preloadedCache);
+      setAiResult("");
+      setActiveMode(null);
+
+      const savedMessages = (session.chatHistory || []).map((m) => ({
+        role: m.role,
+        content: m.content,
+        sources: m.sources || [],
+      }));
+      setPreloadedChatHistory(savedMessages);
+
+      // Land directly in the full-screen view, same as a fresh upload.
+      setShowChat(true);
+      setMenuOpen(false);
+    } catch (err) {
+      setError("Failed to load this session.");
+    } finally {
+      setIsLoadingPreload(false);
+    }
+  };
+
+  // ── LOAD A PRELOADED SESSION (from App.jsx's mobile history sidebar) ──
   useEffect(() => {
     if (!preloadedSession) return;
-
-    const loadPreloadedSession = async () => {
-      try {
-        setIsLoadingPreload(true);
-        setError("");
-
-        const data = await getSessionById(preloadedSession, token);
-        const session = data.session;
-
-        setCurrentSessionId(session.id);
-        setProcessedDocs(
-          session.documents.map((d, i) => ({
-            id: `preloaded-${i}`,
-            fileName: d.fileName,
-            mimetype: d.mimetype,
-            chunkCount: d.chunkCount,
-          })),
-        );
-        setProcessedFileNames(session.documents.map((d) => d.fileName));
-        setSelectedIds(session.documents.map((_, i) => `preloaded-${i}`));
-        setIsProcessed(true);
-        setNeedsProcessing(false);
-        setFiles([]);
-
-        const preloadedCache = {};
-        ["summary", "notes", "explain"].forEach((type) => {
-          if (session.responses?.[type]?.result) {
-            const cacheKey = `${type}_${session.documents
-              .map((_, i) => `preloaded-${i}`)
-              .sort()
-              .join(",")}`;
-            preloadedCache[cacheKey] = session.responses[type].result;
-          }
-        });
-        setCachedResults(preloadedCache);
-        setAiResult("");
-        setActiveMode(null);
-
-        // Convert stored chatHistory into the shape ChatPanel expects
-        const savedMessages = (session.chatHistory || []).map((m) => ({
-          role: m.role,
-          content: m.content,
-          sources: m.sources || [],
-        }));
-        setPreloadedChatHistory(savedMessages);
-      } catch (err) {
-        setError("Failed to load this session.");
-      } finally {
-        setIsLoadingPreload(false);
-      }
-    };
-
-    loadPreloadedSession();
+    loadSessionById(preloadedSession);
   }, [preloadedSession]);
+
+  // ── DESKTOP SIDEBAR: session history, Claude/Gemini-style ───
+  const loadDesktopSessions = async () => {
+    if (!user || !token) return;
+    try {
+      setDeskSessionsLoading(true);
+      const data = await getAllSessions(token);
+      setDeskSessions(data.sessions);
+    } catch {
+      // Non-blocking — sidebar history is a convenience, not critical.
+    } finally {
+      setDeskSessionsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isProcessed && !needsProcessing && showChat) {
+      loadDesktopSessions();
+    }
+  }, [isProcessed, needsProcessing, showChat]);
+
+  const handleDeleteDeskSession = async (e, sessionId) => {
+    e.stopPropagation();
+    try {
+      await deleteSession(sessionId, token);
+      setDeskSessions((prev) => prev.filter((s) => s.id !== sessionId));
+    } catch {
+      // Non-blocking.
+    }
+  };
 
   // ── SHARED FILE-ADDING LOGIC ─────────────────────────────
   // Used by BOTH the file input (click to browse) and drag-drop.
@@ -302,6 +386,10 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
       setNeedsProcessing(false);
       setCurrentBatchId(data.batchId);
 
+      // Skip the mode-selection screen entirely — land straight in
+      // full-screen chat, matching the Claude/Gemini-style flow.
+      setShowChat(true);
+
       if (user && token) {
         try {
           const documentIds = data.files.map((f) => f.id);
@@ -400,13 +488,51 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     }
   };
 
+  // Switches the full-screen view between Chat and a mode (Summary/
+  // Notes/Explain). Reuses generateContent's own caching, so re-picking
+  // an already-generated mode just re-shows the cached result instead
+  // of calling Gemini again.
+  const handleNavSelect = (type) => {
+    setMenuOpen(false);
+    if (type === null) {
+      setActiveMode(null);
+      return;
+    }
+    generateContent(type);
+  };
+
   const handleCopy = () => {
     navigator.clipboard.writeText(aiResult);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Closing full-screen chat takes the user all the way back to a
+  // clean upload screen — "close" means go home, not "go back one step".
+  const handleCloseFullScreen = () => {
+    setFiles([]);
+    setNeedsProcessing(false);
+    setIsProcessed(false);
+    setProcessedFileNames([]);
+    setProcessedDocs([]);
+    setSelectedIds([]);
+    setAiResult("");
+    setActiveMode(null);
+    setCachedResults({});
+    setShowChat(false);
+    setCurrentSessionId(null);
+    setCurrentBatchId(null);
+    setPreloadedChatHistory([]);
+    setError("");
+  };
+
   const hasAnyFiles = files.length > 0 || processedDocs.length > 0;
+
+  // True from the moment file(s) are added until they've been
+  // successfully processed — this is the "review your files
+  // before processing" stage, which we want centered full-screen
+  // rather than sitting at the top of the page.
+  const isReviewingFiles = hasAnyFiles && !isProcessed;
 
   // Computed once per render instead of calling AI_MODES.find()
   // twice further down in JSX for the icon and label separately.
@@ -421,6 +547,13 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
 
   // ── RENDER ──────────────────────────────────────────────
   return (
+    <div
+      className={
+        isReviewingFiles
+          ? "min-h-[70vh] sm:min-h-[75vh] flex items-center justify-center"
+          : ""
+      }
+    >
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -429,7 +562,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      className={`mt-10 border backdrop-blur-2xl rounded-[28px] p-4 sm:p-8 md:p-12 shadow-[0_0_60px_rgba(0,255,255,0.04)] transition-all duration-200 ${
+      className={`${isReviewingFiles ? "w-full" : "mt-10"} border backdrop-blur-2xl rounded-[28px] p-4 sm:p-8 md:p-12 shadow-[0_0_60px_rgba(0,255,255,0.04)] transition-all duration-200 ${
         isDragging
           ? "border-cyan-400/60 bg-cyan-500/[0.08] scale-[1.01]"
           : "border-white/10 bg-white/[0.04]"
@@ -631,7 +764,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
               </AnimatePresence>
 
               <AnimatePresence>
-                {isProcessed && !needsProcessing && (
+                {isProcessed && !needsProcessing && !showChat && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -880,6 +1013,280 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
         </>
       )}
     </motion.div>
+
+    <AnimatePresence>
+      {isProcessed && !needsProcessing && showChat && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-50 bg-[#030712] flex"
+        >
+          {/* DESKTOP SIDEBAR — Claude/Gemini-style persistent nav +
+              history. Hidden on mobile; the hamburger dropdown covers
+              navigation there instead. */}
+          <div
+            className={`hidden sm:flex flex-col border-r border-white/10 shrink-0 transition-all duration-200 ${
+              sidebarOpen ? "w-64" : "w-16"
+            }`}
+          >
+            <div className="flex items-center justify-between px-3 py-3 border-b border-white/10">
+              {sidebarOpen && (
+                <span className="text-sm font-semibold text-white px-1 truncate">
+                  DocuMind AI
+                </span>
+              )}
+              <button
+                onClick={() => setSidebarOpen((v) => !v)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all shrink-0"
+                title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+              >
+                {sidebarOpen ? (
+                  <FiChevronLeft className="text-base" />
+                ) : (
+                  <FiChevronRight className="text-base" />
+                )}
+              </button>
+            </div>
+
+            <div className="p-2 space-y-1">
+              {NAV_ITEMS.map((item) => {
+                const isActive = item.type === activeMode;
+                const NavIcon = item.Icon;
+                return (
+                  <button
+                    key={item.label}
+                    onClick={() => handleNavSelect(item.type)}
+                    disabled={item.type !== null && selectedIds.length === 0}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                      isActive
+                        ? "bg-cyan-500/15 text-cyan-300"
+                        : "text-gray-300 hover:bg-white/[0.06]"
+                    } ${sidebarOpen ? "" : "justify-center"}`}
+                    title={item.label}
+                  >
+                    <NavIcon className="text-base shrink-0" />
+                    {sidebarOpen && <span className="flex-1 text-left">{item.label}</span>}
+                  </button>
+                );
+              })}
+            </div>
+
+            {sidebarOpen && user && (
+              <div className="flex-1 min-h-0 flex flex-col mt-2 border-t border-white/10 pt-2">
+                <p className="text-[11px] text-gray-500 px-4 mb-1.5">History</p>
+                <div className="flex-1 min-h-0 overflow-y-auto px-2 space-y-1">
+                  {deskSessionsLoading && (
+                    <p className="text-xs text-gray-600 px-2 py-2">Loading...</p>
+                  )}
+                  {!deskSessionsLoading && deskSessions.length === 0 && (
+                    <p className="text-xs text-gray-600 px-2 py-2">
+                      No saved sessions yet.
+                    </p>
+                  )}
+                  {deskSessions.map((s) => (
+                    <div
+                      key={s.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => loadSessionById(s.id)}
+                      className="group flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg hover:bg-white/[0.06] cursor-pointer"
+                    >
+                      <span className="text-xs text-gray-300 truncate">{s.title}</span>
+                      <button
+                        onClick={(e) => handleDeleteDeskSession(e, s.id)}
+                        className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-opacity shrink-0"
+                        title="Delete session"
+                      >
+                        <FiTrash2 className="text-xs" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* RIGHT COLUMN — top bar + body */}
+          <div className="flex-1 min-w-0 flex flex-col">
+          {/* TOP BAR — hamburger (mobile only) switches Chat/Summary/
+              Notes/Explain; close (right) returns to the upload screen. */}
+          <div className="relative flex items-center justify-between px-4 sm:px-6 py-3 border-b border-white/10 shrink-0">
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className="sm:hidden w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+              title="Switch section"
+            >
+              {menuOpen ? <FiX className="text-lg" /> : <FiMenu className="text-lg" />}
+            </button>
+
+            <h2 className="text-sm font-medium text-gray-300 truncate px-3">
+              {NAV_ITEMS.find((n) => n.type === activeMode)?.label || "Chat"}
+            </h2>
+
+            <button
+              onClick={handleCloseFullScreen}
+              className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+              title="Close and return to upload screen"
+            >
+              <FiX className="text-lg" />
+            </button>
+
+            {/* DROPDOWN PANEL */}
+            <AnimatePresence>
+              {menuOpen && (
+                <>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setMenuOpen(false)}
+                    className="fixed inset-0 z-10 bg-black/40"
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute top-14 left-4 z-20 w-64 bg-[#0d1117] border border-white/10 rounded-2xl p-2 shadow-xl"
+                  >
+                    {NAV_ITEMS.map((item) => {
+                      const isActive = item.type === activeMode;
+                      const NavIcon = item.Icon;
+                      const cacheKey =
+                        item.type !== null
+                          ? `${item.type}_${[...selectedIds].sort().join(",")}`
+                          : null;
+                      return (
+                        <button
+                          key={item.label}
+                          onClick={() => handleNavSelect(item.type)}
+                          disabled={item.type !== null && selectedIds.length === 0}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                            isActive
+                              ? "bg-cyan-500/15 text-cyan-300"
+                              : "text-gray-300 hover:bg-white/[0.06]"
+                          }`}
+                        >
+                          <NavIcon className="text-base shrink-0" />
+                          <span className="flex-1 text-left">{item.label}</span>
+                          {cacheKey && cachedResults[cacheKey] && (
+                            <span
+                              className="w-1.5 h-1.5 rounded-full bg-green-400"
+                              title="Cached"
+                            />
+                          )}
+                        </button>
+                      );
+                    })}
+
+                    {processedDocs.length > 1 && (
+                      <div className="mt-2 pt-2 border-t border-white/10 px-1">
+                        <p className="text-[11px] text-gray-500 px-2 mb-1.5">
+                          Documents
+                        </p>
+                        <div className="max-h-40 overflow-y-auto space-y-1">
+                          {processedDocs.map((doc) => {
+                            const isSelected = selectedIds.includes(doc.id);
+                            return (
+                              <label
+                                key={doc.id}
+                                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.06] cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => {
+                                    setCachedResults({});
+                                    setSelectedIds((prev) =>
+                                      isSelected
+                                        ? prev.filter((id) => id !== doc.id)
+                                        : [...prev, doc.id],
+                                    );
+                                  }}
+                                  className="w-3.5 h-3.5 accent-cyan-400 shrink-0"
+                                />
+                                <span className="text-xs text-gray-300 truncate">
+                                  {doc.fileName}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* BODY — Chat, or the selected mode's response */}
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            {activeMode === null ? (
+              <ChatPanel
+                key={selectedIds.join(",")}
+                selectedIds={selectedIds}
+                isPreloadedSession={isPreloadedSession}
+                currentSessionId={currentSessionId}
+                geminiKey={geminiKey}
+                token={token}
+                initialMessages={preloadedChatHistory}
+                suggestions={CHAT_SUGGESTIONS}
+                modeOptions={NAV_ITEMS.filter((n) => n.type !== null)}
+                onSelectMode={handleNavSelect}
+                fullScreen
+              />
+            ) : (
+              <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-5">
+                <div className="max-w-3xl mx-auto">
+                  {aiLoading && (
+                    <div className="flex flex-col items-center gap-4 py-16">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{
+                          repeat: Infinity,
+                          duration: 1.2,
+                          ease: "linear",
+                        }}
+                        className="w-10 h-10 rounded-full border-4 border-cyan-500/20 border-t-cyan-400"
+                      />
+                      <p className="text-cyan-300 font-medium text-center">
+                        {analysisStage || "Analyzing documents..."}
+                      </p>
+                    </div>
+                  )}
+
+                  {!aiLoading && error && (
+                    <p className="text-center text-red-400 text-sm py-6">{error}</p>
+                  )}
+
+                  {!aiLoading && aiResult && (
+                    <>
+                      <div className="flex items-center justify-end mb-3">
+                        <button
+                          onClick={handleCopy}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-xs text-gray-400 hover:text-white"
+                        >
+                          {copied ? (
+                            <FiCheck className="text-sm" />
+                          ) : (
+                            <FiCopy className="text-sm" />
+                          )}
+                          <span>{copied ? "Copied" : "Copy"}</span>
+                        </button>
+                      </div>
+                      <ResponseViewer content={aiResult} />
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </div>
   );
 }
 

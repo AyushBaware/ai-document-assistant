@@ -13,7 +13,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiSend, FiMessageCircle } from "react-icons/fi";
+import { FiSend, FiMessageCircle, FiMenu } from "react-icons/fi";
 import { askQuestion, askQuestionFromSession } from "../api/chatApi";
 
 const MAX_QUESTION_LENGTH = 500;
@@ -25,6 +25,10 @@ function ChatPanel({
   geminiKey,
   token,
   initialMessages = [],
+  suggestions = [],
+  fullScreen = false,
+  modeOptions = [],
+  onSelectMode,
 }) {
   const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState("");
@@ -54,8 +58,8 @@ function ChatPanel({
   // Resets naturally whenever ChatPanel remounts (new doc selection).
   const answerCacheRef = useRef(new Map());
 
-  const handleSend = async () => {
-    const question = input.trim();
+  const sendMessage = async (rawQuestion) => {
+    const question = rawQuestion.trim();
     if (!question || loading) return;
 
     const cacheKey = question.toLowerCase();
@@ -116,6 +120,10 @@ function ChatPanel({
     }
   };
 
+  const handleSend = () => sendMessage(input);
+
+  const handleSuggestionClick = (suggestion) => sendMessage(suggestion);
+
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -124,22 +132,84 @@ function ChatPanel({
   };
 
   return (
-    <div className="border border-white/10 bg-gradient-to-b from-white/[0.05] to-white/[0.01] backdrop-blur-2xl rounded-2xl overflow-hidden flex flex-col h-[70vh] max-h-[600px]">
-      <div className="px-4 sm:px-5 py-3.5 border-b border-white/10 flex items-center gap-3">
-        <FiMessageCircle className="text-cyan-400 text-lg" />
-        <h3 className="text-sm font-semibold text-white">Ask Questions</h3>
-      </div>
+    <div
+      className={`flex flex-col overflow-hidden ${
+        fullScreen
+          ? "h-full"
+          : "border border-white/10 bg-gradient-to-b from-white/[0.05] to-white/[0.01] backdrop-blur-2xl rounded-2xl h-[70vh] max-h-[600px]"
+      }`}
+    >
+      {!fullScreen && (
+        <div className="px-4 sm:px-5 py-3.5 border-b border-white/10 flex items-center gap-3">
+          <FiMessageCircle className="text-cyan-400 text-lg" />
+          <h3 className="text-sm font-semibold text-white">Ask Questions</h3>
+        </div>
+      )}
 
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-4"
+        className={`flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-4 ${
+          fullScreen ? "max-w-3xl w-full mx-auto" : ""
+        }`}
       >
-        {messages.length === 0 && (
-          <p className="text-gray-500 text-sm text-center py-10">
-            Ask anything about your document(s) — answers are grounded only in
-            what they actually contain.
-          </p>
-        )}
+        <AnimatePresence>
+          {messages.length === 0 && (
+            <motion.div
+              key="chat-empty-state"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8, transition: { duration: 0.2 } }}
+              className="flex flex-col items-center justify-center h-full py-10 gap-5"
+            >
+              <p className="text-gray-500 text-sm text-center max-w-sm px-4">
+                Ask anything about your document(s) — answers are grounded
+                only in what they actually contain.
+              </p>
+
+              {/* MOBILE: mode buttons — the hamburger isn't obvious to a
+                  first-time user, so surface Summary/Notes/Explain here too. */}
+              {modeOptions.length > 0 && (
+                <div className="sm:hidden flex flex-col items-center gap-3 w-full px-4">
+                  <div className="grid grid-cols-3 gap-2 w-full max-w-sm">
+                    {modeOptions.map((item) => {
+                      const ModeIcon = item.Icon;
+                      return (
+                        <button
+                          key={item.label}
+                          onClick={() => onSelectMode && onSelectMode(item.type)}
+                          className="flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl bg-white/[0.05] border border-white/10 text-gray-200 hover:bg-white/10 hover:border-cyan-400/30 transition-all"
+                        >
+                          <ModeIcon className="text-base text-cyan-300" />
+                          <span className="text-xs">{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] text-gray-600 text-center flex items-center gap-1">
+                    <FiMenu className="text-xs" />
+                    Also available anytime from the menu, top-left
+                  </p>
+                </div>
+              )}
+
+              {/* DESKTOP: sidebar already covers navigation, so keep the
+                  original question suggestions here instead. */}
+              {suggestions.length > 0 && (
+                <div className="hidden sm:flex flex-wrap justify-center gap-2 max-w-lg px-2">
+                  {suggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleSuggestionClick(s)}
+                      className="text-xs sm:text-sm px-3.5 py-2 rounded-full bg-white/[0.05] border border-white/10 text-gray-300 hover:bg-white/10 hover:border-cyan-400/30 hover:text-white transition-all"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} group`}>
@@ -206,7 +276,11 @@ function ChatPanel({
         )}
       </AnimatePresence>
 
-      <div className="px-4 sm:px-5 py-3.5 border-t border-white/10 flex items-end gap-2">
+      <div
+        className={`px-4 sm:px-5 py-3.5 border-t border-white/10 flex items-end gap-2 ${
+          fullScreen ? "max-w-3xl w-full mx-auto" : ""
+        }`}
+      >
         <textarea
           ref={inputRef}
           value={input}

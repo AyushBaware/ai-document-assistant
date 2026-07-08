@@ -43,6 +43,10 @@ function App() {
   // copy once they're actually using the tool, especially on mobile.
   const [hideHero, setHideHero] = useState(false);
 
+  // True while the full-screen chat is open — hides history + settings
+  // so the chat screen has zero competing chrome.
+  const [hideChrome, setHideChrome] = useState(false);
+
   useEffect(() => {
     const savedKey = localStorage.getItem("gemini_api_key");
     setGeminiKey(savedKey || "");
@@ -81,12 +85,15 @@ function App() {
           Renders nothing if user is not logged in — see the
           `if (!user) return null` check inside the component.
       ──────────────────────────────────────────────────────── */}
-      <SessionHistory
-        onSelectSession={handleSelectSession}
-        refreshTrigger={sessionRefreshTrigger}
-      />
+      {!hideChrome && (
+        <SessionHistory
+          onSelectSession={handleSelectSession}
+          refreshTrigger={sessionRefreshTrigger}
+        />
+      )}
 
       {/* ── TOP-RIGHT CONTROLS ─────────────────────────────── */}
+      {!hideChrome && (
       <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
 
         {user ? (
@@ -176,6 +183,7 @@ function App() {
           )}
         </div>
       </div>
+      )}
 
       {/* ── MAIN CONTENT ─────────────────────────────────────── */}
       <div
@@ -199,6 +207,7 @@ function App() {
             preloadedSession={selectedSessionId}
             onSessionSaved={handleSessionSaved}
             onHeroVisibilityChange={setHideHero}
+            onFullScreenChatChange={setHideChrome}
           />
         ) : null}
       </div>
