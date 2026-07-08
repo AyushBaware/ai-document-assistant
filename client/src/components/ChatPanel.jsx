@@ -14,6 +14,8 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiSend, FiMessageCircle, FiMenu } from "react-icons/fi";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { askQuestion, askQuestionFromSession } from "../api/chatApi";
 
 const MAX_QUESTION_LENGTH = 500;
@@ -229,7 +231,15 @@ function ChatPanel({
                   ⧉
                 </button>
               )}
-              <p className="whitespace-pre-wrap">{msg.content}</p>
+              {msg.role === "assistant" ? (
+                <div className="prose prose-sm prose-invert max-w-none prose-p:my-1.5 prose-p:leading-6 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-white prose-strong:text-white prose-code:text-cyan-300 prose-code:bg-white/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-a:text-cyan-400">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {msg.content}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <p className="whitespace-pre-wrap">{msg.content}</p>
+              )}
               {msg.cached && (
                 <p className="text-[10px] text-cyan-400/70 mt-1">⚡ Instant — repeated question</p>
               )}

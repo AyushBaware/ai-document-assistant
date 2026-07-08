@@ -1052,12 +1052,20 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
               {NAV_ITEMS.map((item) => {
                 const isActive = item.type === activeMode;
                 const NavIcon = item.Icon;
+                // Same cache-key logic as the mobile hamburger dropdown —
+                // a green dot means this mode already has a generated
+                // response for the currently selected document(s).
+                const cacheKey =
+                  item.type !== null
+                    ? `${item.type}_${[...selectedIds].sort().join(",")}`
+                    : null;
+                const isGenerated = cacheKey && cachedResults[cacheKey];
                 return (
                   <button
                     key={item.label}
                     onClick={() => handleNavSelect(item.type)}
                     disabled={item.type !== null && selectedIds.length === 0}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                    className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                       isActive
                         ? "bg-cyan-500/15 text-cyan-300"
                         : "text-gray-300 hover:bg-white/[0.06]"
@@ -1066,6 +1074,14 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
                   >
                     <NavIcon className="text-base shrink-0" />
                     {sidebarOpen && <span className="flex-1 text-left">{item.label}</span>}
+                    {isGenerated && (
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full bg-green-400 shrink-0 ${
+                          sidebarOpen ? "" : "absolute top-1.5 right-1.5"
+                        }`}
+                        title="Already generated"
+                      />
+                    )}
                   </button>
                 );
               })}
@@ -1124,9 +1140,17 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
             </h2>
 
             <button
-              onClick={handleCloseFullScreen}
+              onClick={() =>
+                activeMode === null
+                  ? handleCloseFullScreen()
+                  : setActiveMode(null)
+              }
               className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
-              title="Close and return to upload screen"
+              title={
+                activeMode === null
+                  ? "Close and return to upload screen"
+                  : "Back to chat"
+              }
             >
               <FiX className="text-lg" />
             </button>

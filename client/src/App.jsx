@@ -118,7 +118,12 @@ function App() {
             </button>
 
             {showUserMenu && (
-              <div className="absolute right-0 top-12 w-56 bg-[#0d1117] border border-white/10 rounded-2xl p-3 shadow-xl z-30">
+              <>
+                <div
+                  onClick={() => setShowUserMenu(false)}
+                  className="fixed inset-0 z-20"
+                />
+                <div className="absolute right-0 top-12 w-56 bg-[#0d1117] border border-white/10 rounded-2xl p-3 shadow-xl z-30">
                 <p className="text-xs text-gray-400 px-1 mb-1">Signed in as</p>
                 <p className="text-sm text-white px-1 mb-3 truncate">{user.email}</p>
                 <button
@@ -133,6 +138,7 @@ function App() {
                   Sign Out
                 </button>
               </div>
+              </>
             )}
           </div>
         ) : (
@@ -157,7 +163,12 @@ function App() {
           </button>
 
           {showSettings && (
-            <div className="absolute right-0 top-12 w-64 bg-[#0d1117] border border-white/10 rounded-2xl p-4 shadow-xl z-30">
+            <>
+              <div
+                onClick={() => setShowSettings(false)}
+                className="fixed inset-0 z-20"
+              />
+              <div className="absolute right-0 top-12 w-64 bg-[#0d1117] border border-white/10 rounded-2xl p-4 shadow-xl z-30">
               <p className="text-xs text-gray-400 mb-1">Gemini API Key</p>
               <p className="text-xs text-white font-mono truncate mb-3 bg-white/5 px-2 py-1.5 rounded-lg">
                 {geminiKey
@@ -179,7 +190,8 @@ function App() {
               >
                 Remove Key
               </button>
-            </div>
+              </div>
+            </>
           )}
         </div>
       </div>

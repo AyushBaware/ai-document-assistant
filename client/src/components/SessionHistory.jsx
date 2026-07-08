@@ -207,7 +207,7 @@ function SessionHistory({ onSelectSession, refreshTrigger }) {
                       </div>
                       <button
                         onClick={(e) => handleDelete(e, session.id)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10 shrink-0"
+                        className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10 shrink-0"
                         title="Delete session"
                       >
                         <FiTrash2 className="text-sm" />

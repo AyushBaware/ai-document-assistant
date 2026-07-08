@@ -36,3 +36,37 @@ body {
   animation:
     fadeIn 0.4s ease;
 }
+
+/* ── GLOBAL MINIMAL SCROLLBAR ─────────────────────────────
+   Applies everywhere (chat messages, desktop sidebar, history
+   panels, hamburger dropdown lists) via one shared rule —
+   thin track, soft rounded thumb, no arrow buttons, matching
+   modern app conventions (Claude/Gemini-style). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.28);
+}
+
+*::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+  width: 0;
+}
