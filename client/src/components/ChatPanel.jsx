@@ -223,7 +223,13 @@ function ChatPanel({
         </AnimatePresence>
 
         {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} group`}>
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} group`}
+          >
             <div
               className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-6 relative ${
                 msg.role === "user"
@@ -265,7 +271,7 @@ function ChatPanel({
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
         ))}
 
         {loading && (

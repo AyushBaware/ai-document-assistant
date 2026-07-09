@@ -1,0 +1,295 @@
+// ============================================================
+// ModeSelector.jsx
+//
+// The doc-selection checkboxes + Summary/Notes/Explain/Ask
+// Questions button grid, plus the inline (non-fullscreen)
+// loading indicator, chat panel, and response card that used
+// to render directly beneath the mode buttons inside UploadBox.
+//
+// Visible only once documents are processed and the full-screen
+// chat isn't currently showing — same condition as before.
+// ============================================================
+
+import { motion, AnimatePresence } from "framer-motion";
+import { AI_MODES } from "../../constants/documentModes";
+import { getFileIcon } from "../../utils/fileIcons";
+import ChatPanel from "../ChatPanel";
+import ResponseViewer from "../ResponseViewer";
+
+function ModeSelector({
+  isVisible,
+  processedDocs,
+  processedFileNames,
+  selectedIds,
+  setSelectedIds,
+  cachedResults,
+  setCachedResults,
+  activeMode,
+  aiLoading,
+  analysisStage,
+  generateContent,
+  setShowChat,
+  setActiveMode,
+  setAiResult,
+  showChat,
+  isPreloadedSession,
+  currentSessionId,
+  geminiKey,
+  token,
+  preloadedChatHistory,
+  aiResult,
+  activeModeInfo,
+  handleCopy,
+  copied,
+}) {
+  return (
+    <AnimatePresence>
+      {isVisible && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-6"
+        >
+          {processedDocs.length > 1 && (
+            <div className="mb-5">
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <p className="text-center text-xs text-gray-400 sm:text-left">
+                    Select documents to include in analysis:
+                  </p>
+                  <div className="flex flex-wrap gap-2 justify-center sm:justify-end">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedIds(processedDocs.map((doc) => doc.id))
+                      }
+                      className="text-xs px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/20 text-cyan-200 hover:bg-cyan-500/20 transition"
+                    >
+                      Select all
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedIds([])}
+                      className="text-xs px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 transition"
+                    >
+                      Clear selection
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {processedDocs.map((doc) => {
+                    const isSelected = selectedIds.includes(doc.id);
+                    return (
+                      <label
+                        key={doc.id}
+                        className={`flex min-w-0 items-center justify-between gap-3 p-3 rounded-lg border cursor-pointer select-none transition-all ${
+                          isSelected
+                            ? "border-cyan-400/40 bg-cyan-500/5"
+                            : "border-white/5 bg-white/[0.02] hover:border-white/10"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 overflow-hidden min-w-0 flex-1">
+                          <span className="text-lg shrink-0">
+                            {getFileIcon(doc.fileName)}
+                          </span>
+                          <div className="overflow-hidden min-w-0 flex-1">
+                            <div className="text-sm text-white font-medium truncate">
+                              {doc.displayName || doc.fileName}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {doc.chunkCount} chunks parsed
+                            </div>
+                          </div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {
+                            setCachedResults({});
+                            setSelectedIds((prev) =>
+                              isSelected
+                                ? prev.filter((id) => id !== doc.id)
+                                : [...prev, doc.id],
+                            );
+                          }}
+                          className="w-4 h-4 accent-cyan-400 cursor-pointer shrink-0"
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {AI_MODES.map((mode) => {
+              const isActive = activeMode === mode.type;
+              const modeCacheKey = `${mode.type}_${[...selectedIds].sort().join(",")}`;
+              const isCached = !!cachedResults[modeCacheKey];
+
+              return (
+                <motion.button
+                  key={mode.type}
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => {
+                    setShowChat(false);
+                    generateContent(mode.type);
+                  }}
+                  disabled={aiLoading || selectedIds.length === 0}
+                  className={`relative w-full px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 border flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isActive
+                      ? "bg-cyan-500/20 border-cyan-400/40 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.2)]"
+                      : "bg-white/[0.05] border-white/10 text-white hover:bg-white/10"
+                  }`}
+                >
+                  <span className="text-base">{mode.icon}</span>
+                  <span>{mode.label}</span>
+                  {isCached && (
+                    <span
+                      className="w-1.5 h-1.5 rounded-full bg-green-400 absolute top-2 right-2"
+                      title="Cached"
+                    />
+                  )}
+                </motion.button>
+              );
+            })}
+
+            <motion.button
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+              onClick={() => {
+                setActiveMode(null);
+                setAiResult("");
+                setShowChat(true);
+              }}
+              disabled={selectedIds.length === 0}
+              className={`relative w-full px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 border flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                showChat
+                  ? "bg-cyan-500/20 border-cyan-400/40 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.2)]"
+                  : "bg-white/[0.05] border-white/10 text-white hover:bg-white/10"
+              }`}
+            >
+              <span className="text-base">💬</span>
+              <span>Ask Questions</span>
+            </motion.button>
+          </div>
+
+          <AnimatePresence>
+            {aiLoading && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="mt-10 flex flex-col items-center gap-4"
+              >
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{
+                    repeat: Infinity,
+                    duration: 1.2,
+                    ease: "linear",
+                  }}
+                  className="w-10 h-10 rounded-full border-4 border-cyan-500/20 border-t-cyan-400"
+                />
+                <div className="text-center">
+                  <p className="text-cyan-300 font-medium">
+                    {analysisStage || "Analyzing documents..."}
+                  </p>
+                  <p className="text-gray-500 text-sm mt-1">
+                    {activeMode === "summary" &&
+                      "Building a precise overview..."}
+                    {activeMode === "notes" &&
+                      "Creating revision-ready notes..."}
+                    {activeMode === "explain" &&
+                      "Preparing a clear explanation..."}
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {showChat && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className="mt-8"
+              >
+                <ChatPanel
+                  key={selectedIds.join(",")}
+                  selectedIds={selectedIds}
+                  isPreloadedSession={isPreloadedSession}
+                  currentSessionId={currentSessionId}
+                  geminiKey={geminiKey}
+                  token={token}
+                  initialMessages={preloadedChatHistory}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {aiResult && !aiLoading && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className="mt-8"
+              >
+                <div className="border border-white/10 bg-white/[0.02] sm:bg-gradient-to-b sm:from-white/[0.05] sm:to-white/[0.01] backdrop-blur-2xl rounded-2xl overflow-hidden">
+                  <div className="px-3 sm:px-5 py-3 sm:py-3.5 border-b border-white/10 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-lg shrink-0">
+                        {activeModeInfo?.icon}
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-semibold text-white truncate">
+                          {activeModeInfo?.label}{" "}
+                          <span className="text-gray-400 font-normal">
+                            —{" "}
+                            {processedFileNames.length > 1
+                              ? `${processedFileNames.length} documents`
+                              : processedFileNames[0]}
+                          </span>
+                        </h3>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleCopy}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-xs text-gray-400 hover:text-white shrink-0"
+                    >
+                      {copied ? (
+                        <>
+                          <span>✓</span>
+                          <span>Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>⧉</span>
+                          <span>Copy</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="relative max-h-[78vh] sm:max-h-[80vh]">
+                    <div className="pointer-events-none absolute top-0 inset-x-0 h-6 sm:h-8 z-10 backdrop-blur-sm [mask-image:linear-gradient(to_bottom,black,transparent)] rounded-t-2xl" />
+                    <div className="h-full overflow-y-auto px-3 sm:px-6 py-4 sm:py-5">
+                      <ResponseViewer content={aiResult} />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+export default ModeSelector;
