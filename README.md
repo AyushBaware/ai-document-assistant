@@ -1,204 +1,321 @@
-# AI Document Assistant
+<div align="center">
 
-An AI-powered MERN application that allows users to upload PDF documents, extract text content, and generate intelligent summaries, study notes, and beginner-friendly explanations using Gemini AI.
+# 📄 DocuMind AI
 
----
+**AI-powered document intelligence — upload, understand, and converse with your documents.**
 
-# Live Project Vision
+Upload PDFs, Word docs, PowerPoints, text files, or images and instantly get AI-generated summaries, structured notes, plain-English explanations, and a RAG-powered chat assistant that answers questions grounded strictly in your own content.
 
-This project is being developed into a complete AI-powered document intelligence platform with future support for:
+[Live Demo](https://your-project-name.vercel.app) · [Report a Bug](https://github.com/AyushBaware/ai-document-assistant/issues) · [Request a Feature](https://github.com/AyushBaware/ai-document-assistant/issues)
 
-- RAG (Retrieval-Augmented Generation)
-- Embeddings
-- Vector Databases
-- Semantic Search
-- Conversational PDF Chat
-- Multi-document Intelligence
+</div>
 
 ---
 
-# Current MVP Features
+## Table of Contents
 
-## AI-Powered PDF Processing
-- Upload PDF documents
-- Extract text from PDFs
-- Process extracted content using Gemini AI
-
-## AI Content Generation
-- Generate document summaries
-- Generate structured study notes
-- Explain complex content in beginner-friendly language
-
-## Modern UI/UX
-- Responsive design for all devices
-- Glassmorphism interface
-- Framer Motion animations
-- Smooth user experience
-
-## Scalable MERN Architecture
-- React + Vite frontend
-- Express backend
-- Modular API structure
-- AI-ready backend architecture
+- [Overview](#overview)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Environment Variables](#environment-variables)
+- [API Reference](#api-reference)
+- [Design Decisions Worth Knowing](#design-decisions-worth-knowing)
+- [Known Limitations](#known-limitations)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
-# Tech Stack
+## Overview
 
-## Frontend
-- React
-- Vite
-- Tailwind CSS v4
-- Framer Motion
-- Axios
+DocuMind AI is a full-stack MERN application built to go beyond simple "upload and summarize" tools. It combines fast document processing with a proper **Retrieval-Augmented Generation (RAG)** pipeline, so users can not only generate summaries/notes/explanations but also **have a grounded conversation** with their documents — with citations, semantic search, and zero hallucinated answers outside the source material.
 
-## Backend
-- Node.js
-- Express.js
-- Multer
-- PDF.js
-- Gemini AI API
+It supports both anonymous, single-session use and full account-based history via Google OAuth, with a persistent session sidebar modeled after Claude/Gemini's own chat interfaces.
+
+This project was built as a hands-on learning project to go deep on RAG, vector search, and production-grade engineering patterns (caching, deduplication, rate limiting, graceful degradation) — not just wire together an API call.
 
 ---
 
-# Project Architecture
+## Features
 
-```bash
+### 📥 Document Ingestion
+- Multi-file upload (drag-and-drop or file picker) — PDF, DOC/DOCX, PPT/PPTX, TXT, PNG/JPG/WEBP
+- Text extraction per format:
+  - PDF: table-aware extraction (text grouped by row position, not just concatenated)
+  - DOCX: via Mammoth
+  - PPTX: via officeparser (slide text, not just titles)
+  - Images: OCR via Tesseract.js
+- Automatic low-text-density detection (flags scanned/image-heavy documents so the AI never silently guesses at content it couldn't read)
+- Auto-generated human-readable display names extracted directly from document content (zero extra API cost)
+
+### 🧠 AI Content Generation
+Three content-adaptive generation modes (not fixed templates — structure adapts to what the document actually is):
+- **Summary** — key points, structured per document type (resume, report, paper, deck, etc.)
+- **Notes** — revision-ready, heavily bulleted, bolded key terms
+- **Explain** — a full walkthrough for someone encountering the material for the first time
+
+Powered by **Gemini 2.5 Flash**, with:
+- Dynamic token budgeting (fixed ceilings + a content-length-aware floor, so long dense documents are never cut off)
+- Head + tail trimming for oversized documents (preserves both opening context and conclusion)
+- Targeted retry logic for truncated or empty responses
+
+### 💬 RAG-Based "Ask Questions" Chat
+- Full semantic search pipeline: chunking → embedding → MongoDB Atlas Vector Search → top-k retrieval
+- Answers are grounded **only** in retrieved document chunks — the model is instructed to refuse rather than guess when context is insufficient
+- Prompt-injection guardrails (document content is always treated as data, never as instructions)
+- Source citations shown per answer
+- Full-screen chat overlay with desktop sidebar + mobile hamburger nav, styled after Claude/Gemini's interface
+- In-session answer caching (identical repeated questions cost zero extra tokens)
+
+### 🗂️ Session History & Persistence (for signed-in users)
+- Every upload batch is saved as a "session" — documents + generated responses + full chat history
+- Reopening a session costs **zero API calls** to review past work
+- Session titles are auto-generated using a spread-sampling technique (head + middle + tail of the document) via Groq's free-tier `llama-3.1-8b-instant`, with a silent fallback to a filename-based title if Groq is unavailable or slow
+- Rolling 20-session limit per user (oldest sessions auto-pruned)
+- Embeddings are deduplicated by content hash — re-uploading an identical file reuses existing vectors instead of re-embedding
+
+### 🔐 Authentication
+- Google OAuth (Sign in with Google) — fully optional; the app works anonymously too
+- Custom JWT issued after Google verification (7-day expiry)
+- Self-healing auth: an expired/invalid token automatically clears itself and drops the user back to a logged-out state instead of silently failing
+
+### 🎨 UI/UX
+- Full-screen chat experience benchmarked against Claude and Gemini's own interfaces
+- Framer Motion animations, scoped intentionally (message entrance, mode crossfade — no decorative motion)
+- Responsive design, mobile-first bug-fixing priority
+- Global minimal scrollbar styling, scroll-fade blur overlays
+- Always-visible copy-to-clipboard on chat bubbles and generated responses
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 19, Vite, Tailwind CSS v4, Framer Motion, React Router |
+| Backend | Node.js, Express 5, Mongoose |
+| Database | MongoDB Atlas (+ Atlas Vector Search) |
+| AI — Generation | Google Gemini 2.5 Flash |
+| AI — Embeddings | Gemini `gemini-embedding-001` (768 dimensions) |
+| AI — Session Titles | Groq (`llama-3.1-8b-instant`, free tier) |
+| Auth | Google OAuth 2.0 + custom JWT |
+| Text Extraction | pdfjs-dist, mammoth, officeparser, tesseract.js |
+| Security | Helmet, express-rate-limit, CORS allowlisting |
+
+---
+
+## Architecture
+
+```
+                       ┌──────────────────────┐
+                       │   React (Vite) SPA   │
+                       │  Tailwind + Framer    │
+                       └──────────┬───────────┘
+                                  │ REST (axios)
+                       ┌──────────▼───────────┐
+                       │   Express API Layer   │
+                       │ (auth / upload / ai / │
+                       │      sessions)        │
+                       └──────────┬───────────┘
+                 ┌────────────────┼────────────────┐
+                 │                │                │
+        ┌────────▼───────┐ ┌──────▼──────┐  ┌──────▼───────┐
+        │  Gemini 2.5     │ │   MongoDB   │  │     Groq      │
+        │  Flash (gen)    │ │   Atlas +   │  │ (session      │
+        │  + Embeddings   │ │   Vector    │  │  titles only) │
+        │                 │ │   Search    │  │               │
+        └─────────────────┘ └─────────────┘  └───────────────┘
+```
+
+**Two document-reading paths, by design:**
+- **Fresh upload** → served from an in-memory `knowledgeStore` (fast, no DB round-trip needed for a first-time Summary/Notes/Explain)
+- **Reopened session** → served directly from MongoDB (the in-memory store is gone after a server restart/new upload — sessions never depend on it)
+
+**RAG pipeline:** documents are chunked (6,000 chars, 200-char overlap) → embedded via Gemini `gemini-embedding-001` (768-dim) → stored in MongoDB with a 24-hour TTL for anonymous/unsaved uploads → promoted to permanent once a session is saved → retrieved via `$vectorSearch` scoped to the relevant document/session.
+
+---
+
+## Project Structure
+
+```
 ai-document-assistant/
-│
 ├── client/
-│   ├── src/
-│   │   ├── api/
-│   │   ├── components/
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   │
-│   └── package.json
+│   └── src/
+│       ├── api/            # axios wrappers per feature (auth, upload, ai, chat, sessions)
+│       ├── components/     # UI components (+ upload/ subfolder for the upload flow)
+│       ├── constants/       # shared constants (AI modes, nav items, accepted file types)
+│       ├── context/         # AuthContext
+│       ├── hooks/           # useFileUpload, useSessionLoader, useAIGeneration, useDesktopSessions
+│       └── utils/           # small pure helpers (file icons, etc.)
 │
-├── server/
-│   ├── controllers/
-│   ├── middleware/
-│   ├── routes/
-│   ├── uploads/
-│   ├── utils/
-│   ├── .env
-│   └── server.js
-│
-└── README.md
+└── server/
+    ├── controllers/         # aiController, authController, chatController, sessionController, uploadController
+    ├── middleware/          # auth (required/optional), upload (multer + validation)
+    ├── models/              # User, Session, DocumentChunk
+    ├── routes/
+    └── utils/               # extraction, chunking, embeddings, retrieval, title generation
 ```
 
 ---
 
-# How It Works
+## Getting Started
 
-```text
-PDF Upload
-   ↓
-Text Extraction
-   ↓
-Gemini AI Processing
-   ↓
-Summary / Notes / Explanations
-```
+### Prerequisites
+- Node.js 18+
+- A MongoDB Atlas cluster (with a Vector Search index named `vector_index` on the `DocumentChunk.embedding` field, 768 dimensions)
+- A Google Gemini API key ([aistudio.google.com](https://aistudio.google.com/apikey))
+- A Google OAuth Client ID ([console.cloud.google.com](https://console.cloud.google.com))
+- (Optional) A free Groq API key for smart session titles
 
----
-
-# Installation
-
-## Clone Repository
+### Clone the repository
 
 ```bash
 git clone https://github.com/AyushBaware/ai-document-assistant.git
-
+cd ai-document-assistant
 ```
 
----
-
-# Frontend Setup
-
-```bash
-cd client
-npm install
-npm run dev
-```
-
-Frontend runs on:
-
-```bash
-http://localhost:5173
-```
-
----
-
-# Backend Setup
+### Backend setup
 
 ```bash
 cd server
 npm install
-npm run dev
 ```
 
-Backend runs on:
-
-```bash
-http://localhost:5000
-```
-
----
-
-# Environment Variables
-
-Create:
-
-```bash
-server/.env
-```
-
-Add:
+Create `server/.env`:
 
 ```env
 PORT=5000
-MONGO_URI=your_mongodb_connection
+MONGO_URI=your_mongodb_connection_string
 GEMINI_API_KEY=your_gemini_api_key
+GOOGLE_CLIENT_ID=your_google_oauth_client_id
+JWT_SECRET=a_long_random_secret_string
+CLIENT_URL=http://localhost:5173
+GROQ_API_KEY=your_groq_api_key   # optional — smart titles fall back gracefully without it
 ```
 
----
+```bash
+npm run dev
+```
 
-# Current Development Focus
+Runs on `http://localhost:5000`.
 
-The current focus is building a strong AI-document-processing foundation before implementing advanced RAG architecture.
+### Frontend setup
 
-Upcoming improvements include:
-- intelligent chunking
-- conversational PDF chat
-- embeddings
-- vector search
-- semantic retrieval
-- cloud storage integration
+```bash
+cd client
+npm install
+```
 
----
+Create `client/.env`:
 
-# Future Roadmap
+```env
+VITE_API_BASE_URL=http://localhost:5000/api
+VITE_GOOGLE_CLIENT_ID=your_google_oauth_client_id
+```
 
-## Phase 1 — Current MVP
-- PDF upload
-- Text extraction
-- Gemini integration
-- AI summaries and notes
+```bash
+npm run dev
+```
 
-## Phase 2 — AI Scaling
-- Chunking system
-- Chat with PDF
-- Streaming AI responses
+Runs on `http://localhost:5173`.
 
-## Phase 3 — Advanced RAG
-- Embeddings
-- Vector database
-- Semantic search
-- Multi-document querying
+> Note: users can also paste their own Gemini API key directly in the app (BYOK) — it's stored only in `localStorage` and never touches the server's database. If no user key is provided, the server falls back to its own `GEMINI_API_KEY`.
 
 ---
 
-# License
+## Environment Variables
 
-MIT
+| Variable | Location | Required | Description |
+|---|---|---|---|
+| `MONGO_URI` | server | ✅ | MongoDB Atlas connection string |
+| `GEMINI_API_KEY` | server | ✅ | Fallback Gemini key if a user hasn't supplied their own |
+| `GOOGLE_CLIENT_ID` | server + client | ✅ | Google OAuth client ID |
+| `JWT_SECRET` | server | ✅ | Signs the app's own session JWTs |
+| `CLIENT_URL` | server | ✅ | Allowed CORS origin (your deployed frontend URL) |
+| `GROQ_API_KEY` | server | ⬜ | Enables AI-generated session titles; silently skipped if absent |
+| `VITE_API_BASE_URL` | client | ✅ | Backend API base URL |
+| `VITE_GOOGLE_CLIENT_ID` | client | ✅ | Google OAuth client ID (frontend) |
+
+---
+
+## API Reference
+
+All routes are prefixed with `/api`.
+
+| Method | Route | Auth | Description |
+|---|---|---|---|
+| `POST` | `/upload` | optional | Upload + extract + embed documents |
+| `POST` | `/ai/generate` | optional | Summary/Notes/Explain for a fresh upload |
+| `POST` | `/ai/generate-from-session` | required | Summary/Notes/Explain for a saved session |
+| `POST` | `/ai/chat` | optional | RAG chat for a fresh upload |
+| `POST` | `/ai/chat-from-session` | required | RAG chat for a saved session (persists history) |
+| `POST` | `/auth/google` | — | Verify Google ID token, issue app JWT |
+| `GET` | `/auth/me` | required | Get current user from JWT |
+| `POST` | `/sessions` | required | Save a new session |
+| `GET` | `/sessions` | required | List current user's sessions |
+| `GET` | `/sessions/:id` | required | Get full session detail |
+| `PATCH` | `/sessions/:id` | required | Save a generated response into a session |
+| `DELETE` | `/sessions/:id` | required | Delete a session |
+
+The `/api/ai/*` routes are rate-limited (20 requests / 5 minutes / IP) to protect the Gemini quota from abuse.
+
+---
+
+## Design Decisions Worth Knowing
+
+A few non-obvious choices, documented for anyone reading the codebase:
+
+- **Two AI-generation code paths (fresh upload vs. saved session)** exist because the in-memory `knowledgeStore` used for a fresh upload doesn't survive a server restart or a different upload batch. Reopened sessions read `extractedText` directly from MongoDB instead.
+- **Chat retrieves chunks, not full documents** — Summary/Notes/Explain intentionally send the whole document to Gemini (they need the full picture), while chat only sends the top-k semantically relevant chunks, since a single question rarely needs the entire document and this is significantly cheaper per exchange.
+- **Content-hash deduplication** on embeddings — re-uploading an identical file skips a redundant Gemini embedding call entirely.
+- **Session titles are generated once, then locked** (`titleSource: "default" | "groq" | "fallback"`) — reopening a session never re-rolls or re-spends quota on its title.
+- **`gemini-embedding-001` at 768 dimensions** — Google deprecated `text-embedding-004` on Jan 14, 2026; this project already migrated, with `outputDimensionality` explicitly pinned since Atlas vector indexes can't be resized after creation.
+
+---
+
+## Known Limitations
+
+- Text extraction does not perform OCR on images/charts embedded *inside* PDFs or PPTX files (only standalone image uploads get OCR). Low-text-density documents are flagged so the AI is transparent about this gap instead of guessing.
+- The in-memory `knowledgeStore` used for fresh uploads is per-process — this works correctly for a single-server deployment but would need to move to Redis (or MongoDB) before scaling behind a load balancer with multiple instances.
+- Anonymous (not-logged-in) chat history is not persisted — only saved sessions retain conversation history.
+
+---
+
+## Roadmap
+
+- [ ] **Flashcards generator** — auto-generate spaced-repetition-style flashcards from a document
+- [ ] **Quiz generator** — auto-generate multiple-choice/short-answer quizzes with answer keys
+- [ ] **"Important Questions"** — likely-exam-question generation for revision
+- [ ] Session title display in the full-screen chat header (desktop + mobile)
+- [ ] Multi-document cross-referencing in chat (currently scoped per selected document set, could support smarter cross-document reasoning)
+- [ ] Streaming AI responses instead of a single blocking response
+- [ ] Exportable summaries/notes (PDF/Markdown download)
+
+---
+
+## Contributing
+
+This is currently a solo learning project, but issues, suggestions, and pull requests are welcome. If you spot a bug or have an idea, please open an issue first to discuss what you'd like to change.
+
+1. Fork the repo
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Commit your changes
+4. Open a pull request
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE) — free to use, modify, and learn from.
+
+---
+
+<div align="center">
+
+Built by [Ayush Baware](https://github.com/AyushBaware) as a hands-on project to learn production-grade RAG architecture, from an MCA student's perspective.
+
+</div>
