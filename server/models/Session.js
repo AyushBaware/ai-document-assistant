@@ -74,6 +74,19 @@ const sessionSchema = new mongoose.Schema(
       required: true,
     },
 
+    // Tracks whether this session's title came from Groq's
+    // content-aware generation, or is still filename-based.
+    // "default" = never attempted (old sessions before this
+    // feature existed). "groq" = successfully smart-titled.
+    // "fallback" = Groq was tried once and failed/skipped —
+    // this LOCKS the session so getSessionById never retries
+    // Groq on it again, no matter how many times it's reopened.
+    titleSource: {
+      type: String,
+      enum: ["default", "groq", "fallback"],
+      default: "default",
+    },
+
     // Links back to the DocumentChunk batch created at upload
     // time — lets sessionController flip those chunks from
     // temporary to permanent once the user saves this session.

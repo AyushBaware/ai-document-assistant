@@ -31,6 +31,7 @@ import Session from "../models/Session.js";
 import DocumentChunk from "../models/DocumentChunk.js";
 import knowledgeStore from "../utils/knowledgeStore.js";
 import { generateSessionTitle, enforceSessionLimit } from "../utils/sessionHelpers.js";
+import { generateSmartTitle } from "../utils/groqTitle.js";
 
 // ============================================================
 // POST /api/sessions
@@ -62,13 +63,27 @@ export const createSession = async (req, res) => {
       });
     }
 
-    const title = generateSessionTitle(
-      matchedDocuments.map((d) => d.displayName || d.fileName)
-    );
+    // Sample the LARGEST document for title generation — the most
+    // likely "primary" file in a multi-doc session, and keeps the
+    // Groq prompt small instead of diluting it across every file.
+    const primaryDoc = matchedDocuments.reduce((largest, doc) =>
+      (doc.extractedText?.length || 0) > (largest.extractedText?.length || 0)
+        ? doc
+        : largest
+    , matchedDocuments[0]);
+
+    // Best-effort smart title — fully isolated from Gemini. ANY
+    // failure (timeout, rate limit, bad key) returns null and we
+    // fall straight back to the filename-based title. This can
+    // never block or break session creation.
+    const smartTitle = await generateSmartTitle(primaryDoc.extractedText);
+    const title = smartTitle || generateSessionTitle(matchedDocuments.map((d) => d.fileName));
+    const titleSource = smartTitle ? "groq" : "fallback";
 
     const session = await Session.create({
       userId,
       title,
+      titleSource,
       batchId: batchId || null,
       documents: matchedDocuments.map((doc) => ({
         fileName: doc.fileName,
@@ -185,6 +200,38 @@ export const getSessionById = async (req, res) => {
     }
 
     session.lastOpenedAt = new Date();
+
+    // Retroactive title fix — runs EXACTLY ONCE per session. Old
+    // sessions from before this feature still have titleSource
+    // "default" (the schema default). The first time such a
+    // session is reopened, we try Groq once and lock the outcome
+    // — success OR failure — so reopening the same old session
+    // again never re-triggers Groq, never re-rolls the title, and
+    // never spends quota on it a second time.
+    if (session.titleSource === "default") {
+      try {
+        const primaryDoc = session.documents.reduce((largest, doc) =>
+          (doc.extractedText?.length || 0) > (largest.extractedText?.length || 0)
+            ? doc
+            : largest
+        , session.documents[0]);
+
+        const smartTitle = primaryDoc
+          ? await generateSmartTitle(primaryDoc.extractedText)
+          : null;
+
+        if (smartTitle) {
+          session.title = smartTitle;
+          session.titleSource = "groq";
+        } else {
+          session.titleSource = "fallback"; // lock — never retry
+        }
+      } catch (titleErr) {
+        console.warn("Retroactive title fix failed (non-blocking):", titleErr.message);
+        session.titleSource = "fallback"; // still lock
+      }
+    }
+
     await session.save();
 
     return res.status(200).json({

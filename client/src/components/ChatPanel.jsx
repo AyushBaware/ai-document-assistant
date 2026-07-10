@@ -36,8 +36,18 @@ function ChatPanel({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [copiedIndex, setCopiedIndex] = useState(null);
   const messagesContainerRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Always-visible copy feedback for a specific message bubble —
+  const handleCopyMessage = (content, index) => {
+    navigator.clipboard.writeText(content);
+    setCopiedIndex(index);
+    setTimeout(() => {
+      setCopiedIndex((current) => (current === index ? null : current));
+    }, 2000);
+  };
 
   // Scroll only the chat's own inner list — NOT the page.
   // scrollIntoView() was scrolling the whole document (since the
@@ -239,11 +249,11 @@ function ChatPanel({
             >
               {msg.role === "assistant" && (
                 <button
-                  onClick={() => navigator.clipboard.writeText(msg.content)}
-                  className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-full bg-white/10 border border-white/10 text-gray-400 hover:text-white hover:bg-white/20 flex items-center justify-center text-xs"
+                  onClick={() => handleCopyMessage(msg.content, i)}
+                  className="absolute -top-2 -right-2 transition-all w-6 h-6 rounded-full bg-white/10 border border-white/10 text-gray-400 hover:text-white hover:bg-white/20 flex items-center justify-center text-xs"
                   title="Copy answer"
                 >
-                  ⧉
+                  {copiedIndex === i ? "✓" : "⧉"}
                 </button>
               )}
               {msg.role === "assistant" ? (

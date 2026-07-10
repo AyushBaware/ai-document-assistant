@@ -182,7 +182,7 @@ export function useFileUpload({
             data.batchId,
             token,
           );
-          setCurrentSessionId(sessionData.session.id);
+          setCurrentSessionId(sessionData.session.id);   
           if (onSessionSaved) onSessionSaved();
         } catch (saveErr) {
           console.warn("Session save failed (non-blocking):", saveErr.message);
