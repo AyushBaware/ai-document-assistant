@@ -17,6 +17,7 @@ export function useSessionLoader({
   token,
   preloadedSession,
   setCurrentSessionId,
+  setCurrentSessionTitle,
   setProcessedDocs,
   setProcessedFileNames,
   setSelectedIds,
@@ -45,6 +46,7 @@ export function useSessionLoader({
       const session = data.session;
 
       setCurrentSessionId(session.id);
+      setCurrentSessionTitle(session.title || null);
       setProcessedDocs(
         session.documents.map((d, i) => ({
           id: `preloaded-${i}`,

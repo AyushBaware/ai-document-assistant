@@ -51,6 +51,8 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
   const [menuOpen, setMenuOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [currentSessionId, setCurrentSessionId] = useState(null);
+  const [currentSessionTitle, setCurrentSessionTitle] = useState(null);
+  const [isTitleLoading, setIsTitleLoading] = useState(false);
   const [currentBatchId, setCurrentBatchId] = useState(null);
   const [preloadedChatHistory, setPreloadedChatHistory] = useState([]);
   const [copied, setCopied] = useState(false);
@@ -81,6 +83,8 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     setIsProcessed,
     setCurrentBatchId,
     setCurrentSessionId,
+    setCurrentSessionTitle,
+    setIsTitleLoading,
     setError,
     setAiResult,
     setActiveMode,
@@ -94,6 +98,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     token,
     preloadedSession,
     setCurrentSessionId,
+    setCurrentSessionTitle,
     setProcessedDocs,
     setProcessedFileNames,
     setSelectedIds,
@@ -177,6 +182,8 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     setCachedResults({});
     setShowChat(false);
     setCurrentSessionId(null);
+    setCurrentSessionTitle(null);
+    setIsTitleLoading(false);
     setCurrentBatchId(null);
     setPreloadedChatHistory([]);
     setError("");
@@ -295,6 +302,9 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
         deskSessions={deskSessions}
         deskSessionsLoading={deskSessionsLoading}
         currentSessionId={currentSessionId}
+        currentSessionTitle={currentSessionTitle}
+        isTitleLoading={isTitleLoading}
+        processedFileNames={processedFileNames}
         activeMode={activeMode}
         setActiveMode={setActiveMode}
         selectedIds={selectedIds}

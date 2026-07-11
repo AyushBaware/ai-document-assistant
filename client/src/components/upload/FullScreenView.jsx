@@ -23,6 +23,8 @@ function FullScreenView({
   deskSessions,
   deskSessionsLoading,
   currentSessionId,
+  currentSessionTitle,
+  isTitleLoading,
   activeMode,
   setActiveMode,
   selectedIds,
@@ -37,6 +39,7 @@ function FullScreenView({
   setMenuOpen,
   handleCloseFullScreen,
   processedDocs,
+  processedFileNames,
   isPreloadedSession,
   geminiKey,
   token,
@@ -48,6 +51,18 @@ function FullScreenView({
   handleCopy,
   copied,
 }) {
+  // Session title (Groq-generated) wins when available. While it's
+  // still being generated (isTitleLoading), show nothing rather than
+  // flashing the filename first. If there's no title at all — anonymous
+  // user, or Groq failed — fall back to the file name(s).
+  const sessionSubtitle = currentSessionTitle
+    ? currentSessionTitle
+    : isTitleLoading
+    ? null
+    : processedFileNames?.length > 1
+    ? `${processedFileNames.length} documents`
+    : processedFileNames?.[0];
+
   return (
     <AnimatePresence>
       {isVisible && (
@@ -86,9 +101,16 @@ function FullScreenView({
                 {menuOpen ? <FiX className="text-lg" /> : <FiMenu className="text-lg" />}
               </button>
 
-              <h2 className="text-sm font-medium text-gray-300 truncate px-3">
-                {NAV_ITEMS.find((n) => n.type === activeMode)?.label || "Chat"}
-              </h2>
+              <div className="min-w-0 flex-1 px-3 text-center">
+                <h2 className="text-sm sm:text-base font-semibold text-white truncate leading-tight">
+                  {NAV_ITEMS.find((n) => n.type === activeMode)?.label || "Chat"}
+                </h2>
+                {sessionSubtitle && (
+                  <p className="text-[11px] sm:text-xs text-gray-500 truncate leading-tight mt-0.5">
+                    {sessionSubtitle}
+                  </p>
+                )}
+              </div>
 
               <button
                 onClick={() =>

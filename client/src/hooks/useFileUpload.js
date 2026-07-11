@@ -28,6 +28,8 @@ export function useFileUpload({
   setIsProcessed,
   setCurrentBatchId,
   setCurrentSessionId,
+  setCurrentSessionTitle,
+  setIsTitleLoading,
   setError,
   setAiResult,
   setActiveMode,
@@ -150,6 +152,7 @@ export function useFileUpload({
     setActiveMode(null);
     setCachedResults({});
     setCurrentSessionId(null);
+    setCurrentSessionTitle(null);
     setCurrentBatchId(null);
     setPreloadedChatHistory([]);
     setShowChat(false);
@@ -172,6 +175,10 @@ export function useFileUpload({
       setShowChat(true);
 
       if (user && token) {
+        // Title generation (Groq) happens server-side inside createSession
+        // itself — isTitleLoading covers that round trip so the header
+        // shows nothing rather than flashing the filename first.
+        setIsTitleLoading(true);
         try {
           const documentIds = data.files.map((f) => f.id);
           // Use data.batchId directly (not the state var above) —
@@ -182,10 +189,13 @@ export function useFileUpload({
             data.batchId,
             token,
           );
-          setCurrentSessionId(sessionData.session.id);   
+          setCurrentSessionId(sessionData.session.id);
+          setCurrentSessionTitle(sessionData.session.title || null);
           if (onSessionSaved) onSessionSaved();
         } catch (saveErr) {
           console.warn("Session save failed (non-blocking):", saveErr.message);
+        } finally {
+          setIsTitleLoading(false);
         }
       }
     } catch (err) {
