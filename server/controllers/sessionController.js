@@ -63,20 +63,16 @@ export const createSession = async (req, res) => {
       });
     }
 
-    // Sample the LARGEST document for title generation — the most
-    // likely "primary" file in a multi-doc session, and keeps the
-    // Groq prompt small instead of diluting it across every file.
-    const primaryDoc = matchedDocuments.reduce((largest, doc) =>
-      (doc.extractedText?.length || 0) > (largest.extractedText?.length || 0)
-        ? doc
-        : largest
-    , matchedDocuments[0]);
-
     // Best-effort smart title — fully isolated from Gemini. ANY
     // failure (timeout, rate limit, bad key) returns null and we
     // fall straight back to the filename-based title. This can
     // never block or break session creation.
-    const smartTitle = await generateSmartTitle(primaryDoc.extractedText);
+    // Passes ALL documents (not just the largest) so a multi-file
+    // upload gets one short combined title, instead of a title
+    // based on a single document.
+    const smartTitle = await generateSmartTitle(
+      matchedDocuments.map((d) => ({ fileName: d.fileName, extractedText: d.extractedText }))
+    );
     const title = smartTitle || generateSessionTitle(matchedDocuments.map((d) => d.fileName));
     const titleSource = smartTitle ? "groq" : "fallback";
 
@@ -210,14 +206,12 @@ export const getSessionById = async (req, res) => {
     // never spends quota on it a second time.
     if (session.titleSource === "default") {
       try {
-        const primaryDoc = session.documents.reduce((largest, doc) =>
-          (doc.extractedText?.length || 0) > (largest.extractedText?.length || 0)
-            ? doc
-            : largest
-        , session.documents[0]);
-
-        const smartTitle = primaryDoc
-          ? await generateSmartTitle(primaryDoc.extractedText)
+        // Passes ALL documents so a multi-file session gets one
+        // combined title instead of a title based on a single doc.
+        const smartTitle = session.documents.length > 0
+          ? await generateSmartTitle(
+              session.documents.map((d) => ({ fileName: d.fileName, extractedText: d.extractedText }))
+            )
           : null;
 
         if (smartTitle) {

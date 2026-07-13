@@ -37,6 +37,16 @@ const TIMEOUT_MS = 3000;
 // comfortably inside Groq's free-tier TPM budget per call.
 const SLICE_SIZE = 500;
 
+// For MULTI-document sessions, each doc gets a smaller slice
+// (not the full spread-sample) so the combined prompt across
+// several files still stays small — we only need enough per
+// doc to identify its topic, not its full content.
+const MULTI_DOC_SLICE_SIZE = 250;
+
+// Caps how many documents get sampled for a combined title —
+// keeps the prompt bounded even if someone uploads 8+ files.
+const MAX_DOCS_FOR_TITLE_SAMPLE = 5;
+
 // ── SPREAD-SAMPLING ────────────────────────────────────────────
 // Pulls three slices from head, middle, and tail of the text so
 // the sample very likely contains real subject-matter content
@@ -69,6 +79,23 @@ const buildSpreadSample = (text) => {
   );
 };
 
+// ── MULTI-DOCUMENT SAMPLE ───────────────────────────────────────
+// Builds one small labelled sample per document (instead of just
+// reading the largest/first document) so a combined title can
+// reflect ALL uploaded files, not just one of them.
+const buildMultiDocSample = (documents) => {
+  return documents
+    .slice(0, MAX_DOCS_FOR_TITLE_SAMPLE)
+    .map((doc, i) => {
+      const clean = (doc.extractedText || "")
+        .replace(/\[SYSTEM NOTE:[\s\S]*?\]/g, "")
+        .trim();
+      const sample = clean.slice(0, MULTI_DOC_SLICE_SIZE);
+      return `[Document ${i + 1}: ${doc.fileName}]\n${sample}`;
+    })
+    .join("\n\n");
+};
+
 // ── RATE LIMIT VISIBILITY ──────────────────────────────────────
 // Logs Groq's own account-specific rate-limit headers so you can
 // watch real usage in your server console instead of trusting
@@ -88,12 +115,35 @@ const logRateLimitHeaders = (headers) => {
 };
 
 // ── PUBLIC: generate a smart title, or null on any failure ─────
-export const generateSmartTitle = async (extractedText) => {
+// `documents` is always an array now — [{ fileName, extractedText }].
+// Single-document sessions get the existing spread-sample behavior.
+// Multi-document sessions get one small sample PER document, so the
+// title reflects the whole uploaded set instead of just one file.
+export const generateSmartTitle = async (documents) => {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return null;
 
-  const spreadSample = buildSpreadSample(extractedText);
-  if (!spreadSample) return null;
+  const docs = Array.isArray(documents) ? documents.filter(Boolean) : [];
+  if (docs.length === 0) return null;
+
+  const isMulti = docs.length > 1;
+  const sample = isMulti
+    ? buildMultiDocSample(docs)
+    : buildSpreadSample(docs[0].extractedText);
+
+  if (!sample) return null;
+
+  const systemPrompt = isMulti
+    ? "You will be given short excerpts from MULTIPLE documents that were uploaded together in one session. " +
+      "Return ONLY a 3-6 word title that describes the session AS A WHOLE — capture the shared theme if the " +
+      "documents relate to each other, or briefly cover the mix if they are unrelated (e.g. 'Contract Law & Tax Notes'). " +
+      "Never use a person's name, form field, header, or metadata as the title. " +
+      "No quotes, no trailing punctuation, no preamble — just the title text."
+    : "You will be given three excerpts (Opening, Middle, Ending) from one document. " +
+      "Return ONLY a 3-6 word title describing the SUBJECT MATTER / TOPIC of the document. " +
+      "Never use a person's name, form field, header, or metadata as the title — unless the " +
+      "document IS a resume/CV, in which case describe it as a resume/CV for that field or role. " +
+      "No quotes, no trailing punctuation, no preamble — just the title text.";
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -111,16 +161,8 @@ export const generateSmartTitle = async (extractedText) => {
         temperature: 0.2,
         max_tokens: 16,
         messages: [
-          {
-            role: "system",
-            content:
-              "You will be given three excerpts (Opening, Middle, Ending) from one document. " +
-              "Return ONLY a 3-6 word title describing the SUBJECT MATTER / TOPIC of the document. " +
-              "Never use a person's name, form field, header, or metadata as the title — unless the " +
-              "document IS a resume/CV, in which case describe it as a resume/CV for that field or role. " +
-              "No quotes, no trailing punctuation, no preamble — just the title text.",
-          },
-          { role: "user", content: spreadSample },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: sample },
         ],
       }),
     });
