@@ -41,11 +41,12 @@ export const updateSessionResponse = async (
   type,
   result,
   tokenBudget,
-  token
+  token,
+  glossary = []
 ) => {
   const response = await httpClient.patch(
     `/sessions/${sessionId}`,
-    { type, result, tokenBudget },
+    { type, result, tokenBudget, glossary },
     withAuth(token)
   );
   return response.data;

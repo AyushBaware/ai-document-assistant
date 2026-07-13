@@ -1,6 +1,64 @@
+import { useMemo, Children } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { motion } from "framer-motion";
+import GlossaryTerm from "./GlossaryTerm";
+
+// ── GLOSSARY HELPERS ──────────────────────────────────────────
+// One combined regex for every glossary term (longest first, so
+// multi-word terms match before their shorter substrings), plus
+// a lowercase lookup map for instant definition lookup.
+const buildGlossaryLookup = (glossary = []) => {
+  const valid = (glossary || []).filter(
+    (g) => g && typeof g.term === "string" && typeof g.definition === "string"
+  );
+  if (valid.length === 0) return { glossaryMap: new Map(), glossaryRegex: null };
+
+  const glossaryMap = new Map();
+  valid.forEach((g) => glossaryMap.set(g.term.trim().toLowerCase(), g.definition));
+
+  const escaped = valid
+    .map((g) => g.term.trim())
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length)
+    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+
+  const glossaryRegex =
+    escaped.length > 0 ? new RegExp(`\\b(${escaped.join("|")})s?\\b`, "gi") : null;
+
+  return { glossaryMap, glossaryRegex };
+};
+
+// Splits one text string on glossary matches, wrapping each match
+// in a GlossaryTerm. Non-string children (already-rendered
+// elements, e.g. <strong>) pass through untouched.
+const renderTextPiece = (text, glossaryMap, glossaryRegex, keyPrefix) => {
+  if (!glossaryRegex || typeof text !== "string") return text;
+  const parts = text.split(glossaryRegex);
+  if (parts.length === 1) return text;
+
+  return parts.map((part, i) => {
+    if (!part) return null;
+    const definition = glossaryMap.get(part.trim().toLowerCase());
+    if (definition) {
+      return (
+        <GlossaryTerm key={`${keyPrefix}-${i}`} term={part} definition={definition}>
+          {part}
+        </GlossaryTerm>
+      );
+    }
+    return part;
+  });
+};
+
+const renderWithGlossary = (children, glossaryMap, glossaryRegex) => {
+  if (!glossaryRegex) return children;
+  return Children.map(children, (child, i) =>
+    typeof child === "string"
+      ? renderTextPiece(child, glossaryMap, glossaryRegex, `gl-${i}`)
+      : child
+  );
+};
 
 const getSectionStyle = (title = "") => {
   const lower = title.toLowerCase();
@@ -20,7 +78,13 @@ const getSectionStyle = (title = "") => {
   return `border-white/5 bg-white/[0.02]`;
 };
 
-const ResponseViewer = ({ content }) => {
+const ResponseViewer = ({ content, glossary = [] }) => {
+  // Built once per response, not on every render.
+  const { glossaryMap, glossaryRegex } = useMemo(
+    () => buildGlossaryLookup(glossary),
+    [glossary]
+  );
+
   // Animation variants for sections
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -70,7 +134,7 @@ const ResponseViewer = ({ content }) => {
               variants={itemVariants}
               className="text-lg sm:text-2xl lg:text-3xl font-bold text-cyan-200 mt-6 sm:mt-8 mb-3 sm:mb-4 tracking-tight"
             >
-              {children}
+              {renderWithGlossary(children, glossaryMap, glossaryRegex)}
             </motion.h2>
           ),
 
@@ -79,7 +143,7 @@ const ResponseViewer = ({ content }) => {
               variants={itemVariants}
               className="text-base sm:text-xl lg:text-2xl font-semibold text-white mt-5 sm:mt-6 mb-2 sm:mb-3"
             >
-              {children}
+              {renderWithGlossary(children, glossaryMap, glossaryRegex)}
             </motion.h3>
           ),
 
@@ -88,7 +152,7 @@ const ResponseViewer = ({ content }) => {
               variants={itemVariants}
               className="leading-7 sm:leading-8 lg:leading-9 text-gray-300 mb-4 sm:mb-5 text-[15px] sm:text-lg lg:text-[17px] font-normal"
             >
-              {children}
+              {renderWithGlossary(children, glossaryMap, glossaryRegex)}
             </motion.p>
           ),
 
@@ -106,7 +170,7 @@ const ResponseViewer = ({ content }) => {
               variants={itemVariants}
               className="leading-7 sm:leading-8 lg:leading-9 text-gray-300 text-[15px] sm:text-lg lg:text-[17px] pl-1 sm:pl-3 font-normal"
             >
-              {children}
+              {renderWithGlossary(children, glossaryMap, glossaryRegex)}
             </motion.li>
           ),
 

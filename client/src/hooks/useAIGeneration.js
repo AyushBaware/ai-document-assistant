@@ -19,6 +19,7 @@ export function useAIGeneration({
   cachedResults,
   setCachedResults,
   setAiResult,
+  setGlossary,
   setActiveMode,
   setError,
   currentSessionId,
@@ -36,7 +37,8 @@ export function useAIGeneration({
 
     const cacheKey = `${type}_${[...selectedIds].sort().join(",")}`;
     if (cachedResults[cacheKey]) {
-      setAiResult(cachedResults[cacheKey]);
+      setAiResult(cachedResults[cacheKey].result);
+      setGlossary(cachedResults[cacheKey].glossary || []);
       setActiveMode(type);
       return;
     }
@@ -61,8 +63,13 @@ export function useAIGeneration({
         data = await generateAI(null, type, selectedIds, geminiKey);
       }
 
-      setCachedResults((prev) => ({ ...prev, [cacheKey]: data.result }));
+      const glossaryData = data.glossary || [];
+      setCachedResults((prev) => ({
+        ...prev,
+        [cacheKey]: { result: data.result, glossary: glossaryData },
+      }));
       setAiResult(data.result);
+      setGlossary(glossaryData);
 
       // Save the response back to the session in MongoDB
       if (user && token && currentSessionId) {
@@ -73,6 +80,7 @@ export function useAIGeneration({
             data.result,
             data.tokenBudget,
             token,
+            glossaryData,
           );
         } catch (saveErr) {
           console.warn("Response save failed (non-blocking):", saveErr.message);
@@ -84,6 +92,7 @@ export function useAIGeneration({
           "AI generation failed. Please try again.",
       );
       setAiResult("");
+      setGlossary([]);
       setActiveMode(null);
     } finally {
       setAiLoading(false);

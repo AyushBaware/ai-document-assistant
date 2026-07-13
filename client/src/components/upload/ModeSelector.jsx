@@ -38,6 +38,7 @@ function ModeSelector({
   token,
   preloadedChatHistory,
   aiResult,
+  glossary,
   activeModeInfo,
   handleCopy,
   copied,
@@ -279,7 +280,7 @@ function ModeSelector({
                   <div className="relative max-h-[78vh] sm:max-h-[80vh]">
                     <div className="pointer-events-none absolute top-0 inset-x-0 h-6 sm:h-8 z-10 backdrop-blur-sm [mask-image:linear-gradient(to_bottom,black,transparent)] rounded-t-2xl" />
                     <div className="h-full overflow-y-auto px-3 sm:px-6 py-4 sm:py-5">
-                      <ResponseViewer content={aiResult} />
+                      <ResponseViewer content={aiResult} glossary={glossary} />
                     </div>
                   </div>
                 </div>

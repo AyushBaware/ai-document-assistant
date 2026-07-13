@@ -264,7 +264,7 @@ export const updateSessionResponse = async (req, res) => {
   try {
     const userId = req.userId;
     const { id } = req.params;
-    const { type, result, tokenBudget } = req.body;
+    const { type, result, tokenBudget, glossary } = req.body;
 
     if (!type || !["summary", "notes", "explain"].includes(type)) {
       return res.status(400).json({
@@ -293,6 +293,7 @@ export const updateSessionResponse = async (req, res) => {
       result,
       generatedAt: new Date(),
       tokenBudget: tokenBudget || null,
+      glossary: Array.isArray(glossary) ? glossary.slice(0, 20) : [],
     };
 
     await session.save();

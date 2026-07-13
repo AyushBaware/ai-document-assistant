@@ -94,7 +94,44 @@ const MAX_CHARS_PER_DOC = 80000;
 // the floor ensures long documents always have enough room.
 const BASE_CEILING  = { summary: 3000, notes: 5000,  explain: 7000  };
 const PER_EXTRA_DOC = { summary: 1500, notes: 2500,  explain: 3500  };
-const HARD_MAX      = 16000;
+const HARD_MAX  = 16000;
+
+// ── GLOSSARY INSTRUCTION (appended to every system prompt) ────
+// Asked for in the SAME Gemini call — zero extra API requests,
+// only a small amount of extra output tokens (~300-500).
+const GLOSSARY_MARKER = "---GLOSSARY---";
+
+const GLOSSARY_INSTRUCTION = `
+
+AFTER your full response, on a new line write exactly:
+${GLOSSARY_MARKER}
+Then output ONLY a JSON array (no markdown fencing, nothing else) of the 8-15 most difficult/technical words or phrases used in your response above, each as {"term": "...", "definition": "..."}. Definitions must be one short plain-English sentence, specific to how the term is used in THIS document — not a generic dictionary definition. Only include genuinely hard words (jargon, legal/medical/technical terms, acronyms) — skip ordinary English words. If there are no hard terms, output [].`;
+
+// Splits Gemini's raw output into the clean content and the
+// parsed glossary array. Any parse failure just falls back to
+// an empty glossary — never blocks the main response.
+const splitGlossary = (rawText = "") => {
+  const idx = rawText.indexOf(GLOSSARY_MARKER);
+  if (idx === -1) return { content: rawText.trim(), glossary: [] };
+
+  const content = rawText.slice(0, idx).trim();
+  const glossaryRaw = rawText.slice(idx + GLOSSARY_MARKER.length).trim();
+
+  try {
+    const cleaned = glossaryRaw.replace(/^```json\s*|```$/g, "").trim();
+    const parsed = JSON.parse(cleaned);
+    if (!Array.isArray(parsed)) return { content, glossary: [] };
+
+    const glossary = parsed
+      .filter((g) => g && typeof g.term === "string" && typeof g.definition === "string")
+      .slice(0, 20);
+
+    return { content, glossary };
+  } catch (err) {
+    console.warn("[Glossary] Failed to parse glossary JSON:", err.message);
+    return { content, glossary: [] };
+  }
+};
 
 const FLOOR_RATIO   = { summary: 0.10, notes: 0.18,  explain: 0.22  };
 const MIN_FLOOR     = { summary: 600,  notes: 1000,  explain: 1200  };
@@ -261,7 +298,7 @@ WHEN IMAGES OR VISUAL CONTENT IS FLAGGED:
 If the document header says the file had very little readable text, mention clearly that the document may contain charts, diagrams, or images that could not be read — do not invent content to fill the gap.
 
 MULTIPLE DOCUMENTS:
-Give each document its own section with a clear heading showing the document name. Put --- between sections. At the end, add a short "Combined Insights" note only if there is a genuine connection between the documents — if there is none, leave it out.`;
+Give each document its own section with a clear heading showing the document name. Put --- between sections. At the end, add a short "Combined Insights" note only if there is a genuine connection between the documents — if there is none, leave it out.` + GLOSSARY_INSTRUCTION;
 
 
 const NOTES_SYSTEM = `You are an expert at turning any document into clear, organised notes that are useful for study or quick reference.
@@ -291,7 +328,7 @@ WHEN IMAGES OR VISUAL CONTENT IS FLAGGED:
 If the document header says the file had very little readable text, mention clearly that the document may contain charts, diagrams, or images that could not be read as text.
 
 MULTIPLE DOCUMENTS:
-Give each document its own clearly labelled section. Put --- between sections. End with a short "Quick Reference" list combining the most important terms and facts from all documents into one scannable list.`;
+Give each document its own clearly labelled section. Put --- between sections. End with a short "Quick Reference" list combining the most important terms and facts from all documents into one scannable list.` + GLOSSARY_INSTRUCTION;
 
 
 const EXPLAIN_SYSTEM = `You are an expert teacher who can explain any document clearly to someone reading it for the first time.
@@ -322,7 +359,7 @@ WHEN IMAGES OR VISUAL CONTENT IS FLAGGED:
 If the document header says the file had very little readable text, acknowledge this clearly and note that the document may contain visual content that could not be extracted.
 
 MULTIPLE DOCUMENTS:
-Give each document a full section with a clear heading. Put --- between sections. At the end, explain how the documents connect only if there is a real, meaningful relationship — if they are unrelated, leave the connection section out.`;
+Give each document a full section with a clear heading. Put --- between sections. At the end, explain how the documents connect only if there is a real, meaningful relationship — if they are unrelated, leave the connection section out.` + GLOSSARY_INSTRUCTION;
 
 
 // ── GEMINI API CALL ───────────────────────────────────────────
@@ -485,9 +522,10 @@ export const generateAIResponse = async (req, res) => {
     }
 
     const { systemInstruction, userContent, tokenBudget } = buildPrompt(docsToUse, type);
-    const { text: result, finishReason } = await callGemini(
+    const { text: rawResult, finishReason } = await callGemini(
       systemInstruction, userContent, apiKey, tokenBudget
     );
+    const { content: result, glossary } = splitGlossary(rawResult);
 
     if (!result || result.trim().length < 30) {
       return res.status(500).json({
@@ -499,6 +537,7 @@ export const generateAIResponse = async (req, res) => {
     return res.status(200).json({
       success:            true,
       result,
+      glossary,
       documentsProcessed: docsToUse.length,
       documentNames:      docsToUse.map((d) => d.fileName),
       tokenBudget,
@@ -586,9 +625,10 @@ export const generateFromSession = async (req, res) => {
     }
 
     const { systemInstruction, userContent, tokenBudget } = buildPrompt(docsToUse, type);
-    const { text: result, finishReason } = await callGemini(
+    const { text: rawResult, finishReason } = await callGemini(
       systemInstruction, userContent, apiKey, tokenBudget
     );
+    const { content: result, glossary } = splitGlossary(rawResult);
 
     if (!result || result.trim().length < 30) {
       return res.status(500).json({
@@ -600,6 +640,7 @@ export const generateFromSession = async (req, res) => {
     return res.status(200).json({
       success:            true,
       result,
+      glossary,
       documentsProcessed: docsToUse.length,
       documentNames:      docsToUse.map((d) => d.fileName),
       tokenBudget,

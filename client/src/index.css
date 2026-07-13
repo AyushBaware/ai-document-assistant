@@ -37,6 +37,15 @@ body {
     fadeIn 0.4s ease;
 }
 
+@keyframes glossaryPop {
+  from { opacity: 0; transform: translateY(2px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.glossary-popup {
+  animation: glossaryPop 0.12s ease-out;
+}
+
 /* ── GLOBAL MINIMAL SCROLLBAR ─────────────────────────────
    Applies everywhere (chat messages, desktop sidebar, history
    panels, hamburger dropdown lists) via one shared rule —

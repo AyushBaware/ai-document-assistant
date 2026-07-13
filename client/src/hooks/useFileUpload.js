@@ -32,6 +32,7 @@ export function useFileUpload({
   setIsTitleLoading,
   setError,
   setAiResult,
+  setGlossary,
   setActiveMode,
   setCachedResults,
   setPreloadedChatHistory,
@@ -137,6 +138,7 @@ export function useFileUpload({
       return next;
     });
     setAiResult("");
+    setGlossary([]);
     setActiveMode(null);
     setCachedResults({});
     setShowChat(false);
@@ -149,6 +151,7 @@ export function useFileUpload({
     setLoading(true);
     setError("");
     setAiResult("");
+    setGlossary([]);
     setActiveMode(null);
     setCachedResults({});
     setCurrentSessionId(null);

@@ -48,6 +48,7 @@ function FullScreenView({
   analysisStage,
   error,
   aiResult,
+  glossary,
   handleCopy,
   copied,
 }) {
@@ -203,7 +204,7 @@ function FullScreenView({
                             <span>{copied ? "Copied" : "Copy"}</span>
                           </button>
                         </div>
-                        <ResponseViewer content={aiResult} />
+                        <ResponseViewer content={aiResult} glossary={glossary} />
                     </motion.div>
                   )}
                   </div>

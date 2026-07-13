@@ -46,6 +46,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
   const [selectedIds, setSelectedIds] = useState([]);
   const [activeMode, setActiveMode] = useState(null);
   const [aiResult, setAiResult] = useState("");
+  const [glossary, setGlossary] = useState([]);
   const [cachedResults, setCachedResults] = useState({});
   const [showChat, setShowChat] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -87,6 +88,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     setIsTitleLoading,
     setError,
     setAiResult,
+    setGlossary,
     setActiveMode,
     setCachedResults,
     setPreloadedChatHistory,
@@ -112,6 +114,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     setShowChat,
     setMenuOpen,
     setError,
+    setGlossary,
   });
 
   // Shared between generateContent() and ChatPanel — true when the
@@ -128,6 +131,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     cachedResults,
     setCachedResults,
     setAiResult,
+    setGlossary,
     setActiveMode,
     setError,
     currentSessionId,
@@ -178,6 +182,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     setProcessedDocs([]);
     setSelectedIds([]);
     setAiResult("");
+    setGlossary([]);
     setActiveMode(null);
     setCachedResults({});
     setShowChat(false);
@@ -287,6 +292,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
               token={token}
               preloadedChatHistory={preloadedChatHistory}
               aiResult={aiResult}
+              glossary={glossary}
               activeModeInfo={activeModeInfo}
               handleCopy={handleCopy}
               copied={copied}
@@ -327,6 +333,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
         analysisStage={analysisStage}
         error={error}
         aiResult={aiResult}
+        glossary={glossary}
         handleCopy={handleCopy}
         copied={copied}
       />

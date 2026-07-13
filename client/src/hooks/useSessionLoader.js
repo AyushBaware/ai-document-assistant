@@ -31,6 +31,7 @@ export function useSessionLoader({
   setShowChat,
   setMenuOpen,
   setError,
+  setGlossary,
 }) {
   const [isLoadingPreload, setIsLoadingPreload] = useState(false);
 
@@ -71,11 +72,15 @@ export function useSessionLoader({
             .map((_, i) => `preloaded-${i}`)
             .sort()
             .join(",")}`;
-          preloadedCache[cacheKey] = session.responses[type].result;
+          preloadedCache[cacheKey] = {
+            result: session.responses[type].result,
+            glossary: session.responses[type].glossary || [],
+          };
         }
       });
       setCachedResults(preloadedCache);
       setAiResult("");
+      setGlossary([]);
       setActiveMode(null);
 
       const savedMessages = (session.chatHistory || []).map((m) => ({

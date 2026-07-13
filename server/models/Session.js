@@ -38,11 +38,20 @@ const documentSubSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const glossaryTermSubSchema = new mongoose.Schema(
+  {
+    term: { type: String, required: true },
+    definition: { type: String, required: true },
+  },
+  { _id: false }
+);
+
 const responseSubSchema = new mongoose.Schema(
   {
     result: { type: String, default: null },
     generatedAt: { type: Date, default: null },
     tokenBudget: { type: Number, default: null }, // useful for debugging/analytics later
+    glossary: { type: [glossaryTermSubSchema], default: [] },
   },
   { _id: false }
 );
