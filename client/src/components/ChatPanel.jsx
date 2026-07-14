@@ -273,9 +273,9 @@ function ChatPanel({
                   {msg.sources.map((src, j) => (
                     <span
                       key={j}
-                      className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-400/20 text-cyan-300"
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-400/20 text-cyan-300 font-medium"
                     >
-                      📄 {src}
+                      {src}
                     </span>
                   ))}
                 </div>
