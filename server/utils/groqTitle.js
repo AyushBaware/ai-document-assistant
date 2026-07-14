@@ -134,10 +134,14 @@ export const generateSmartTitle = async (documents) => {
   if (!sample) return null;
 
   const systemPrompt = isMulti
-    ? "You will be given short excerpts from MULTIPLE documents that were uploaded together in one session. " +
-      "Return ONLY a 3-6 word title that describes the session AS A WHOLE — capture the shared theme if the " +
-      "documents relate to each other, or briefly cover the mix if they are unrelated (e.g. 'Contract Law & Tax Notes'). " +
-      "Never use a person's name, form field, header, or metadata as the title. " +
+    ? "You will be given short excerpts from MULTIPLE documents uploaded together in one session, each labelled " +
+      "[Document N: filename]. First decide: do these documents share a common topic/theme, or are they clearly " +
+      "unrelated / cover different subjects? " +
+      "If they SHARE a common theme, return ONLY a single unified 3-6 word title describing that shared theme. " +
+      "If they are UNRELATED or cover clearly different subjects, return ONLY a short combined title in the exact " +
+      "format 'TopicA + TopicB + TopicC' — a 1-3 word topic label per document, joined by ' + ', covering at most " +
+      "the 3 most distinct topics (if there are more than 3 documents, cover the 3 most distinct and end with ' + more'). " +
+      "Never use a person's name, form field, header, or metadata as any topic label. " +
       "No quotes, no trailing punctuation, no preamble — just the title text."
     : "You will be given three excerpts (Opening, Middle, Ending) from one document. " +
       "Return ONLY a 3-6 word title describing the SUBJECT MATTER / TOPIC of the document. " +
@@ -182,7 +186,16 @@ export const generateSmartTitle = async (documents) => {
 
     // Safety net: strip any stray quotes/punctuation the model
     // might still add despite instructions.
-    return title.replace(/^["'“”]+|["'“”.]+$/g, "").trim();
+    const cleaned = title.replace(/^["'“”]+|["'“”.]+$/g, "").trim();
+
+    // Hard length cap — matters most for the "A + B + C" unrelated-
+    // docs format, which has no natural upper bound from the word
+    // count instruction alone. Sidebar titles already truncate via
+    // CSS, but this keeps the stored title itself sane too.
+    const MAX_TITLE_CHARS = 60;
+    return cleaned.length > MAX_TITLE_CHARS
+      ? cleaned.slice(0, MAX_TITLE_CHARS).trim() + "…"
+      : cleaned;
   } catch (err) {
     clearTimeout(timer);
     // Timeout, network failure, abort — always fail silently.
