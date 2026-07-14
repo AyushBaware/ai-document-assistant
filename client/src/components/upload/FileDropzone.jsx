@@ -47,9 +47,8 @@ function FileDropzone({
             <FiUploadCloud className="text-4xl text-cyan-400" />
           </motion.div>
 
-          <p className="mt-1 text-gray-600 text-xs">
-            Drag and drop files anywhere in this box, or click below to
-            browse.
+          <p className="mt-1 text-gray-500 text-xs">
+            Drag & drop files here, or click to browse.
           </p>
 
           <label
