@@ -83,7 +83,11 @@ function App() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className="relative min-h-screen bg-[#030712] overflow-hidden text-white"
+      className={`relative bg-[#030712] text-white ${
+        hideHero
+          ? "min-h-screen overflow-hidden"
+          : "h-screen overflow-hidden flex flex-col"
+      }`}
     >
       <BackgroundGlow />
 
@@ -206,10 +210,10 @@ function App() {
 
       {/* ── MAIN CONTENT ─────────────────────────────────────── */}
       <div
-        className={`relative z-10 max-w-6xl mx-auto px-4 transition-all duration-300 ${
+        className={`relative z-10 max-w-6xl mx-auto px-4 w-full transition-all duration-300 ${
           hideHero
             ? "pt-20 pb-6 sm:pt-24 sm:pb-8"
-            : "pt-24 pb-16 md:pt-28 md:pb-24"
+            : "flex-1 min-h-0 flex flex-col justify-center py-6 overflow-hidden"
         }`}
       >
         {!hideHero && <HeroSection />}
