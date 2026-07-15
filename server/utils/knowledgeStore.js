@@ -3,7 +3,7 @@
 // In-memory document store — foundation of RAG pipeline.
 // ======================================================
 
-import { retrieveRelevantChunks } from "./retrieveChunks.js";
+import { retrieveRelevantChunks, retrieveRelevantChunksPerDocument } from "./retrieveChunks.js";
 
 const knowledgeStore = {
   documents: [],
@@ -40,6 +40,16 @@ const knowledgeStore = {
    */
   async retrieveContext(selectedIds = [], query = "", apiKey = "", options = { k: 6 }) {
     if (!query || !apiKey) return [];
+
+    // Multiple documents selected — balanced per-document retrieval
+    // guarantees every one of them contributes chunks, instead of a
+    // single global top-k that one document's closer-matching
+    // chunks could dominate entirely.
+    if (selectedIds.length > 1) {
+      const kPerDoc = Math.max(2, Math.ceil((options.k || 6) / selectedIds.length));
+      const docFilters = selectedIds.map((id) => ({ documentId: id }));
+      return retrieveRelevantChunksPerDocument(docFilters, query, apiKey, kPerDoc);
+    }
 
     const filter =
       selectedIds.length > 0 ? { documentId: { $in: selectedIds } } : {};

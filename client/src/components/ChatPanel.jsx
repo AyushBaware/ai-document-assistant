@@ -1,6 +1,4 @@
 // ============================================================
-// ChatPanel.jsx
-//
 // Conversational "Ask Questions" UI. Keeps its own message
 // history in local state — reset automatically whenever the
 // `key` prop (selectedIds) changes in UploadBox, so switching
@@ -9,16 +7,41 @@
 // Citations: each assistant message shows which source
 // document(s) the answer was grounded in — builds trust that
 // the answer isn't hallucinated.
+//
+// FORMATTING FIX:
+// When Gemini splits an answer per document (per the updated
+// chatController.js prompt), it now uses a real "####" markdown
+// heading with the actual file name instead of plain bold text.
+// DocHeading below renders that heading with its own distinct
+// color/spacing so multi-document answers are easy to scan on
+// both mobile and desktop, instead of looking like a plain line.
 // ============================================================
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiSend, FiMessageCircle, FiMenu } from "react-icons/fi";
+import { FiSend, FiMessageCircle, FiMenu, FiFileText } from "react-icons/fi";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { askQuestion, askQuestionFromSession } from "../api/chatApi";
 
 const MAX_QUESTION_LENGTH = 500;
+
+const DocHeading = ({ children }) => (
+  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-500/10 border border-violet-400/25 mt-5 mb-2 first:mt-0">
+    <FiFileText className="text-violet-300 text-[11px] sm:text-xs shrink-0" />
+    <span className="text-[11px] sm:text-xs font-bold tracking-wide text-violet-200 uppercase">
+      {children}
+    </span>
+  </div>
+);
+
+const chatMarkdownComponents = {
+  h3: DocHeading,
+  h4: DocHeading,
+  hr: () => (
+    <div className="my-5 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+  ),
+};
 
 function ChatPanel({
   selectedIds,
@@ -257,8 +280,26 @@ function ChatPanel({
                 </button>
               )}
               {msg.role === "assistant" ? (
-                <div className="prose prose-sm sm:prose lg:prose-lg prose-invert max-w-none prose-headings:text-white prose-strong:text-white prose-code:text-cyan-300 prose-code:bg-white/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-a:text-cyan-400">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <div className="prose prose-sm sm:prose lg:prose-lg prose-invert max-w-none prose-strong:text-white prose-code:text-cyan-300 prose-code:bg-white/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-a:text-cyan-400">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      // Per-document section label — the ONLY place a file
+                      // icon is ever added. Plain text, no background pill,
+                      // no caps — just a quiet divider so multi-doc answers
+                      // are easy to scan without looking like a UI element.
+                      h4: ({ children }) => (
+                        <div className="flex items-center gap-1.5 mt-5 mb-2 pb-1.5 border-b border-white/10 first:mt-0">
+                          <FiFileText className="text-gray-500 text-xs shrink-0" />
+                          <span className="text-xs font-medium text-gray-400 truncate">
+                            {children}
+                          </span>
+                        </div>
+                      ),
+                      hr: () => <div className="my-3 h-px bg-white/10" />,
+                      p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                    }}
+                  >
                     {msg.content}
                   </ReactMarkdown>
                 </div>
@@ -270,10 +311,13 @@ function ChatPanel({
               )}
               {msg.sources && msg.sources.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-white/10">
-                  {msg.sources.map((src, j) => (
+                  {/* Defensive de-dupe — guarantees one chip per document
+                      no matter what the backend returns. */}
+                  {[...new Set(msg.sources.map((s) => (s || "").trim()).filter(Boolean))].map((src, j) => (
                     <span
                       key={j}
-                      className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-400/20 text-cyan-300 font-medium"
+                      title={src}
+                      className="max-w-[75vw] sm:max-w-[280px] truncate text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-400/20 text-cyan-300 font-medium"
                     >
                       {src}
                     </span>
