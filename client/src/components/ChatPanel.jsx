@@ -26,22 +26,11 @@ import { askQuestion, askQuestionFromSession } from "../api/chatApi";
 
 const MAX_QUESTION_LENGTH = 500;
 
-const DocHeading = ({ children }) => (
-  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-500/10 border border-violet-400/25 mt-5 mb-2 first:mt-0">
-    <FiFileText className="text-violet-300 text-[11px] sm:text-xs shrink-0" />
-    <span className="text-[11px] sm:text-xs font-bold tracking-wide text-violet-200 uppercase">
-      {children}
-    </span>
-  </div>
-);
-
-const chatMarkdownComponents = {
-  h3: DocHeading,
-  h4: DocHeading,
-  hr: () => (
-    <div className="my-5 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
-  ),
-};
+// Strips any stray emoji/icon glyph Gemini might occasionally prepend to a
+// "#### filename.pdf" heading despite being told not to — belt-and-suspenders
+// so the UI never renders a duplicate icon next to our own <FiFileText> below.
+const stripLeadingEmoji = (text = "") =>
+  text.replace(/^[\p{Extended_Pictographic}\u200d\ufe0f\s]+/gu, "").trim();
 
 function ChatPanel({
   selectedIds,
@@ -292,7 +281,9 @@ function ChatPanel({
                         <div className="flex items-center gap-1.5 mt-5 mb-2 pb-1.5 border-b border-white/10 first:mt-0">
                           <FiFileText className="text-gray-500 text-xs shrink-0" />
                           <span className="text-xs font-medium text-gray-400 truncate">
-                            {children}
+                            {stripLeadingEmoji(
+                              Array.isArray(children) ? children.join("") : String(children ?? "")
+                            )}
                           </span>
                         </div>
                       ),
@@ -309,21 +300,40 @@ function ChatPanel({
               {msg.cached && (
                 <p className="text-[10px] text-cyan-400/70 mt-1">⚡ Instant — repeated question</p>
               )}
-              {msg.sources && msg.sources.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-white/10">
-                  {/* Defensive de-dupe — guarantees one chip per document
-                      no matter what the backend returns. */}
-                  {[...new Set(msg.sources.map((s) => (s || "").trim()).filter(Boolean))].map((src, j) => (
-                    <span
-                      key={j}
-                      title={src}
-                      className="max-w-[75vw] sm:max-w-[280px] truncate text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-400/20 text-cyan-300 font-medium"
-                    >
-                      {src}
-                    </span>
-                  ))}
-                </div>
-              )}
+              {msg.sources && msg.sources.length > 0 && (() => {
+                // Defensive de-dupe — guarantees one chip per document
+                // no matter what the backend returns.
+                const uniqueSources = [
+                  ...new Set(msg.sources.map((s) => (s || "").trim()).filter(Boolean)),
+                ];
+                // Single attached file: let its chip use the bubble's full
+                // width so the name stays completely visible, only
+                // truncating if it genuinely can't fit the screen.
+                // Multiple files: a 2-column grid guarantees exactly two
+                // chips per row on desktop — a 3rd (5th, 7th...) file wraps
+                // to its own row instead of every chip shrinking to fit.
+                const isSingleSource = uniqueSources.length === 1;
+
+                return (
+                  <div
+                    className={`mt-2 pt-2 border-t border-white/10 ${
+                      isSingleSource ? "" : "grid grid-cols-1 sm:grid-cols-2 gap-1.5"
+                    }`}
+                  >
+                    {uniqueSources.map((src, j) => (
+                      <span
+                        key={j}
+                        title={src}
+                        className={`min-w-0 truncate text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-400/20 text-cyan-300 font-medium ${
+                          isSingleSource ? "inline-block max-w-full" : "block w-full"
+                        }`}
+                      >
+                        {src}
+                      </span>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           </motion.div>
         ))}
