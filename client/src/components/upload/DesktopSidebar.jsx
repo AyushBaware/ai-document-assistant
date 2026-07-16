@@ -23,6 +23,8 @@ function DesktopSidebar({
   currentSessionId,
   loadSessionById,
   handleDeleteDeskSession,
+  processedDocs,
+  setSelectedIds,
 }) {
   return (
     <div
@@ -53,9 +55,6 @@ function DesktopSidebar({
         {NAV_ITEMS.map((item) => {
           const isActive = item.type === activeMode;
           const NavIcon = item.Icon;
-          // Same cache-key logic as the mobile hamburger dropdown —
-          // a green dot means this mode already has a generated
-          // response for the currently selected document(s).
           const cacheKey =
             item.type !== null
               ? `${item.type}_${[...selectedIds].sort().join(",")}`
@@ -87,6 +86,47 @@ function DesktopSidebar({
           );
         })}
       </div>
+
+      {/* CHAT-ONLY DOCUMENT SCOPING — minimal checklist so a user can
+          restrict "Ask Questions" to a subset of the session's files.
+          Scoped to activeMode === null (Chat) only: Summary/Notes/Explain
+          don't currently honor per-document selection for a reopened
+          session, so surfacing checkboxes there would be misleading. */}
+      {sidebarOpen && activeMode === null && processedDocs.length > 1 && (
+        <div className="px-2 pt-2 pb-1 border-t border-white/10 mt-2">
+          <p className="text-[11px] text-gray-500 px-2 mb-1.5">Documents</p>
+          <div className="space-y-0.5 max-h-40 overflow-y-auto">
+            {processedDocs.map((doc) => {
+              const isSelected = selectedIds.includes(doc.id);
+              return (
+                <label
+                  key={doc.id}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.06] cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() =>
+                      setSelectedIds((prev) =>
+                        isSelected
+                          ? prev.filter((id) => id !== doc.id)
+                          : [...prev, doc.id],
+                      )
+                    }
+                    className="w-3.5 h-3.5 accent-cyan-400 shrink-0"
+                  />
+                  <span
+                    className="text-xs text-gray-300 truncate"
+                    title={doc.displayName || doc.fileName}
+                  >
+                    {doc.displayName || doc.fileName}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {sidebarOpen && user && (
         <div className="flex-1 min-h-0 flex flex-col mt-2 border-t border-white/10 pt-2">

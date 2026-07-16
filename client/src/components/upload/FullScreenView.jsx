@@ -64,6 +64,13 @@ function FullScreenView({
     ? `${processedFileNames.length} documents`
     : processedFileNames?.[0];
 
+  // Maps the currently checked document ids to their real fileName —
+  // this is what the backend's chat filter matches against for a
+  // reopened session (see chatController.js askQuestionFromSession).
+  const selectedFileNames = processedDocs
+    .filter((doc) => selectedIds.includes(doc.id))
+    .map((doc) => doc.fileName);
+
   return (
     <AnimatePresence>
       {isVisible && (
@@ -87,6 +94,8 @@ function FullScreenView({
             currentSessionId={currentSessionId}
             loadSessionById={loadSessionById}
             handleDeleteDeskSession={handleDeleteDeskSession}
+            processedDocs={processedDocs}
+            setSelectedIds={setSelectedIds}
           />
 
           {/* RIGHT COLUMN — top bar + body */}
@@ -148,6 +157,7 @@ function FullScreenView({
                 <ChatPanel
                   key={`${currentSessionId || "session"}-${selectedIds.join(",")}`}
                   selectedIds={selectedIds}
+                  selectedFileNames={selectedFileNames}
                   isPreloadedSession={isPreloadedSession}
                   currentSessionId={currentSessionId}
                   geminiKey={geminiKey}

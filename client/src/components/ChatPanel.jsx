@@ -34,6 +34,7 @@ const stripLeadingEmoji = (text = "") =>
 
 function ChatPanel({
   selectedIds,
+  selectedFileNames = [],
   isPreloadedSession,
   currentSessionId,
   geminiKey,
@@ -118,7 +119,7 @@ function ChatPanel({
       // required isPreloadedSession === true, which meant fresh-upload
       // chats (session created, but not "preloaded") were silently
       // never persisted and vanished on refresh.
-      let data;
+    let data;
       if (currentSessionId && token) {
         data = await askQuestionFromSession(
           question,
@@ -126,6 +127,7 @@ function ChatPanel({
           history,
           geminiKey,
           token,
+          selectedFileNames,
         );
       } else {
         data = await askQuestion(question, selectedIds, history, geminiKey);

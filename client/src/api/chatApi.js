@@ -27,11 +27,12 @@ export const askQuestionFromSession = async (
   sessionId,
   history = [],
   geminiKey = "",
-  token = ""
+  token = "",
+  selectedFileNames = [] // narrows retrieval to only these files, if provided
 ) => {
   const response = await httpClient.post(
     "/ai/chat-from-session",
-    { question, sessionId, history },
+    { question, sessionId, history, selectedFileNames },
     {
       headers: {
         "x-gemini-key": geminiKey,
