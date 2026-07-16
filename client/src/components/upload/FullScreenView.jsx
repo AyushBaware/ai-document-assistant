@@ -49,6 +49,7 @@ function FullScreenView({
   error,
   aiResult,
   glossary,
+  aiSourceFileNames = [],
   handleCopy,
   copied,
 }) {
@@ -63,6 +64,20 @@ function FullScreenView({
     : processedFileNames?.length > 1
     ? `${processedFileNames.length} documents`
     : processedFileNames?.[0];
+
+  // For Summary/Notes/Explain, show exactly which files the *displayed*
+  // result was generated from — overrides the session-title subtitle
+  // only in mode view, so Chat's header is untouched.
+  const modeSourceLabel =
+    activeMode !== null && aiSourceFileNames.length > 0
+      ? aiSourceFileNames.length === 1
+        ? aiSourceFileNames[0]
+        : aiSourceFileNames.length === processedFileNames?.length
+        ? `${aiSourceFileNames.length} documents`
+        : `${aiSourceFileNames.length} of ${processedFileNames?.length} documents`
+      : null;
+
+  const headerSubtitle = modeSourceLabel || sessionSubtitle;
 
   // Maps the currently checked document ids to their real fileName —
   // this is what the backend's chat filter matches against for a
@@ -115,9 +130,9 @@ function FullScreenView({
                 <h2 className="text-sm sm:text-base font-semibold text-white truncate leading-tight">
                   {NAV_ITEMS.find((n) => n.type === activeMode)?.label || "Chat"}
                 </h2>
-                {sessionSubtitle && (
+                {headerSubtitle && (
                   <p className="text-[11px] sm:text-xs text-gray-500 truncate leading-tight mt-0.5">
-                    {sessionSubtitle}
+                    {headerSubtitle}
                   </p>
                 )}
               </div>

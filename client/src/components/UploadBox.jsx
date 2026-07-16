@@ -47,6 +47,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
   const [activeMode, setActiveMode] = useState(null);
   const [aiResult, setAiResult] = useState("");
   const [glossary, setGlossary] = useState([]);
+  const [aiSourceFileNames, setAiSourceFileNames] = useState([]);
   const [cachedResults, setCachedResults] = useState({});
   const [showChat, setShowChat] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -142,6 +143,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     setGlossary,
     setActiveMode,
     setError,
+    setSourceFileNames: setAiSourceFileNames,
     currentSessionId,
     isPreloadedSession,
     setMenuOpen,
@@ -191,6 +193,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     setSelectedIds([]);
     setAiResult("");
     setGlossary([]);
+    setAiSourceFileNames([]);
     setActiveMode(null);
     setCachedResults({});
     setShowChat(false);
@@ -301,6 +304,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
               preloadedChatHistory={preloadedChatHistory}
               aiResult={aiResult}
               glossary={glossary}
+              aiSourceFileNames={aiSourceFileNames}
               activeModeInfo={activeModeInfo}
               handleCopy={handleCopy}
               copied={copied}
@@ -340,8 +344,9 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
         aiLoading={aiLoading}
         analysisStage={analysisStage}
         error={error}
-        aiResult={aiResult}
+        aaiResult={aiResult}
         glossary={glossary}
+        aiSourceFileNames={aiSourceFileNames}
         handleCopy={handleCopy}
         copied={copied}
       />

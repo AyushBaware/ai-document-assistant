@@ -23,6 +23,7 @@ export function useAIGeneration({
   setGlossary,
   setActiveMode,
   setError,
+  setSourceFileNames,
   currentSessionId,
   isPreloadedSession,
   setMenuOpen,
@@ -40,6 +41,7 @@ export function useAIGeneration({
     if (cachedResults[cacheKey]) {
       setAiResult(cachedResults[cacheKey].result);
       setGlossary(cachedResults[cacheKey].glossary || []);
+      setSourceFileNames(cachedResults[cacheKey].sourceFileNames || []);
       setActiveMode(type);
       return;
     }
@@ -68,10 +70,11 @@ export function useAIGeneration({
       const glossaryData = data.glossary || [];
       setCachedResults((prev) => ({
         ...prev,
-        [cacheKey]: { result: data.result, glossary: glossaryData },
+        [cacheKey]: { result: data.result, glossary: glossaryData, sourceFileNames: selectedFileNames },
       }));
       setAiResult(data.result);
       setGlossary(glossaryData);
+      setSourceFileNames(selectedFileNames);
 
       // Save the response back to the session in MongoDB
       if (user && token && currentSessionId) {

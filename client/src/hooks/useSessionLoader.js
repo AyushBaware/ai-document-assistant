@@ -75,6 +75,10 @@ export function useSessionLoader({
           preloadedCache[cacheKey] = {
             result: session.responses[type].result,
             glossary: session.responses[type].glossary || [],
+            // Older cached responses were always generated from the full
+            // session — this keeps the "generated from" label accurate
+            // for them until the user regenerates with a subset.
+            sourceFileNames: session.documents.map((d) => d.fileName),
           };
         }
       });

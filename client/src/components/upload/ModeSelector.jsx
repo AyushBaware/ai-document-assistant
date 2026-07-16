@@ -39,6 +39,7 @@ function ModeSelector({
   preloadedChatHistory,
   aiResult,
   glossary,
+  aiSourceFileNames = [],
   activeModeInfo,
   handleCopy,
   copied,
@@ -252,11 +253,23 @@ function ModeSelector({
                           {activeModeInfo?.label}{" "}
                           <span className="text-gray-400 font-normal">
                             —{" "}
-                            {processedFileNames.length > 1
+                            {aiSourceFileNames.length > 0
+                              ? aiSourceFileNames.length === 1
+                                ? aiSourceFileNames[0]
+                                : aiSourceFileNames.length === processedFileNames.length
+                                ? `${aiSourceFileNames.length} documents`
+                                : `${aiSourceFileNames.length} of ${processedFileNames.length} documents`
+                              : processedFileNames.length > 1
                               ? `${processedFileNames.length} documents`
                               : processedFileNames[0]}
                           </span>
                         </h3>
+                        {aiSourceFileNames.length > 1 &&
+                          aiSourceFileNames.length < processedFileNames.length && (
+                            <p className="text-[11px] text-cyan-300/70 truncate mt-0.5">
+                              Based on: {aiSourceFileNames.join(", ")}
+                            </p>
+                          )}
                       </div>
                     </div>
                     <button
