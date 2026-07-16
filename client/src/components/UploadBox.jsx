@@ -122,12 +122,20 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
   // rather than a fresh upload (see fake "preloaded-" IDs above).
   const isPreloadedSession = selectedIds.some((id) => id.startsWith("preloaded-"));
 
+  // Maps the currently checked document ids to their real fileName —
+  // same key generateFromSession/chatController match against for a
+  // reopened session, so Summary/Notes/Explain honor checkboxes too.
+  const selectedFileNames = processedDocs
+    .filter((doc) => selectedIds.includes(doc.id))
+    .map((doc) => doc.fileName);
+
   // ── AI GENERATION (Summary/Notes/Explain) ─────────────────
   const { aiLoading, analysisStage, generateContent, handleNavSelect } = useAIGeneration({
     geminiKey,
     user,
     token,
     selectedIds,
+    selectedFileNames,
     cachedResults,
     setCachedResults,
     setAiResult,

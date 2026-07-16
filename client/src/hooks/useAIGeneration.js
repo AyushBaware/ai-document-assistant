@@ -16,6 +16,7 @@ export function useAIGeneration({
   user,
   token,
   selectedIds,
+  selectedFileNames,
   cachedResults,
   setCachedResults,
   setAiResult,
@@ -52,12 +53,13 @@ export function useAIGeneration({
 
       let data;
 
-      if (isPreloadedSession && currentSessionId && token) {
+           if (isPreloadedSession && currentSessionId && token) {
         data = await generateAIFromSession(
           currentSessionId,
           type,
           geminiKey,
           token,
+          selectedFileNames,
         );
       } else {
         data = await generateAI(null, type, selectedIds, geminiKey);

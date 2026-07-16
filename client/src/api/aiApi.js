@@ -48,11 +48,12 @@ export const generateAIFromSession = async (
   sessionId,             // real MongoDB session _id
   type,                  // "summary" | "notes" | "explain"
   geminiKey = "",
-  token = ""             // JWT — required because the backend uses requireAuth
+  token = "",            // JWT — required because the backend uses requireAuth
+  selectedFileNames = [] // narrows generation to only these files, if provided
 ) => {
   const response = await httpClient.post(
     "/ai/generate-from-session",
-    { type, sessionId },
+    { type, sessionId, selectedFileNames },
     {
       headers: {
         "x-gemini-key":  geminiKey,

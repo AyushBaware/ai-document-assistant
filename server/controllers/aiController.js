@@ -569,7 +569,7 @@ export const generateAIResponse = async (req, res) => {
 // Route: POST /api/ai/generate-from-session
 export const generateFromSession = async (req, res) => {
   try {
-    const { type, sessionId } = req.body;
+    const { type, sessionId, selectedFileNames } = req.body;
     const userId = req.userId; // attached by requireAuth middleware
 
     const userKey   = req.headers["x-gemini-key"];
@@ -607,10 +607,20 @@ export const generateFromSession = async (req, res) => {
       });
     }
 
+    // DOCUMENT SCOPING: if the user unchecked one or more files for this
+    // session, selectedFileNames narrows generation to only those files —
+    // same fileName-based filter pattern used in chatController.js's
+    // askQuestionFromSession, so Summary/Notes/Explain and Chat behave
+    // consistently for a reopened session.
+    const hasFileFilter = Array.isArray(selectedFileNames) && selectedFileNames.length > 0;
+    const scopedDocuments = hasFileFilter
+      ? session.documents.filter((doc) => selectedFileNames.includes(doc.fileName))
+      : session.documents;
+
     // Map the stored documents into the same shape that
     // profileDocuments() and buildKnowledge() expect —
     // identical to what knowledgeStore returns for fresh uploads.
-    const docsToUse = session.documents.map((doc) => ({
+    const docsToUse = scopedDocuments.map((doc) => ({
       id:            doc._id?.toString() || doc.fileName,
       fileName:      doc.fileName,
       mimetype:      doc.mimetype,
