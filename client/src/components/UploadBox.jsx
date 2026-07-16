@@ -38,7 +38,6 @@ import FullScreenView from "./upload/FullScreenView";
 function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibilityChange, onFullScreenChatChange }) {
   const { user, token } = useAuth();
 
-  // ── STATE SHARED ACROSS MULTIPLE HOOKS ────────────────────
   const [error, setError] = useState("");
   const [isProcessed, setIsProcessed] = useState(false);
   const [processedFileNames, setProcessedFileNames] = useState([]);
@@ -59,7 +58,6 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
   const [preloadedChatHistory, setPreloadedChatHistory] = useState([]);
   const [copied, setCopied] = useState(false);
 
-  // ── FILE UPLOAD (files, drag-drop, process/upload) ────────
   const {
     files,
     needsProcessing,
@@ -96,7 +94,6 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     setShowChat,
   });
 
-  // ── PAST SESSION LOADING (history sidebar / desktop sidebar) ──
   const { isLoadingPreload, loadSessionById } = useSessionLoader({
     token,
     preloadedSession,
@@ -118,19 +115,16 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     setGlossary,
   });
 
-  // Shared between generateContent() and ChatPanel — true when the
-  // currently selected documents came from a loaded history session
-  // rather than a fresh upload (see fake "preloaded-" IDs above).
   const isPreloadedSession = selectedIds.some((id) => id.startsWith("preloaded-"));
 
   // Maps the currently checked document ids to their real fileName —
   // same key generateFromSession/chatController match against for a
-  // reopened session, so Summary/Notes/Explain honor checkboxes too.
+  // reopened session, so Summary/Notes/Explain and Chat both honor
+  // checkboxes consistently.
   const selectedFileNames = processedDocs
     .filter((doc) => selectedIds.includes(doc.id))
     .map((doc) => doc.fileName);
 
-  // ── AI GENERATION (Summary/Notes/Explain) ─────────────────
   const { aiLoading, analysisStage, generateContent, handleNavSelect } = useAIGeneration({
     geminiKey,
     user,
@@ -149,9 +143,6 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     setMenuOpen,
   });
 
-  // True while the full-screen chat is open — hides history + settings
-  // (via onFullScreenChatChange, up to App.jsx) and triggers the desktop
-  // sidebar's session list to (re)load.
   const isFullScreenOpen = isProcessed && !needsProcessing && showChat;
 
   useEffect(() => {
@@ -160,16 +151,12 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     }
   }, [isFullScreenOpen, onFullScreenChatChange]);
 
-  // ── DESKTOP SIDEBAR: session history, Claude/Gemini-style ───
   const { deskSessions, deskSessionsLoading, handleDeleteDeskSession } = useDesktopSessions({
     user,
     token,
     isFullScreenOpen,
   });
 
-  // Hidden as soon as the user has files in play (uploading, processing,
-  // or viewing a response) — no point burning screen space on the pitch
-  // copy once they're actually using the tool, especially on mobile.
   useEffect(() => {
     if (onHeroVisibilityChange) {
       onHeroVisibilityChange(files.length > 0 || processedDocs.length > 0);
@@ -182,8 +169,6 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Closing full-screen chat takes the user all the way back to a
-  // clean upload screen — "close" means go home, not "go back one step".
   const handleCloseFullScreen = () => {
     setFiles([]);
     setNeedsProcessing(false);
@@ -206,18 +191,9 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
   };
 
   const hasAnyFiles = files.length > 0 || processedDocs.length > 0;
-
-  // True from the moment file(s) are added until they've been
-  // successfully processed — this is the "review your files
-  // before processing" stage, which we want centered full-screen
-  // rather than sitting at the top of the page.
   const isReviewingFiles = hasAnyFiles && !isProcessed;
-
-  // Computed once per render instead of calling AI_MODES.find()
-  // twice further down in JSX for the icon and label separately.
   const activeModeInfo = AI_MODES.find((m) => m.type === activeMode);
 
-  // ── RENDER ──────────────────────────────────────────────
   return (
     <div
       className={
@@ -240,8 +216,6 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
             : "border-white/10 bg-white/[0.04]"
         }`}
       >
-        {/* DRAG OVERLAY — shown on top while dragging, regardless
-            of whether files already exist or it's the empty state */}
         <AnimatePresence>
           {isDragging && (
             <motion.div
@@ -344,7 +318,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
         aiLoading={aiLoading}
         analysisStage={analysisStage}
         error={error}
-        aaiResult={aiResult}
+        aiResult={aiResult}
         glossary={glossary}
         aiSourceFileNames={aiSourceFileNames}
         handleCopy={handleCopy}

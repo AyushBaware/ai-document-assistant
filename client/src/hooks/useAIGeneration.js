@@ -2,15 +2,6 @@ import { useState } from "react";
 import { generateAI, generateAIFromSession } from "../api/aiApi";
 import { updateSessionResponse } from "../api/sessionApi";
 
-// ============================================================
-// useAIGeneration.js
-//
-// Owns calling Gemini for Summary/Notes/Explain: cache lookup
-// (avoids re-calling Gemini for a mode already generated for
-// the current document selection), the fresh-upload vs.
-// past-session branching (same pattern as chatApi.js), and
-// saving the result back to the session in MongoDB.
-// ============================================================
 export function useAIGeneration({
   geminiKey,
   user,
@@ -51,11 +42,14 @@ export function useAIGeneration({
       setAiLoading(true);
       setAnalysisStage("Analyzing documents...");
       setActiveMode(type);
-      setAiResult("");
+      // Intentionally NOT clearing aiResult/glossary here — if a previous
+      // result (different selection or mode) is already on screen, it stays
+      // visible, dimmed, while this generates. Only replaced once the new
+      // result actually arrives, so the panel never goes blank mid-toggle.
 
       let data;
 
-           if (isPreloadedSession && currentSessionId && token) {
+      if (isPreloadedSession && currentSessionId && token) {
         data = await generateAIFromSession(
           currentSessionId,
           type,
@@ -76,7 +70,6 @@ export function useAIGeneration({
       setGlossary(glossaryData);
       setSourceFileNames(selectedFileNames);
 
-      // Save the response back to the session in MongoDB
       if (user && token && currentSessionId) {
         try {
           await updateSessionResponse(
@@ -96,8 +89,11 @@ export function useAIGeneration({
         err.response?.data?.message ||
           "AI generation failed. Please try again.",
       );
+      // A genuine failure is the only case that clears the panel —
+      // toggling selection or regenerating never lands here.
       setAiResult("");
       setGlossary([]);
+      setSourceFileNames([]);
       setActiveMode(null);
     } finally {
       setAiLoading(false);
@@ -105,10 +101,6 @@ export function useAIGeneration({
     }
   };
 
-  // Switches the full-screen view between Chat and a mode (Summary/
-  // Notes/Explain). Reuses generateContent's own caching, so re-picking
-  // an already-generated mode just re-shows the cached result instead
-  // of calling Gemini again.
   const handleNavSelect = (type) => {
     setMenuOpen(false);
     if (type === null) {

@@ -92,7 +92,7 @@ function DesktopSidebar({
           Scoped to activeMode === null (Chat) only: Summary/Notes/Explain
           don't currently honor per-document selection for a reopened
           session, so surfacing checkboxes there would be misleading. */}
-      {sidebarOpen && activeMode === null && processedDocs.length > 1 && (
+      {sidebarOpen && processedDocs.length > 1 && (
         <div className="px-2 pt-2 pb-1 border-t border-white/10 mt-2">
           <p className="text-[11px] text-gray-500 px-2 mb-1.5">Documents</p>
           <div className="space-y-0.5 max-h-40 overflow-y-auto">

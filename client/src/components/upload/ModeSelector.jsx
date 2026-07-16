@@ -1,15 +1,3 @@
-// ============================================================
-// ModeSelector.jsx
-//
-// The doc-selection checkboxes + Summary/Notes/Explain/Ask
-// Questions button grid, plus the inline (non-fullscreen)
-// loading indicator, chat panel, and response card that used
-// to render directly beneath the mode buttons inside UploadBox.
-//
-// Visible only once documents are processed and the full-screen
-// chat isn't currently showing — same condition as before.
-// ============================================================
-
 import { motion, AnimatePresence } from "framer-motion";
 import { AI_MODES } from "../../constants/documentModes";
 import { getFileIcon } from "../../utils/fileIcons";
@@ -44,6 +32,17 @@ function ModeSelector({
   handleCopy,
   copied,
 }) {
+  const modeSourceLabel =
+    aiSourceFileNames.length > 0
+      ? aiSourceFileNames.length === 1
+        ? aiSourceFileNames[0]
+        : aiSourceFileNames.length === processedFileNames.length
+        ? `All ${aiSourceFileNames.length} documents`
+        : `${aiSourceFileNames.length} of ${processedFileNames.length} documents`
+      : processedFileNames.length > 1
+      ? `${processedFileNames.length} documents`
+      : processedFileNames[0];
+
   return (
     <AnimatePresence>
       {isVisible && (
@@ -108,7 +107,11 @@ function ModeSelector({
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => {
-                            setCachedResults({});
+                            // NOTE: cache is already scoped per-selection via
+                            // its key, so we no longer wipe it here — doing
+                            // so previously nuked every already-generated
+                            // Summary/Notes/Explain the instant any checkbox
+                            // was toggled.
                             setSelectedIds((prev) =>
                               isSelected
                                 ? prev.filter((id) => id !== doc.id)
@@ -179,8 +182,9 @@ function ModeSelector({
             </motion.button>
           </div>
 
+          {/* First-ever generation — nothing to show yet, use the full spinner. */}
           <AnimatePresence>
-            {aiLoading && (
+            {aiLoading && !aiResult && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -234,8 +238,11 @@ function ModeSelector({
             )}
           </AnimatePresence>
 
+          {/* Once anything has been generated, the panel stays up — a
+              regeneration (new selection, cache miss) dims it and shows a
+              status line instead of hiding the content. */}
           <AnimatePresence>
-            {aiResult && !aiLoading && (
+            {aiResult && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -250,26 +257,22 @@ function ModeSelector({
                       </span>
                       <div className="min-w-0">
                         <h3 className="text-sm font-semibold text-white truncate">
-                          {activeModeInfo?.label}{" "}
-                          <span className="text-gray-400 font-normal">
-                            —{" "}
-                            {aiSourceFileNames.length > 0
-                              ? aiSourceFileNames.length === 1
-                                ? aiSourceFileNames[0]
-                                : aiSourceFileNames.length === processedFileNames.length
-                                ? `${aiSourceFileNames.length} documents`
-                                : `${aiSourceFileNames.length} of ${processedFileNames.length} documents`
-                              : processedFileNames.length > 1
-                              ? `${processedFileNames.length} documents`
-                              : processedFileNames[0]}
-                          </span>
+                          {activeModeInfo?.label}
                         </h3>
-                        {aiSourceFileNames.length > 1 &&
-                          aiSourceFileNames.length < processedFileNames.length && (
-                            <p className="text-[11px] text-cyan-300/70 truncate mt-0.5">
-                              Based on: {aiSourceFileNames.join(", ")}
-                            </p>
-                          )}
+                        {modeSourceLabel && (
+                          <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                            Based on: <span className="text-cyan-300/80">{modeSourceLabel}</span>
+                          </p>
+                        )}
+                        {aiLoading && (
+                          <motion.p
+                            animate={{ opacity: [0.4, 1, 0.4] }}
+                            transition={{ repeat: Infinity, duration: 1.2 }}
+                            className="text-[11px] text-cyan-300/70 mt-0.5"
+                          >
+                            Regenerating for the new selection...
+                          </motion.p>
+                        )}
                       </div>
                     </div>
                     <button
@@ -292,7 +295,11 @@ function ModeSelector({
 
                   <div className="relative max-h-[78vh] sm:max-h-[80vh]">
                     <div className="pointer-events-none absolute top-0 inset-x-0 h-6 sm:h-8 z-10 backdrop-blur-sm [mask-image:linear-gradient(to_bottom,black,transparent)] rounded-t-2xl" />
-                    <div className="h-full overflow-y-auto px-3 sm:px-6 py-4 sm:py-5">
+                    <div
+                      className={`h-full overflow-y-auto px-3 sm:px-6 py-4 sm:py-5 transition-opacity ${
+                        aiLoading ? "opacity-50" : ""
+                      }`}
+                    >
                       <ResponseViewer content={aiResult} glossary={glossary} />
                     </div>
                   </div>

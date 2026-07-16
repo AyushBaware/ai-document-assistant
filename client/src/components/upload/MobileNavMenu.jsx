@@ -85,7 +85,8 @@ function MobileNavMenu({
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => {
-                            setCachedResults({});
+                            // Cache is already scoped per-selection via its
+                            // key — no need to wipe everything on toggle.
                             setSelectedIds((prev) =>
                               isSelected
                                 ? prev.filter((id) => id !== doc.id)

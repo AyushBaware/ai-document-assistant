@@ -53,10 +53,9 @@ function FullScreenView({
   handleCopy,
   copied,
 }) {
-  // Session title (Groq-generated) wins when available. While it's
-  // still being generated (isTitleLoading), show nothing rather than
-  // flashing the filename first. If there's no title at all — anonymous
-  // user, or Groq failed — fall back to the file name(s).
+  // Top header subtitle is always the session title (Groq-generated) or
+  // filename fallback — constant regardless of which mode is active.
+  // Never overridden by which files a Summary/Notes/Explain result came from.
   const sessionSubtitle = currentSessionTitle
     ? currentSessionTitle
     : isTitleLoading
@@ -65,23 +64,17 @@ function FullScreenView({
     ? `${processedFileNames.length} documents`
     : processedFileNames?.[0];
 
-  // For Summary/Notes/Explain, show exactly which files the *displayed*
-  // result was generated from — overrides the session-title subtitle
-  // only in mode view, so Chat's header is untouched.
+  // Compact "Based on: X" label shown INSIDE the mode content panel only —
+  // never in the top header.
   const modeSourceLabel =
     activeMode !== null && aiSourceFileNames.length > 0
       ? aiSourceFileNames.length === 1
         ? aiSourceFileNames[0]
         : aiSourceFileNames.length === processedFileNames?.length
-        ? `${aiSourceFileNames.length} documents`
+        ? `All ${aiSourceFileNames.length} documents`
         : `${aiSourceFileNames.length} of ${processedFileNames?.length} documents`
       : null;
 
-  const headerSubtitle = modeSourceLabel || sessionSubtitle;
-
-  // Maps the currently checked document ids to their real fileName —
-  // this is what the backend's chat filter matches against for a
-  // reopened session (see chatController.js askQuestionFromSession).
   const selectedFileNames = processedDocs
     .filter((doc) => selectedIds.includes(doc.id))
     .map((doc) => doc.fileName);
@@ -113,10 +106,7 @@ function FullScreenView({
             setSelectedIds={setSelectedIds}
           />
 
-          {/* RIGHT COLUMN — top bar + body */}
           <div className="flex-1 min-w-0 flex flex-col">
-            {/* TOP BAR — hamburger (mobile only) switches Chat/Summary/
-                Notes/Explain; close (right) returns to the upload screen. */}
             <div className="relative flex items-center justify-between px-4 sm:px-6 py-3 border-b border-white/10 shrink-0">
               <button
                 onClick={() => setMenuOpen((v) => !v)}
@@ -130,9 +120,9 @@ function FullScreenView({
                 <h2 className="text-sm sm:text-base font-semibold text-white truncate leading-tight">
                   {NAV_ITEMS.find((n) => n.type === activeMode)?.label || "Chat"}
                 </h2>
-                {headerSubtitle && (
+                {sessionSubtitle && (
                   <p className="text-[11px] sm:text-xs text-gray-500 truncate leading-tight mt-0.5">
-                    {headerSubtitle}
+                    {sessionSubtitle}
                   </p>
                 )}
               </div>
@@ -166,7 +156,6 @@ function FullScreenView({
               />
             </div>
 
-            {/* BODY — Chat, or the selected mode's response */}
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               {activeMode === null ? (
                 <ChatPanel
@@ -188,7 +177,9 @@ function FullScreenView({
                   <div className="pointer-events-none absolute top-0 inset-x-0 h-6 sm:h-8 z-10 backdrop-blur-sm [mask-image:linear-gradient(to_bottom,black,transparent)]" />
                   <div className="h-full overflow-y-auto px-4 sm:px-6 py-5">
                   <div className="max-w-3xl mx-auto">
-                    {aiLoading && (
+                    {/* First-ever generation for this mode — nothing on
+                        screen yet, show the full loading state. */}
+                    {aiLoading && !aiResult && (
                       <div className="flex flex-col items-center gap-4 py-16">
                         <motion.div
                           animate={{ rotate: 360 }}
@@ -205,31 +196,49 @@ function FullScreenView({
                       </div>
                     )}
 
-                    {!aiLoading && error && (
+                    {!aiLoading && !aiResult && error && (
                       <p className="text-center text-red-400 text-sm py-6">{error}</p>
                     )}
 
-                    {!aiLoading && aiResult && (
+                    {aiResult && (
                     <motion.div
                       key={activeMode}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.25 }}
                     >
-                      <div className="flex items-center justify-end mb-3">
-                          <button
-                            onClick={handleCopy}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-xs text-gray-400 hover:text-white"
-                          >
-                            {copied ? (
-                              <FiCheck className="text-sm" />
-                            ) : (
-                              <FiCopy className="text-sm" />
-                            )}
-                            <span>{copied ? "Copied" : "Copy"}</span>
-                          </button>
+                      <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
+                        <div className="min-w-0">
+                          {modeSourceLabel && (
+                            <p className="text-xs text-gray-500 truncate">
+                              Based on: <span className="text-cyan-300/80">{modeSourceLabel}</span>
+                            </p>
+                          )}
+                          {aiLoading && (
+                            <motion.p
+                              animate={{ opacity: [0.4, 1, 0.4] }}
+                              transition={{ repeat: Infinity, duration: 1.2 }}
+                              className="text-[11px] text-cyan-300/70 mt-0.5"
+                            >
+                              Regenerating for the new selection...
+                            </motion.p>
+                          )}
                         </div>
+                        <button
+                          onClick={handleCopy}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-xs text-gray-400 hover:text-white shrink-0"
+                        >
+                          {copied ? (
+                            <FiCheck className="text-sm" />
+                          ) : (
+                            <FiCopy className="text-sm" />
+                          )}
+                          <span>{copied ? "Copied" : "Copy"}</span>
+                        </button>
+                      </div>
+                      <div className={`transition-opacity ${aiLoading ? "opacity-50" : ""}`}>
                         <ResponseViewer content={aiResult} glossary={glossary} />
+                      </div>
                     </motion.div>
                   )}
                   </div>
