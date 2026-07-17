@@ -82,6 +82,30 @@ export function useSessionLoader({
           };
         }
       });
+
+      // Restore results generated from a SPECIFIC subset of documents too —
+      // maps each saved fileName back to its matching "preloaded-i" id
+      // (same index-based scheme used above) so the cache key lines up
+      // exactly with what generateContent() computes when that subset
+      // is reselected, letting it load instantly instead of regenerating.
+      (session.scopedResponses || []).forEach((entry) => {
+        const matchingIds = entry.fileNames
+          .map((fn) => {
+            const idx = session.documents.findIndex((d) => d.fileName === fn);
+            return idx !== -1 ? `preloaded-${idx}` : null;
+          })
+          .filter(Boolean);
+
+        if (matchingIds.length === 0) return;
+
+        const cacheKey = `${entry.type}_${[...matchingIds].sort().join(",")}`;
+        preloadedCache[cacheKey] = {
+          result: entry.result,
+          glossary: entry.glossary || [],
+          sourceFileNames: entry.fileNames,
+        };
+      });
+
       setCachedResults(preloadedCache);
       setAiResult("");
       setGlossary([]);

@@ -235,6 +235,7 @@ export const getSessionById = async (req, res) => {
         title: session.title,
         documents: session.documents,
         responses: session.responses,
+        scopedResponses: session.scopedResponses,
         chatHistory: session.chatHistory,
         createdAt: session.createdAt,
       },
@@ -258,7 +259,7 @@ export const updateSessionResponse = async (req, res) => {
   try {
     const userId = req.userId;
     const { id } = req.params;
-    const { type, result, tokenBudget, glossary } = req.body;
+    const { type, result, tokenBudget, glossary, selectedFileNames } = req.body;
 
     if (!type || !["summary", "notes", "explain"].includes(type)) {
       return res.status(400).json({
@@ -283,12 +284,54 @@ export const updateSessionResponse = async (req, res) => {
       });
     }
 
-    session.responses[type] = {
+    const glossaryData = Array.isArray(glossary) ? glossary.slice(0, 20) : [];
+
+    // Determine the exact file scope this result was generated from —
+    // falls back to the full session if the client didn't send a
+    // selection (older behavior, unchanged for that case).
+    const allFileNames = session.documents.map((d) => d.fileName).sort();
+    const scopeFileNames =
+      Array.isArray(selectedFileNames) && selectedFileNames.length > 0
+        ? [...selectedFileNames].sort()
+        : allFileNames;
+    const isFullSessionScope =
+      JSON.stringify(scopeFileNames) === JSON.stringify(allFileNames);
+
+    // Keep the legacy single-slot response in sync ONLY when the
+    // generation covers the full session — this is what still powers
+    // the "hasResponses" dots in the history sidebar list.
+    if (isFullSessionScope) {
+      session.responses[type] = {
+        result,
+        generatedAt: new Date(),
+        tokenBudget: tokenBudget || null,
+        glossary: glossaryData,
+      };
+    }
+
+    // Always upsert into scopedResponses too — this is what makes a
+    // result generated from a SPECIFIC subset of documents persist and
+    // restore correctly when that same subset is reselected later.
+    const existingIndex = session.scopedResponses.findIndex(
+      (r) =>
+        r.type === type &&
+        JSON.stringify([...r.fileNames].sort()) === JSON.stringify(scopeFileNames)
+    );
+
+    const scopedEntry = {
+      type,
+      fileNames: scopeFileNames,
       result,
       generatedAt: new Date(),
       tokenBudget: tokenBudget || null,
-      glossary: Array.isArray(glossary) ? glossary.slice(0, 20) : [],
+      glossary: glossaryData,
     };
+
+    if (existingIndex !== -1) {
+      session.scopedResponses[existingIndex] = scopedEntry;
+    } else {
+      session.scopedResponses.push(scopedEntry);
+    }
 
     await session.save();
 

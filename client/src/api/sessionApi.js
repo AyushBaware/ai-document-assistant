@@ -42,11 +42,12 @@ export const updateSessionResponse = async (
   result,
   tokenBudget,
   token,
-  glossary = []
+  glossary = [],
+  selectedFileNames = []
 ) => {
   const response = await httpClient.patch(
     `/sessions/${sessionId}`,
-    { type, result, tokenBudget, glossary },
+    { type, result, tokenBudget, glossary, selectedFileNames },
     withAuth(token)
   );
   return response.data;

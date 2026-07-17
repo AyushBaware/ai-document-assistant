@@ -56,6 +56,23 @@ const responseSubSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// Stores a Summary/Notes/Explain result generated from a SPECIFIC subset
+// of the session's documents (via the checkbox filter). Kept separate
+// from responseSubSchema above so the existing single-slot "full session"
+// responses stay untouched and backward-compatible — this array only
+// ever holds additional, selection-scoped results.
+const scopedResponseSubSchema = new mongoose.Schema(
+  {
+    type: { type: String, enum: ["summary", "notes", "explain"], required: true },
+    fileNames: { type: [String], required: true }, // exact file set this result came from
+    result: { type: String, required: true },
+    generatedAt: { type: Date, default: Date.now },
+    tokenBudget: { type: Number, default: null },
+    glossary: { type: [glossaryTermSubSchema], default: [] },
+  },
+  { _id: false }
+);
+
 const chatMessageSubSchema = new mongoose.Schema(
   {
     role: { type: String, enum: ["user", "assistant"], required: true },
@@ -111,10 +128,19 @@ const sessionSchema = new mongoose.Schema(
 
     // Fixed set of modes — matches your AI_MODES in UploadBox.jsx.
     // Each starts empty and fills in as the user clicks buttons.
+    // Only ever populated by FULL-SESSION generations (all documents).
     responses: {
       summary: { type: responseSubSchema, default: () => ({}) },
       notes: { type: responseSubSchema, default: () => ({}) },
       explain: { type: responseSubSchema, default: () => ({}) },
+    },
+
+    // Populated whenever a generation used a SPECIFIC subset of this
+    // session's documents (checkbox filter) — lets that exact result be
+    // restored permanently when the user reselects the same subset later.
+    scopedResponses: {
+      type: [scopedResponseSubSchema],
+      default: [],
     },
 
     // Persisted conversation for the "Ask Questions" feature —

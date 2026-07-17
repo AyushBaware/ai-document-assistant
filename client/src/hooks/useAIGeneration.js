@@ -79,12 +79,12 @@ export function useAIGeneration({
             data.tokenBudget,
             token,
             glossaryData,
+            selectedFileNames,
           );
         } catch (saveErr) {
           console.warn("Response save failed (non-blocking):", saveErr.message);
         }
-      }
-    } catch (err) {
+      }    } catch (err) {
       setError(
         err.response?.data?.message ||
           "AI generation failed. Please try again.",
