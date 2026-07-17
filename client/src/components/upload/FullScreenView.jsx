@@ -206,6 +206,7 @@ function FullScreenView({
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.25 }}
+                      className="relative"
                     >
                       <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
                         <div className="min-w-0">
@@ -213,15 +214,6 @@ function FullScreenView({
                             <p className="text-xs text-gray-500 truncate">
                               Based on: <span className="text-cyan-300/80">{modeSourceLabel}</span>
                             </p>
-                          )}
-                          {aiLoading && (
-                            <motion.p
-                              animate={{ opacity: [0.4, 1, 0.4] }}
-                              transition={{ repeat: Infinity, duration: 1.2 }}
-                              className="text-[11px] text-cyan-300/70 mt-0.5"
-                            >
-                              Regenerating for the new selection...
-                            </motion.p>
                           )}
                         </div>
                         <button
@@ -236,9 +228,37 @@ function FullScreenView({
                           <span>{copied ? "Copied" : "Copy"}</span>
                         </button>
                       </div>
-                      <div className={`transition-opacity ${aiLoading ? "opacity-50" : ""}`}>
+                      <div
+                        className={`transition-opacity duration-500 ${
+                          aiLoading ? "opacity-0 pointer-events-none" : "opacity-100"
+                        }`}
+                      >
                         <ResponseViewer content={aiResult} glossary={glossary} />
                       </div>
+
+                      {/* Centered "generating" overlay — the previous result
+                          fades out smoothly and this fades in over it while a
+                          new selection's Summary/Notes/Explain is produced. */}
+                      <AnimatePresence>
+                        {aiLoading && (
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.35 }}
+                            className="fixed inset-0 sm:absolute flex flex-col items-center justify-center gap-4 bg-[#030712]/70 backdrop-blur-sm z-30"
+                          >
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }}
+                              className="w-10 h-10 rounded-full border-4 border-cyan-500/20 border-t-cyan-400"
+                            />
+                            <p className="text-cyan-300 font-medium text-sm text-center px-4">
+                              {analysisStage || "Analyzing documents..."}
+                            </p>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </motion.div>
                   )}
                   </div>
