@@ -264,15 +264,6 @@ function ModeSelector({
                             Based on: <span className="text-cyan-300/80">{modeSourceLabel}</span>
                           </p>
                         )}
-                        {aiLoading && (
-                          <motion.p
-                            animate={{ opacity: [0.4, 1, 0.4] }}
-                            transition={{ repeat: Infinity, duration: 1.2 }}
-                            className="text-[11px] text-cyan-300/70 mt-0.5"
-                          >
-                            Regenerating for the new selection...
-                          </motion.p>
-                        )}
                       </div>
                     </div>
                     <button
@@ -296,12 +287,36 @@ function ModeSelector({
                   <div className="relative max-h-[78vh] sm:max-h-[80vh]">
                     <div className="pointer-events-none absolute top-0 inset-x-0 h-6 sm:h-8 z-10 backdrop-blur-sm [mask-image:linear-gradient(to_bottom,black,transparent)] rounded-t-2xl" />
                     <div
-                      className={`h-full overflow-y-auto px-3 sm:px-6 py-4 sm:py-5 transition-opacity ${
-                        aiLoading ? "opacity-50" : ""
+                      className={`h-full overflow-y-auto px-3 sm:px-6 py-4 sm:py-5 transition-opacity duration-500 ${
+                        aiLoading ? "opacity-0 pointer-events-none" : "opacity-100"
                       }`}
                     >
                       <ResponseViewer content={aiResult} glossary={glossary} />
                     </div>
+
+                    {/* Centered "generating" overlay — the previous result
+                        fades out smoothly and this fades in over it while a
+                        new selection's Summary/Notes/Explain is produced. */}
+                    <AnimatePresence>
+                      {aiLoading && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.35 }}
+                          className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#030712]/70 backdrop-blur-sm rounded-2xl"
+                        >
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }}
+                            className="w-10 h-10 rounded-full border-4 border-cyan-500/20 border-t-cyan-400"
+                          />
+                          <p className="text-cyan-300 font-medium text-sm text-center px-4">
+                            {analysisStage || "Analyzing documents..."}
+                          </p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
               </motion.div>
