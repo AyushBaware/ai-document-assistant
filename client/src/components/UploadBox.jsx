@@ -315,6 +315,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
         geminiKey={geminiKey}
         token={token}
         preloadedChatHistory={preloadedChatHistory}
+        setPreloadedChatHistory={setPreloadedChatHistory}
         aiLoading={aiLoading}
         analysisStage={analysisStage}
         error={error}

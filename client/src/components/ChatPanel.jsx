@@ -39,13 +39,17 @@ function ChatPanel({
   currentSessionId,
   geminiKey,
   token,
-  initialMessages = [],
+  // Messages now live in the parent (UploadBox) instead of local state —
+  // this guarantees the conversation survives no matter what causes
+  // ChatPanel to re-render (checkbox toggles, prop changes, etc.),
+  // since there's no internal state left here to lose.
+  messages = [],
+  setMessages = () => {},
   suggestions = [],
   fullScreen = false,
   modeOptions = [],
   onSelectMode,
 }) {
-  const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -87,7 +91,14 @@ function ChatPanel({
     const question = rawQuestion.trim();
     if (!question || loading) return;
 
-    const cacheKey = question.toLowerCase();
+    // Cache key includes which files are currently checked — so the same
+    // question asked with a different file selection is treated as a new
+    // question instead of replaying a stale answer from before.
+    const scopeKey =
+      selectedFileNames.length > 0
+        ? [...selectedFileNames].sort().join(",")
+        : [...selectedIds].sort().join(",");
+    const cacheKey = `${scopeKey}::${question.toLowerCase()}`;
     const cached = answerCacheRef.current.get(cacheKey);
 
     setInput("");

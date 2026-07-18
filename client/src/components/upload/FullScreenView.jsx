@@ -44,6 +44,7 @@ function FullScreenView({
   geminiKey,
   token,
   preloadedChatHistory,
+  setPreloadedChatHistory,
   aiLoading,
   analysisStage,
   error,
@@ -159,14 +160,14 @@ function FullScreenView({
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               {activeMode === null ? (
                 <ChatPanel
-                  key={`${currentSessionId || "session"}-${selectedIds.join(",")}`}
                   selectedIds={selectedIds}
                   selectedFileNames={selectedFileNames}
                   isPreloadedSession={isPreloadedSession}
                   currentSessionId={currentSessionId}
                   geminiKey={geminiKey}
                   token={token}
-                  initialMessages={preloadedChatHistory}
+                  messages={preloadedChatHistory}
+                  setMessages={setPreloadedChatHistory}
                   suggestions={CHAT_SUGGESTIONS}
                   modeOptions={NAV_ITEMS.filter((n) => n.type !== null)}
                   onSelectMode={handleNavSelect}
