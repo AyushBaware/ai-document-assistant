@@ -226,8 +226,11 @@ function FullScreenView({
                           ) : (
                             <FiCopy className="text-sm" />
                           )}
-                          <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 hidden sm:group-hover:block whitespace-nowrap rounded-md bg-black/90 px-2 py-1 text-[10px] text-white shadow-lg z-10">
-                            {copied ? "Copied" : "Copy"}
+                          <span className="pointer-events-none absolute -bottom-9 left-1/2 -translate-x-1/2 z-20 hidden sm:flex flex-col items-center opacity-0 scale-95 transition-all duration-150 sm:group-hover:opacity-100 sm:group-hover:scale-100">
+                            <span className="rounded-md border border-white/10 bg-[#0d1117] px-2.5 py-1 text-[11px] font-medium text-gray-200 shadow-lg shadow-black/40 whitespace-nowrap">
+                              {copied ? "Copied" : "Copy"}
+                            </span>
+                            <span className="w-2 h-2 -mt-1 rotate-45 border-l border-t border-white/10 bg-[#0d1117]" />
                           </span>
                         </button>
                       </div>

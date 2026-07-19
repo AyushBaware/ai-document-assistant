@@ -64,7 +64,7 @@ function ModeSelector({
                       onClick={() =>
                         setSelectedIds(processedDocs.map((doc) => doc.id))
                       }
-                      className="text-xs px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/20 text-cyan-200 hover:bg-cyan-500/20 transition"
+                      className="cursor-pointer text-xs px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/20 text-cyan-200 hover:bg-cyan-500/20 transition"
                     >
                       Select all
                     </button>
@@ -144,7 +144,7 @@ function ModeSelector({
                     generateContent(mode.type);
                   }}
                   disabled={aiLoading || selectedIds.length === 0}
-                  className={`relative w-full px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 border flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  className={`relative w-full px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 border flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                     isActive
                       ? "bg-cyan-500/20 border-cyan-400/40 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.2)]"
                       : "bg-white/[0.05] border-white/10 text-white hover:bg-white/10"
@@ -171,7 +171,7 @@ function ModeSelector({
                 setShowChat(true);
               }}
               disabled={selectedIds.length === 0}
-              className={`relative w-full px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 border flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`relative w-full px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 border flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                 showChat
                   ? "bg-cyan-500/20 border-cyan-400/40 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.2)]"
                   : "bg-white/[0.05] border-white/10 text-white hover:bg-white/10"
@@ -271,8 +271,11 @@ function ModeSelector({
                       className="group relative flex items-center justify-center p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-xs text-gray-400 hover:text-white shrink-0"
                     >
                       <span>{copied ? "✓" : "⧉"}</span>
-                      <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 hidden sm:group-hover:block whitespace-nowrap rounded-md bg-black/90 px-2 py-1 text-[10px] text-white shadow-lg z-10">
-                        {copied ? "Copied" : "Copy"}
+                      <span className="pointer-events-none absolute -bottom-9 left-1/2 -translate-x-1/2 z-20 hidden sm:flex flex-col items-center opacity-0 scale-95 transition-all duration-150 sm:group-hover:opacity-100 sm:group-hover:scale-100">
+                        <span className="rounded-md border border-white/10 bg-[#0d1117] px-2.5 py-1 text-[11px] font-medium text-gray-200 shadow-lg shadow-black/40 whitespace-nowrap">
+                          {copied ? "Copied" : "Copy"}
+                        </span>
+                        <span className="w-2 h-2 -mt-1 rotate-45 border-l border-t border-white/10 bg-[#0d1117]" />
                       </span>
                     </button>
                   </div>

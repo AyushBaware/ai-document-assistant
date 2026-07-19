@@ -137,7 +137,7 @@ function ApiKeyModal({ onKeySaved }) {
             <button
               type="button"
               onClick={() => setShowKey((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors p-1"
+              className="cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors p-1"
             >
               {showKey ? <FiEyeOff className="text-base" /> : <FiEye className="text-base" />}
             </button>
@@ -163,7 +163,7 @@ function ApiKeyModal({ onKeySaved }) {
             whileTap={{ scale: 0.98 }}
             onClick={handleSave}
             disabled={isValidating}
-            className="w-full mt-4 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold text-sm hover:opacity-90 transition-all shadow-[0_0_20px_rgba(34,211,238,0.25)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="cursor-pointer w-full mt-4 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold text-sm hover:opacity-90 transition-all shadow-[0_0_20px_rgba(34,211,238,0.25)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <FiCheck className="text-base" />
             Save & Continue

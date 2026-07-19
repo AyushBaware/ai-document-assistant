@@ -65,7 +65,7 @@ function DesktopSidebar({
               key={item.label}
               onClick={() => handleNavSelect(item.type)}
               disabled={item.type !== null && selectedIds.length === 0}
-              className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+              className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                 isActive
                   ? "bg-cyan-500/15 text-cyan-300"
                   : "text-gray-300 hover:bg-white/[0.06]"

@@ -396,7 +396,7 @@ function ChatPanel({
         <button
           onClick={handleSend}
           disabled={loading || !input.trim()}
-          className="w-10 h-10 shrink-0 rounded-xl bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center text-cyan-300 hover:bg-cyan-500/30 transition disabled:opacity-40 disabled:cursor-not-allowed"
+          className="w-10 h-10 shrink-0 rounded-xl bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center text-cyan-300 hover:bg-cyan-500/30 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <FiSend className="text-base" />
         </button>
