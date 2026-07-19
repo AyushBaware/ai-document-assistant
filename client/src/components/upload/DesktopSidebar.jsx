@@ -94,7 +94,12 @@ function DesktopSidebar({
           session, so surfacing checkboxes there would be misleading. */}
       {sidebarOpen && processedDocs.length > 1 && (
         <div className="px-2 pt-2 pb-1 border-t border-white/10 mt-2">
-          <p className="text-[11px] text-gray-500 px-2 mb-1.5">Documents</p>
+          <p
+            className="text-[11px] text-gray-500 px-2 mb-1.5 cursor-help"
+            title="Answers are generated only from checked files"
+          >
+            Documents
+          </p>
           <div className="space-y-0.5 max-h-40 overflow-y-auto">
             {processedDocs.map((doc) => {
               const isSelected = selectedIds.includes(doc.id);
