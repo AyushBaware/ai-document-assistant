@@ -122,9 +122,9 @@ function DesktopSidebar({
                   />
                   <span
                     className="text-xs text-gray-300 truncate"
-                    title={doc.displayName || doc.fileName}
+                    title={doc.fileName}
                   >
-                    {doc.displayName || doc.fileName}
+                    {doc.fileName}
                   </span>
                 </label>
               );

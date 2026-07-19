@@ -95,8 +95,11 @@ function MobileNavMenu({
                           }}
                           className="w-3.5 h-3.5 accent-cyan-400 shrink-0"
                         />
-                        <span className="text-xs text-gray-300 truncate">
-                          {doc.displayName || doc.fileName}
+                        <span
+                          className="text-xs text-gray-300 truncate"
+                          title={doc.fileName}
+                        >
+                          {doc.fileName}
                         </span>
                       </label>
                     );
