@@ -268,19 +268,12 @@ function ModeSelector({
                     </div>
                     <button
                       onClick={handleCopy}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-xs text-gray-400 hover:text-white shrink-0"
+                      className="group relative flex items-center justify-center p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-xs text-gray-400 hover:text-white shrink-0"
                     >
-                      {copied ? (
-                        <>
-                          <span>✓</span>
-                          <span>Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>⧉</span>
-                          <span>Copy</span>
-                        </>
-                      )}
+                      <span>{copied ? "✓" : "⧉"}</span>
+                      <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 hidden sm:group-hover:block whitespace-nowrap rounded-md bg-black/90 px-2 py-1 text-[10px] text-white shadow-lg z-10">
+                        {copied ? "Copied" : "Copy"}
+                      </span>
                     </button>
                   </div>
 
