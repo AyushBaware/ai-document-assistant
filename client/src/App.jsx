@@ -111,7 +111,7 @@ function App() {
           <div className="relative">
             <button
               onClick={() => setShowUserMenu((v) => !v)}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
+              className="cursor-pointer flex items-center gap-2 px-2 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
             >
               {user.picture ? (
                 <img
@@ -143,7 +143,7 @@ function App() {
                     setShowUserMenu(false);
                     setSelectedSessionId(null); // clear any loaded session on logout
                   }}
-                  className="w-full flex items-center justify-center gap-2 text-xs py-2 rounded-lg bg-red-500/10 border border-red-400/20 text-red-300 hover:bg-red-500/20 transition"
+                  className="cursor-pointer w-full flex items-center justify-center gap-2 text-xs py-2 rounded-lg bg-red-500/10 border border-red-400/20 text-red-300 hover:bg-red-500/20 transition"
                 >
                   <FiLogOut className="text-sm" />
                   Sign Out
@@ -167,7 +167,7 @@ function App() {
         <div className="relative">
           <button
             onClick={() => setShowSettings((v) => !v)}
-            className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+            className="cursor-pointer w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
             title="API Key Settings"
           >
             <FiSettings className="text-lg" />
@@ -191,13 +191,13 @@ function App() {
                   setShowSettings(false);
                   setGeminiKey("");
                 }}
-                className="w-full text-xs py-2 rounded-lg bg-cyan-500/10 border border-cyan-400/20 text-cyan-300 hover:bg-cyan-500/20 transition mb-2"
+                className="cursor-pointer w-full text-xs py-2 rounded-lg bg-cyan-500/10 border border-cyan-400/20 text-cyan-300 hover:bg-cyan-500/20 transition mb-2"
               >
                 Update API Key
               </button>
               <button
                 onClick={handleClearKey}
-                className="w-full text-xs py-2 rounded-lg bg-red-500/10 border border-red-400/20 text-red-300 hover:bg-red-500/20 transition"
+                className="cursor-pointer w-full text-xs py-2 rounded-lg bg-red-500/10 border border-red-400/20 text-red-300 hover:bg-red-500/20 transition"
               >
                 Remove Key
               </button>

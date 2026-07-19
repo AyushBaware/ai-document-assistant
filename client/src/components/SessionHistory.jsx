@@ -92,7 +92,7 @@ function SessionHistory({ onSelectSession, refreshTrigger, activeSessionId }) {
       {/* TOGGLE BUTTON */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed top-4 left-4 z-20 w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+        className="cursor-pointer fixed top-4 left-4 z-20 w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
         title="View History"
       >
         <FiClock className="text-lg" />

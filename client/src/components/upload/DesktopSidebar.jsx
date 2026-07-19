@@ -40,7 +40,7 @@ function DesktopSidebar({
         )}
         <button
           onClick={() => setSidebarOpen((v) => !v)}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all shrink-0"
+          className="cursor-pointer w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all shrink-0"
           title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
         >
           {sidebarOpen ? (
@@ -65,7 +65,7 @@ function DesktopSidebar({
               key={item.label}
               onClick={() => handleNavSelect(item.type)}
               disabled={item.type !== null && selectedIds.length === 0}
-              className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+              className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                 isActive
                   ? "bg-cyan-500/15 text-cyan-300"
                   : "text-gray-300 hover:bg-white/[0.06]"
@@ -170,7 +170,7 @@ function DesktopSidebar({
                   </span>
                   <button
                     onClick={(e) => handleDeleteDeskSession(e, s.id)}
-                    className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-opacity shrink-0"
+                    className="cursor-pointer opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-opacity shrink-0"
                     title="Delete session"
                   >
                     <FiTrash2 className="text-xs" />

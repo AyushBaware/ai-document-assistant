@@ -71,7 +71,7 @@ function ModeSelector({
                     <button
                       type="button"
                       onClick={() => setSelectedIds([])}
-                      className="text-xs px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 transition"
+                      className="cursor-pointer text-xs px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 transition"
                     >
                       Clear selection
                     </button>
@@ -268,7 +268,7 @@ function ModeSelector({
                     </div>
                     <button
                       onClick={handleCopy}
-                      className="group relative flex items-center justify-center p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-xs text-gray-400 hover:text-white shrink-0"
+                      className="cursor-pointer group relative flex items-center justify-center p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-xs text-gray-400 hover:text-white shrink-0"
                     >
                       <span>{copied ? "✓" : "⧉"}</span>
                       <span className="pointer-events-none absolute -bottom-9 left-1/2 -translate-x-1/2 z-20 hidden sm:flex flex-col items-center opacity-0 scale-95 transition-all duration-150 sm:group-hover:opacity-100 sm:group-hover:scale-100">

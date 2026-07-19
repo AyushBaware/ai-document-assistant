@@ -223,7 +223,7 @@ function ChatPanel({
                         <button
                           key={item.label}
                           onClick={() => onSelectMode && onSelectMode(item.type)}
-                          className="flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl bg-white/[0.05] border border-white/10 text-gray-200 hover:bg-white/10 hover:border-cyan-400/30 transition-all"
+                          className="cursor-pointer flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl bg-white/[0.05] border border-white/10 text-gray-200 hover:bg-white/10 hover:border-cyan-400/30 transition-all"
                         >
                           <ModeIcon className="text-base text-cyan-300" />
                           <span className="text-xs">{item.label}</span>
@@ -246,7 +246,7 @@ function ChatPanel({
                     <button
                       key={i}
                       onClick={() => handleSuggestionClick(s)}
-                      className="text-xs sm:text-sm px-3.5 py-2 rounded-full bg-white/[0.05] border border-white/10 text-gray-300 hover:bg-white/10 hover:border-cyan-400/30 hover:text-white transition-all"
+                      className="cursor-pointer text-xs sm:text-sm px-3.5 py-2 rounded-full bg-white/[0.05] border border-white/10 text-gray-300 hover:bg-white/10 hover:border-cyan-400/30 hover:text-white transition-all"
                     >
                       {s}
                     </button>
@@ -275,7 +275,7 @@ function ChatPanel({
               {msg.role === "assistant" && (
                 <button
                   onClick={() => handleCopyMessage(msg.content, i)}
-                  className="absolute -top-2 -right-2 transition-all w-6 h-6 rounded-full bg-white/10 border border-white/10 text-gray-400 hover:text-white hover:bg-white/20 flex items-center justify-center text-xs"
+                  className="cursor-pointer absolute -top-2 -right-2 transition-all w-6 h-6 rounded-full bg-white/10 border border-white/10 text-gray-400 hover:text-white hover:bg-white/20 flex items-center justify-center text-xs"
                   title="Copy answer"
                 >
                   {copiedIndex === i ? "✓" : "⧉"}
