@@ -23,6 +23,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import helmet from "helmet";
+import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 
 dotenv.config();
@@ -33,6 +34,8 @@ import uploadRoutes from "./routes/uploadRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import sessionRoutes from "./routes/sessionRoutes.js";
+import apiKeyRoutes from "./routes/apiKeyRoutes.js";
+import { assignDeviceId } from "./middleware/deviceMiddleware.js";
 
 connectDB();
 
@@ -70,6 +73,12 @@ app.use(
   })
 );
 
+app.use(cookieParser());
+
+// Assigns every visitor a stable, anonymous deviceId cookie —
+// this is what makes guest (not-logged-in) usage possible at all.
+app.use(assignDeviceId);
+
 // ── RATE LIMITING on AI generation endpoint ─────────────────
 // Prevents abuse / accidental runaway loops from exhausting
 // your Gemini quota. 20 requests per 5 minutes per IP is
@@ -93,6 +102,7 @@ app.use("/api/upload", uploadRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/sessions", sessionRoutes);
+app.use("/api/apikey", apiKeyRoutes);
 
 app.get("/", (req, res) => {
   res.json({
