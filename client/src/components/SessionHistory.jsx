@@ -127,7 +127,7 @@ function SessionHistory({ onSelectSession, refreshTrigger, activeSessionId }) {
                 </h2>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                  className="cursor-pointer w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
                 >
                   <FiX />
                 </button>
@@ -219,7 +219,7 @@ function SessionHistory({ onSelectSession, refreshTrigger, activeSessionId }) {
                       </div>
                       <button
                         onClick={(e) => handleDelete(e, session.id)}
-                        className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10 shrink-0"
+                        className="cursor-pointer opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10 shrink-0"
                         title="Delete session"
                       >
                         <FiTrash2 className="text-sm" />
