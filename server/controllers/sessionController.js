@@ -195,8 +195,6 @@ export const getSessionById = async (req, res) => {
       });
     }
 
-    session.lastOpenedAt = new Date();
-
     // Retroactive title fix — runs EXACTLY ONCE per session. Old
     // sessions from before this feature still have titleSource
     // "default" (the schema default). The first time such a
@@ -332,6 +330,10 @@ export const updateSessionResponse = async (req, res) => {
     } else {
       session.scopedResponses.push(scopedEntry);
     }
+
+    // A real generation just happened — this counts as activity,
+    // unlike simply opening/reading a past session.
+    session.lastOpenedAt = new Date();
 
     await session.save();
 

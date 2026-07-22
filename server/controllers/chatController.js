@@ -304,6 +304,9 @@ export const askQuestionFromSession = async (req, res) => {
     try {
       session.chatHistory.push({ role: "user", content: trimmedQuestion });
       session.chatHistory.push({ role: "assistant", content: answer, sources });
+      // A real question just got answered — this counts as activity,
+      // unlike simply opening/reading a past session.
+      session.lastOpenedAt = new Date();
       await session.save();
     } catch (saveErr) {
       console.warn("[ChatController/session] Failed to save chat history:", saveErr.message);
