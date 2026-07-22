@@ -10,12 +10,15 @@ import GlossaryTerm from "./GlossaryTerm";
 // a lowercase lookup map for instant definition lookup.
 const buildGlossaryLookup = (glossary = []) => {
   const valid = (glossary || []).filter(
-    (g) => g && typeof g.term === "string" && typeof g.definition === "string"
+    (g) => g && typeof g.term === "string" && typeof g.definition === "string",
   );
-  if (valid.length === 0) return { glossaryMap: new Map(), glossaryRegex: null };
+  if (valid.length === 0)
+    return { glossaryMap: new Map(), glossaryRegex: null };
 
   const glossaryMap = new Map();
-  valid.forEach((g) => glossaryMap.set(g.term.trim().toLowerCase(), g.definition));
+  valid.forEach((g) =>
+    glossaryMap.set(g.term.trim().toLowerCase(), g.definition),
+  );
 
   const escaped = valid
     .map((g) => g.term.trim())
@@ -23,8 +26,20 @@ const buildGlossaryLookup = (glossary = []) => {
     .sort((a, b) => b.length - a.length)
     .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
 
+  // FIXED: \b word boundaries silently fail whenever a term ends in a
+  // non-word character (e.g. "RAG (Retrieval Augmented Generation)",
+  // "Progressive Web App (PWA)") — \b requires a word/non-word
+  // transition, and a term ending in ")" followed by a space has no
+  // such transition, so it never matched at all. Using explicit
+  // lookaround on alphanumeric characters instead of \b fixes this
+  // regardless of what character the term starts/ends with.
   const glossaryRegex =
-    escaped.length > 0 ? new RegExp(`\\b(${escaped.join("|")})s?\\b`, "gi") : null;
+    escaped.length > 0
+      ? new RegExp(
+          `(?<![a-zA-Z0-9])((?:${escaped.join("|")})s?)(?![a-zA-Z0-9])`,
+          "gi",
+        )
+      : null;
 
   return { glossaryMap, glossaryRegex };
 };
@@ -39,10 +54,21 @@ const renderTextPiece = (text, glossaryMap, glossaryRegex, keyPrefix) => {
 
   return parts.map((part, i) => {
     if (!part) return null;
-    const definition = glossaryMap.get(part.trim().toLowerCase());
+    const key = part.trim().toLowerCase();
+    // FIXED: the optional trailing "s" in the regex (for plurals like
+    // "chunks" matching a glossary entry for "chunk") matched the text
+    // fine, but the lookup below used the matched (plural) text as the
+    // map key — which never existed, since glossary terms are stored
+    // singular. Falls back to the singular form if the exact key misses.
+    const definition =
+      glossaryMap.get(key) || glossaryMap.get(key.replace(/s$/, ""));
     if (definition) {
       return (
-        <GlossaryTerm key={`${keyPrefix}-${i}`} term={part} definition={definition}>
+        <GlossaryTerm
+          key={`${keyPrefix}-${i}`}
+          term={part}
+          definition={definition}
+        >
           {part}
         </GlossaryTerm>
       );
@@ -56,7 +82,7 @@ const renderWithGlossary = (children, glossaryMap, glossaryRegex) => {
   return Children.map(children, (child, i) =>
     typeof child === "string"
       ? renderTextPiece(child, glossaryMap, glossaryRegex, `gl-${i}`)
-      : child
+      : child,
   );
 };
 
@@ -82,7 +108,7 @@ const ResponseViewer = ({ content, glossary = [] }) => {
   // Built once per response, not on every render.
   const { glossaryMap, glossaryRegex } = useMemo(
     () => buildGlossaryLookup(glossary),
-    [glossary]
+    [glossary],
   );
 
   // Animation variants for sections
@@ -119,7 +145,7 @@ const ResponseViewer = ({ content, glossary = [] }) => {
               <motion.div
                 variants={itemVariants}
                 className={`mt-6 mb-4 rounded-xl sm:rounded-2xl border px-3 sm:px-6 lg:px-7 py-3 sm:py-5 lg:py-6 backdrop-blur-lg ${getSectionStyle(
-                  title
+                  title,
                 )}`}
               >
                 <h1 className="text-xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-white leading-tight m-0">
@@ -174,9 +200,15 @@ const ResponseViewer = ({ content, glossary = [] }) => {
             </motion.li>
           ),
 
+          // FIXED: this previously rendered `children` raw, with no
+          // glossary pass at all. Since the system prompt tells Gemini
+          // to **bold** the most important names/terms, and those bolded
+          // terms are exactly what the glossary defines, this was the
+          // single biggest reason most glossary entries never appeared
+          // in the app — they were structurally invisible to the matcher.
           strong: ({ children }) => (
             <strong className="text-white font-bold bg-linear-to-r from-cyan-400/20 to-blue-400/20 px-1 py-0.5 rounded">
-              {children}
+              {renderWithGlossary(children, glossaryMap, glossaryRegex)}
             </strong>
           ),
 
