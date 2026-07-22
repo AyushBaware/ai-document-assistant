@@ -27,13 +27,14 @@
 import express from "express";
 import { generateAIResponse, generateFromSession } from "../controllers/aiController.js";
 import { askQuestion, askQuestionFromSession } from "../controllers/chatController.js";
-import { requireAuth } from "../middleware/authMiddleware.js";
+import { requireAuth, optionalAuth } from "../middleware/authMiddleware.js";
+import { checkGuestLimit } from "../middleware/guestLimitMiddleware.js";
 
 const router = express.Router();
 
-router.post("/generate",               generateAIResponse);
+router.post("/generate",               optionalAuth, checkGuestLimit, generateAIResponse);
 router.post("/generate-from-session",  requireAuth, generateFromSession);
-router.post("/chat",                   askQuestion);
+router.post("/chat",                   optionalAuth, checkGuestLimit, askQuestion);
 router.post("/chat-from-session",      requireAuth, askQuestionFromSession);
 
 export default router;
