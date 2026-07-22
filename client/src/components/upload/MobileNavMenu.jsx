@@ -70,7 +70,7 @@ function MobileNavMenu({
 
             {processedDocs.length > 1 && (
               <div className="mt-2 pt-2 border-t border-white/10 px-1">
-                <p className="text-[11px] text-gray-500 px-2 mb-1.5">
+                <p className="text-[12px] font-medium text-gray-500 px-2 mb-1.5">
                   Documents
                 </p>
                 <div className="max-h-40 overflow-y-auto space-y-1">

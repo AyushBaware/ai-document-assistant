@@ -34,7 +34,7 @@ function DesktopSidebar({
     >
       <div className="flex items-center justify-between px-3 py-3 border-b border-white/10">
         {sidebarOpen && (
-          <span className="text-sm font-semibold text-white px-1 truncate">
+          <span className="text-lg font-bold text-white px-1 truncate tracking-tight">
             DocuMind AI
           </span>
         )}
@@ -95,7 +95,7 @@ function DesktopSidebar({
       {sidebarOpen && processedDocs.length > 1 && (
         <div className="px-2 pt-2 pb-1 border-t border-white/10 mt-2">
           <p
-            className="text-[11px] text-gray-500 px-2 mb-1.5 cursor-help"
+            className="text-[12px] font-medium text-gray-500 px-2 mb-1.5 cursor-help"
             title="Answers are generated only from checked files"
           >
             Documents
@@ -118,10 +118,10 @@ function DesktopSidebar({
                           : [...prev, doc.id],
                       )
                     }
-                    className="w-3.5 h-3.5 accent-cyan-400 shrink-0"
+                    className="w-4 h-4 accent-cyan-400 shrink-0"
                   />
                   <span
-                    className="text-xs text-gray-300 truncate"
+                    className="text-sm text-gray-300 truncate"
                     title={doc.fileName}
                   >
                     {doc.fileName}
@@ -135,7 +135,7 @@ function DesktopSidebar({
 
       {sidebarOpen && user && (
         <div className="flex-1 min-h-0 flex flex-col mt-2 border-t border-white/10 pt-2">
-          <p className="text-[11px] text-gray-500 px-4 mb-1.5">History</p>
+          <p className="text-[12px] font-medium text-gray-500 px-4 mb-1.5">History</p>
           <div className="flex-1 min-h-0 overflow-y-auto px-2 space-y-1">
             {deskSessionsLoading && (
               <p className="text-xs text-gray-600 px-2 py-2">Loading...</p>
@@ -160,7 +160,7 @@ function DesktopSidebar({
                   }`}
                 >
                   <span
-                    className={`text-xs truncate ${
+                    className={`text-[13px] truncate ${
                       isActiveSession
                         ? "text-white font-semibold"
                         : "text-gray-300"

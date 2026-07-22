@@ -122,7 +122,7 @@ function FullScreenView({
                   {NAV_ITEMS.find((n) => n.type === activeMode)?.label || "Chat"}
                 </h2>
                 {sessionSubtitle && (
-                  <p className="text-[11px] sm:text-xs text-gray-500 truncate leading-tight mt-0.5">
+                  <p className="text-[11px] sm:text-xs font-medium text-gray-400 truncate leading-tight mt-0.5">
                     {sessionSubtitle}
                   </p>
                 )}
