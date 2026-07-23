@@ -58,19 +58,27 @@ function App() {
   // and event-driven via useGuestUsage below, with zero refresh needed.
   const [initialGuestRemaining, setInitialGuestRemaining] = useState(null);
 
-  useEffect(() => {
-    const checkKeyStatus = async () => {
-      try {
-        const data = await getApiKeyStatus();
-        setGeminiKey(data.hasKey ? "configured" : "");
-        if (typeof data.guestRequestsRemaining === "number") {
-          setInitialGuestRemaining(data.guestRequestsRemaining);
-        }
-      } catch {
-        setGeminiKey("");
+  // Extracted so it can run both on initial mount AND right after a
+  // key is first saved — the guest request count doesn't exist yet
+  // at mount time for a brand-new visitor (no ApiKey record until
+  // they actually save a key), which was why the badge previously
+  // only appeared after a manual page refresh.
+  const refreshKeyStatus = async () => {
+    try {
+      const data = await getApiKeyStatus();
+      setGeminiKey(data.hasKey ? "configured" : "");
+      if (typeof data.guestRequestsRemaining === "number") {
+        setInitialGuestRemaining(data.guestRequestsRemaining);
       }
-    };
-    checkKeyStatus();
+      return data;
+    } catch {
+      setGeminiKey("");
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    refreshKeyStatus();
   }, []);
 
   // ── GUEST USAGE (Phase 4 refinement) ──────────────────────
@@ -82,9 +90,12 @@ function App() {
     closeLimitModal: closeGuestLimitModal,
   } = useGuestUsage(initialGuestRemaining);
 
-  const handleKeySaved = () => {
-    setGeminiKey("configured");
+  const handleKeySaved = async () => {
     setShowSettings(false);
+    // Re-check status immediately — this is what actually populates
+    // guestRequestsRemaining (5/5) the instant a fresh guest saves
+    // their key, instead of waiting for a page refresh to catch up.
+    await refreshKeyStatus();
   };
 
   const handleClearKey = () => {
