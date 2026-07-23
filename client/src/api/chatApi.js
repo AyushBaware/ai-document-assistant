@@ -11,14 +11,13 @@ import httpClient from "./httpClient";
 export const askQuestion = async (
   question,
   selectedDocumentIds = [],
-  history = [],
-  geminiKey = ""
+  history = []
 ) => {
-  const response = await httpClient.post(
-    "/ai/chat",
-    { question, selectedDocumentIds, history },
-    { headers: { "x-gemini-key": geminiKey } }
-  );
+  const response = await httpClient.post("/ai/chat", {
+    question,
+    selectedDocumentIds,
+    history,
+  });
   return response.data;
 };
 
@@ -26,7 +25,7 @@ export const askQuestionFromSession = async (
   question,
   sessionId,
   history = [],
-  geminiKey = "",
+  geminiKey = "", // unused now — kept so call-site argument order stays intact
   token = "",
   selectedFileNames = [] // narrows retrieval to only these files, if provided
 ) => {
@@ -35,7 +34,6 @@ export const askQuestionFromSession = async (
     { question, sessionId, history, selectedFileNames },
     {
       headers: {
-        "x-gemini-key": geminiKey,
         Authorization: `Bearer ${token}`,
       },
     }
