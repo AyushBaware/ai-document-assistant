@@ -25,6 +25,9 @@ import LoginButton from "./components/LoginButton";
 import SessionHistory from "./components/SessionHistory";
 import { useAuth } from "./context/AuthContext";
 import { getApiKeyStatus } from "./api/apiKeyApi";
+import GuestUsageBadge from "./components/GuestUsageBadge";
+import GuestLimitToast from "./components/GuestLimitToast";
+import GuestLimitModal from "./components/GuestLimitModal";
 import { FiSettings, FiLogOut, FiUser } from "react-icons/fi";
 
 function App() {
@@ -49,16 +52,34 @@ function App() {
   // so the chat screen has zero competing chrome.
   const [hideChrome, setHideChrome] = useState(false);
 
+  // ── GUEST USAGE STATE (Phase 4 — new) ─────────────────────
+  // guestRequestsRemaining is only ever set for anonymous users —
+  // the backend simply never sends it once someone is logged in.
+  const [guestRequestsRemaining, setGuestRequestsRemaining] = useState(null);
+  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
+
   useEffect(() => {
     const checkKeyStatus = async () => {
       try {
         const data = await getApiKeyStatus();
         setGeminiKey(data.hasKey ? "configured" : "");
+        if (typeof data.guestRequestsRemaining === "number") {
+          setGuestRequestsRemaining(data.guestRequestsRemaining);
+        }
       } catch {
         setGeminiKey("");
       }
     };
     checkKeyStatus();
+  }, []);
+
+  // Backend rejects a 6th anonymous request with GUEST_LIMIT_REACHED —
+  // httpClient.js turns that into this browser event so any component
+  // can react without wiring props through the whole tree.
+  useEffect(() => {
+    const handler = () => setShowGuestLimitModal(true);
+    window.addEventListener("guest-limit-reached", handler);
+    return () => window.removeEventListener("guest-limit-reached", handler);
   }, []);
 
   const handleKeySaved = () => {
@@ -168,9 +189,13 @@ function App() {
           // main content below), causing Google's SDK to call
           // initialize() twice — the "[GSI_LOGGER] initialize()
           // called multiple times" console warning.
-          <div className="scale-[0.85] sm:scale-100 origin-right">
-            <LoginButton />
-          </div>
+          // Hidden while GuestLimitModal is open — that modal renders
+          // its own LoginButton, so this avoids two instances at once.
+          !showGuestLimitModal && (
+            <div className="scale-[0.85] sm:scale-100 origin-right">
+              <LoginButton />
+            </div>
+          )
         )}
 
         <div className="relative">
@@ -243,6 +268,14 @@ function App() {
       </div>
 
       {geminiKey === "" && <ApiKeyModal onKeySaved={handleKeySaved} />}
+
+      {/* GUEST USAGE UI (Phase 4) — only ever relevant for anonymous
+          users; all three render nothing once `user` is set. */}
+      {!user && <GuestUsageBadge initialRemaining={guestRequestsRemaining} />}
+      {!user && <GuestLimitToast />}
+      {showGuestLimitModal && (
+        <GuestLimitModal onClose={() => setShowGuestLimitModal(false)} />
+      )}
     </motion.div>
   );
 }

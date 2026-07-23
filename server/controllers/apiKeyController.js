@@ -9,6 +9,7 @@
 
 import ApiKey from "../models/ApiKey.js";
 import { encrypt } from "../utils/crypto.js";
+import { GUEST_REQUEST_LIMIT } from "../middleware/guestLimitMiddleware.js";
 
 const isValidKeyFormat = (key = "") => key.startsWith("AIza") && key.length >= 35;
 
@@ -45,8 +46,22 @@ export const saveApiKey = async (req, res) => {
 
 export const getApiKeyStatus = async (req, res) => {
   try {
-    const record = await ApiKey.findOne({ deviceId: req.deviceId }).select("_id");
-    return res.status(200).json({ success: true, hasKey: !!record });
+    const record = await ApiKey.findOne({ deviceId: req.deviceId }).select(
+      "_id guestRequestCount"
+    );
+
+    const response = { success: true, hasKey: !!record };
+
+    // Only meaningful for anonymous users — logged-in users aren't
+    // capped by this counter at all.
+    if (!req.userId && record) {
+      response.guestRequestsRemaining = Math.max(
+        0,
+        GUEST_REQUEST_LIMIT - record.guestRequestCount
+      );
+    }
+
+    return res.status(200).json(response);
   } catch (error) {
     console.error("Get API Key Status Error:", error.message);
     return res.status(500).json({ success: false, message: "Failed to check API key status." });

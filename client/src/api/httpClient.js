@@ -8,16 +8,31 @@ const httpClient = axios.create({
   withCredentials: true, // sends the httpOnly deviceId cookie with every request
 });
 
-// SELF-HEALING AUTH: if the backend ever rejects our token with
-// 401, that token is dead (expired, secret rotated after a server
-// restart, or the user was deleted). Without this, every
-// authenticated call (save session, load history) would keep
-// silently failing forever with the UI still showing "logged in."
-// Clearing the stored token and reloading drops the app back to
-// its normal logged-out state, so the user just sees the Login
-// button again and can sign back in — no confusing silent failures.
+// SELF-HEALING AUTH + GUEST USAGE TRACKING:
+// One shared response interceptor handles two unrelated concerns
+// that both need to observe every response:
+//
+// 1. Auth healing (unchanged) — a dead 401 token clears itself.
+//
+// 2. Guest request tracking — the backend attaches
+//    "X-Guest-Requests-Remaining" to successful anonymous
+//    /ai/generate and /ai/chat calls, and returns a distinct
+//    "GUEST_LIMIT_REACHED" code once the free cap is hit. Both
+//    are broadcast as plain browser events so any component
+//    (the usage badge, the limit-reached modal) can react
+//    without this file needing to know about React at all.
 httpClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const remaining = response.headers?.["x-guest-requests-remaining"];
+    if (remaining !== undefined) {
+      window.dispatchEvent(
+        new CustomEvent("guest-requests-updated", {
+          detail: { remaining: Number(remaining) },
+        })
+      );
+    }
+    return response;
+  },
   (error) => {
     const isAuthError = error.response?.status === 401;
     const hadToken = !!localStorage.getItem("app_jwt_token");
@@ -26,6 +41,10 @@ httpClient.interceptors.response.use(
       localStorage.removeItem("app_jwt_token");
       localStorage.removeItem("app_user");
       window.location.reload();
+    }
+
+    if (error.response?.data?.code === "GUEST_LIMIT_REACHED") {
+      window.dispatchEvent(new CustomEvent("guest-limit-reached"));
     }
 
     return Promise.reject(error);

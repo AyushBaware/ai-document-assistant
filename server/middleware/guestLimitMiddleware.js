@@ -23,7 +23,7 @@
 
 import ApiKey from "../models/ApiKey.js";
 
-const GUEST_REQUEST_LIMIT = 5;
+export const GUEST_REQUEST_LIMIT = 5;
 
 export const checkGuestLimit = async (req, res, next) => {
   try {

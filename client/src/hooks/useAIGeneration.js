@@ -85,10 +85,14 @@ export function useAIGeneration({
           console.warn("Response save failed (non-blocking):", saveErr.message);
         }
       }    } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          "AI generation failed. Please try again.",
-      );
+      // GUEST_LIMIT_REACHED already shows a clear full-screen modal
+      // (see App.jsx) — no need to also show a redundant inline error.
+      if (err.response?.data?.code !== "GUEST_LIMIT_REACHED") {
+        setError(
+          err.response?.data?.message ||
+            "AI generation failed. Please try again.",
+        );
+      }
       // A genuine failure is the only case that clears the panel —
       // toggling selection or regenerating never lands here.
       setAiResult("");
