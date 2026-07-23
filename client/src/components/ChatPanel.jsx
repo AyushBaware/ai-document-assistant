@@ -23,6 +23,7 @@ import { FiSend, FiMessageCircle, FiMenu, FiFileText } from "react-icons/fi";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { askQuestion, askQuestionFromSession } from "../api/chatApi";
+import ScrollToBottomButton from "./ScrollToBottomButton";
 
 const MAX_QUESTION_LENGTH = 500;
 
@@ -368,6 +369,12 @@ function ChatPanel({
             </div>
           </div>
         )}
+        </div>
+
+        <div className="pointer-events-none absolute bottom-3 inset-x-0 z-20 flex justify-center">
+          <div className="pointer-events-auto">
+            <ScrollToBottomButton scrollRef={messagesContainerRef} deps={[messages.length, loading]} />
+          </div>
         </div>
       </div>
 

@@ -1,8 +1,10 @@
+import { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AI_MODES } from "../../constants/documentModes";
 import { getFileIcon } from "../../utils/fileIcons";
 import ChatPanel from "../ChatPanel";
 import ResponseViewer from "../ResponseViewer";
+import ScrollToBottomButton from "../ScrollToBottomButton";
 
 function ModeSelector({
   isVisible,
@@ -32,6 +34,8 @@ function ModeSelector({
   handleCopy,
   copied,
 }) {
+  const responseScrollRef = useRef(null);
+
   const modeSourceLabel =
     aiSourceFileNames.length > 0
       ? aiSourceFileNames.length === 1
@@ -283,11 +287,16 @@ function ModeSelector({
                   <div className="relative max-h-[78vh] sm:max-h-[80vh]">
                     <div className="pointer-events-none absolute top-0 inset-x-0 h-6 sm:h-8 z-10 backdrop-blur-sm [mask-image:linear-gradient(to_bottom,black,transparent)] rounded-t-2xl" />
                     <div
+                      ref={responseScrollRef}
                       className={`h-full overflow-y-auto px-3 sm:px-6 py-4 sm:py-5 transition-opacity duration-500 ${
                         aiLoading ? "opacity-0 pointer-events-none" : "opacity-100"
                       }`}
                     >
                       <ResponseViewer content={aiResult} glossary={glossary} />
+                    </div>
+
+                    <div className="absolute bottom-3 inset-x-0 z-20 flex justify-center">
+                      <ScrollToBottomButton scrollRef={responseScrollRef} deps={[aiResult, aiLoading]} />
                     </div>
 
                     {/* Centered "generating" overlay — the previous result

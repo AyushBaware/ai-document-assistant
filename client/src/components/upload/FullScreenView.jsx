@@ -8,6 +8,7 @@
 // or the selected mode's ResponseViewer).
 // ============================================================
 
+import { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiMenu, FiX, FiCheck, FiCopy } from "react-icons/fi";
 import { NAV_ITEMS, CHAT_SUGGESTIONS } from "../../constants/documentModes";
@@ -15,6 +16,7 @@ import ChatPanel from "../ChatPanel";
 import ResponseViewer from "../ResponseViewer";
 import DesktopSidebar from "./DesktopSidebar";
 import MobileNavMenu from "./MobileNavMenu";
+import ScrollToBottomButton from "../ScrollToBottomButton";
 
 function FullScreenView({
   isVisible,
@@ -79,6 +81,8 @@ function FullScreenView({
   const selectedFileNames = processedDocs
     .filter((doc) => selectedIds.includes(doc.id))
     .map((doc) => doc.fileName);
+
+  const modeScrollRef = useRef(null);
 
   return (
     <AnimatePresence>
@@ -176,7 +180,7 @@ function FullScreenView({
               ) : (
                 <div className="relative flex-1 min-h-0">
                   <div className="pointer-events-none absolute top-0 inset-x-0 h-6 sm:h-8 z-10 backdrop-blur-sm [mask-image:linear-gradient(to_bottom,black,transparent)]" />
-                  <div className="h-full overflow-y-auto px-4 sm:px-6 py-5">
+                  <div ref={modeScrollRef} className="h-full overflow-y-auto px-4 sm:px-6 py-5">
                   <div className="max-w-3xl mx-auto">
                     {/* First-ever generation for this mode — nothing on
                         screen yet, show the full loading state. */}
@@ -268,6 +272,10 @@ function FullScreenView({
                     </motion.div>
                   )}
                   </div>
+                  </div>
+
+                  <div className="absolute bottom-3 inset-x-0 z-20 flex justify-center">
+                    <ScrollToBottomButton scrollRef={modeScrollRef} deps={[aiResult, aiLoading]} />
                   </div>
                 </div>
               )}
