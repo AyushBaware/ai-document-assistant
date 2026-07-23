@@ -29,7 +29,7 @@ function DesktopSidebar({
   return (
     <div
       className={`hidden sm:flex flex-col border-r border-white/10 shrink-0 transition-all duration-200 ${
-        sidebarOpen ? "w-64" : "w-16"
+        sidebarOpen ? "w-64 lg:w-72" : "w-16"
       }`}
     >
       <div className="flex items-center justify-between px-3 py-3 border-b border-white/10">
