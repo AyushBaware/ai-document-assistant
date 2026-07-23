@@ -28,6 +28,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiKey, FiExternalLink, FiEye, FiEyeOff, FiCheck } from "react-icons/fi";
+import { saveApiKey } from "../api/apiKeyApi";
 
 function ApiKeyModal({ onKeySaved }) {
   const [apiKey, setApiKey] = useState("");
@@ -45,7 +46,7 @@ function ApiKeyModal({ onKeySaved }) {
     return key.startsWith("AIza") && key.length >= 35;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const trimmed = apiKey.trim();
 
     if (!trimmed) {
@@ -60,13 +61,19 @@ function ApiKeyModal({ onKeySaved }) {
       return;
     }
 
-    // Save to localStorage — persists across browser sessions
-    // until the user manually clears it or updates it
-    localStorage.setItem("gemini_api_key", trimmed);
-
-    // Tell the parent component (App.jsx) that we have a key
-    // so it can hide this modal and show the main app
-    onKeySaved(trimmed);
+    try {
+      setIsValidating(true);
+      setError("");
+      // Encrypted and saved on the backend — never kept in the browser.
+      await saveApiKey(trimmed);
+      onKeySaved();
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "Couldn't save your key. Please try again."
+      );
+    } finally {
+      setIsValidating(false);
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -103,11 +110,20 @@ function ApiKeyModal({ onKeySaved }) {
           </h2>
 
           {/* EXPLANATION — tell the user exactly what's happening */}
-          <p className="text-gray-400 text-sm text-center leading-relaxed mb-6">
+          <p className="text-gray-400 text-sm text-center leading-relaxed mb-4">
             DocuMind AI uses Google Gemini to analyze your documents.
-            Your key is stored <span className="text-white font-medium">only in your browser</span> — 
-            it never touches our servers.
+            Your key is <span className="text-white font-medium">encrypted and stored securely</span> so
+            you can keep using the app across visits — no login required.
           </p>
+
+          {/* GUEST LIMIT DISCLOSURE — stated upfront, not as a
+              surprise once the user hits the wall later. */}
+          <div className="rounded-xl border border-cyan-400/20 bg-cyan-500/[0.06] px-4 py-3 mb-6">
+            <p className="text-xs text-cyan-200 text-center leading-relaxed">
+              <span className="font-semibold">Free to try — no login needed.</span>{" "}
+              You get 5 free AI requests. Sign in anytime for unlimited requests and to save your chat history.
+            </p>
+          </div>
 
           {/* HOW TO GET KEY LINK */}
           <a
@@ -166,13 +182,12 @@ function ApiKeyModal({ onKeySaved }) {
             className="cursor-pointer w-full mt-4 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold text-sm hover:opacity-90 transition-all shadow-[0_0_20px_rgba(34,211,238,0.25)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <FiCheck className="text-base" />
-            Save & Continue
+            {isValidating ? "Saving..." : "Save & Continue"}
           </motion.button>
 
           {/* PRIVACY NOTE */}
           <p className="text-gray-600 text-xs text-center mt-4 leading-relaxed">
-            🔒 Your key is stored in your browser's localStorage.
-            It is sent directly to Google's Gemini API — not stored anywhere on our servers.
+            🔒 Encrypted at rest and never shared with third parties.
           </p>
         </motion.div>
       </motion.div>

@@ -5,6 +5,7 @@ import axios from "axios";
 // to attach auth headers instead of repeating it in every api file.
 const httpClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api",
+  withCredentials: true, // sends the httpOnly deviceId cookie with every request
 });
 
 // SELF-HEALING AUTH: if the backend ever rejects our token with

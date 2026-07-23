@@ -24,6 +24,7 @@ import ApiKeyModal from "./components/ApiKeyModal";
 import LoginButton from "./components/LoginButton";
 import SessionHistory from "./components/SessionHistory";
 import { useAuth } from "./context/AuthContext";
+import { getApiKeyStatus } from "./api/apiKeyApi";
 import { FiSettings, FiLogOut, FiUser } from "react-icons/fi";
 
 function App() {
@@ -49,17 +50,25 @@ function App() {
   const [hideChrome, setHideChrome] = useState(false);
 
   useEffect(() => {
-    const savedKey = localStorage.getItem("gemini_api_key");
-    setGeminiKey(savedKey || "");
+    const checkKeyStatus = async () => {
+      try {
+        const data = await getApiKeyStatus();
+        setGeminiKey(data.hasKey ? "configured" : "");
+      } catch {
+        setGeminiKey("");
+      }
+    };
+    checkKeyStatus();
   }, []);
 
-  const handleKeySaved = (key) => {
-    setGeminiKey(key);
+  const handleKeySaved = () => {
+    setGeminiKey("configured");
     setShowSettings(false);
   };
 
   const handleClearKey = () => {
-    localStorage.removeItem("gemini_api_key");
+    // A new key overwrites the old one on the backend automatically
+    // (see ApiKeyModal) — this just brings the entry screen back.
     setGeminiKey("");
     setShowSettings(false);
   };
@@ -182,9 +191,7 @@ function App() {
               <div className="absolute right-0 top-12 w-64 bg-[#0d1117] border border-white/10 rounded-2xl p-4 shadow-xl z-30">
               <p className="text-xs text-gray-400 mb-1">Gemini API Key</p>
               <p className="text-xs text-white font-mono truncate mb-3 bg-white/5 px-2 py-1.5 rounded-lg">
-                {geminiKey
-                  ? `${geminiKey.slice(0, 8)}${"•".repeat(20)}`
-                  : "No key saved"}
+                {geminiKey ? "✓ Key configured and encrypted" : "No key saved"}
               </p>
               <button
                 onClick={() => {

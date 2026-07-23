@@ -43,6 +43,7 @@
 import { OAuth2Client } from "google-auth-library";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import ApiKey from "../models/ApiKey.js";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
@@ -96,6 +97,17 @@ export const googleAuth = async (req, res) => {
       // First-time login — create a new user record
       user = await User.create({ googleId, email, name, picture });
       console.log(`New user registered: ${email}`);
+    }
+
+    // If this device saved a Gemini key before logging in, attach it
+    // to the account now — so the user is never asked to re-enter it.
+    try {
+      await ApiKey.findOneAndUpdate(
+        { deviceId: req.deviceId, userId: null },
+        { $set: { userId: user._id } }
+      );
+    } catch (linkErr) {
+      console.warn("API key link on login failed (non-blocking):", linkErr.message);
     }
 
     // ── ISSUE OUR OWN APP JWT ─────────────────────────────
