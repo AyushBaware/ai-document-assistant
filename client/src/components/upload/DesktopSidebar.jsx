@@ -87,11 +87,10 @@ function DesktopSidebar({
         })}
       </div>
 
-      {/* CHAT-ONLY DOCUMENT SCOPING — minimal checklist so a user can
-          restrict "Ask Questions" to a subset of the session's files.
-          Scoped to activeMode === null (Chat) only: Summary/Notes/Explain
-          don't currently honor per-document selection for a reopened
-          session, so surfacing checkboxes there would be misleading. */}
+      {/* DOCUMENT SCOPING — selectedIds is shared state across the whole
+          full-screen view, so toggling a checkbox here also narrows the
+          next Summary/Notes/Explain generation (via selectedFileNames in
+          useAIGeneration), not just Chat. */}
       {sidebarOpen && processedDocs.length > 1 && (
         <div className="px-2 pt-2 pb-1 border-t border-white/10 mt-2">
           <p

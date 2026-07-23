@@ -58,7 +58,7 @@ export function useAIGeneration({
           selectedFileNames,
         );
       } else {
-        data = await generateAI(null, type, selectedIds, geminiKey);
+        data = await generateAI(null, type, selectedIds);
       }
 
       const glossaryData = data.glossary || [];

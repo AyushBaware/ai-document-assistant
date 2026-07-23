@@ -164,7 +164,7 @@ export function useFileUpload({
       const formData = new FormData();
       files.forEach((file) => formData.append("files", file));
 
-      const data = await uploadFiles(formData, geminiKey);
+      const data = await uploadFiles(formData);
 
       setProcessedFileNames(data.files.map((f) => f.displayName || f.fileName));
       setProcessedDocs(data.files);

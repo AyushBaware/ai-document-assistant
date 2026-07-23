@@ -8,13 +8,7 @@
 
 import httpClient from "./httpClient";
 
-export const uploadFiles = async (files) => {
-  const formData = new FormData();
-
-  files.forEach((file) => {
-    formData.append("files", file);
-  });
-
+export const uploadFiles = async (formData) => {
   const response = await httpClient.post("/upload", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });

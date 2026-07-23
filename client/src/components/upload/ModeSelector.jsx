@@ -2,7 +2,6 @@ import { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AI_MODES } from "../../constants/documentModes";
 import { getFileIcon } from "../../utils/fileIcons";
-import ChatPanel from "../ChatPanel";
 import ResponseViewer from "../ResponseViewer";
 import ScrollToBottomButton from "../ScrollToBottomButton";
 
@@ -22,11 +21,6 @@ function ModeSelector({
   setActiveMode,
   setAiResult,
   showChat,
-  isPreloadedSession,
-  currentSessionId,
-  geminiKey,
-  token,
-  preloadedChatHistory,
   aiResult,
   glossary,
   aiSourceFileNames = [],
@@ -217,27 +211,6 @@ function ModeSelector({
                       "Preparing a clear explanation..."}
                   </p>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <AnimatePresence>
-            {showChat && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4 }}
-                className="mt-8"
-              >
-                <ChatPanel
-                  key={selectedIds.join(",")}
-                  selectedIds={selectedIds}
-                  isPreloadedSession={isPreloadedSession}
-                  currentSessionId={currentSessionId}
-                  geminiKey={geminiKey}
-                  token={token}
-                  initialMessages={preloadedChatHistory}
-                />
               </motion.div>
             )}
           </AnimatePresence>
