@@ -27,7 +27,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiKey, FiExternalLink, FiEye, FiEyeOff, FiCheck } from "react-icons/fi";
+import { FiKey, FiExternalLink, FiEye, FiEyeOff, FiCheck, FiZap } from "react-icons/fi";
 import { saveApiKey } from "../api/apiKeyApi";
 
 function ApiKeyModal({ onKeySaved }) {
@@ -110,18 +110,18 @@ function ApiKeyModal({ onKeySaved }) {
           </h2>
 
           {/* EXPLANATION — tell the user exactly what's happening */}
-          <p className="text-gray-400 text-sm text-center leading-relaxed mb-4">
+          <p className="text-gray-400 text-sm text-center leading-relaxed mb-5">
             DocuMind AI uses Google Gemini to analyze your documents.
-            Your key is <span className="text-white font-medium">encrypted and stored securely</span> so
-            you can keep using the app across visits — no login required.
+            Your key is <span className="text-white font-medium">encrypted and stored securely</span>.
           </p>
 
           {/* GUEST LIMIT DISCLOSURE — stated upfront, not as a
               surprise once the user hits the wall later. */}
-          <div className="rounded-xl border border-cyan-400/20 bg-cyan-500/[0.06] px-4 py-3 mb-6">
-            <p className="text-xs text-cyan-200 text-center leading-relaxed">
-              <span className="font-semibold">Free to try — no login needed.</span>{" "}
-              You get 5 free AI requests. Sign in anytime for unlimited requests and to save your chat history.
+          <div className="flex items-center gap-2.5 rounded-xl border border-cyan-400/20 bg-cyan-500/[0.06] px-4 py-2.5 mb-6">
+            <FiZap className="text-cyan-400 text-base shrink-0" />
+            <p className="text-xs text-cyan-100 leading-snug text-left">
+              <span className="font-semibold">5 free requests</span>, no sign-in needed —
+              sign in anytime for unlimited access.
             </p>
           </div>
 
