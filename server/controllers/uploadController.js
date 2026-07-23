@@ -13,9 +13,8 @@ export const uploadFiles = async (req, res) => {
       return res.status(400).json({ success: false, message: "No files uploaded." });
     }
 
-    const userKey = req.headers["x-gemini-key"];
     const serverKey = process.env.GEMINI_API_KEY;
-    const apiKey = (userKey && userKey.startsWith("AIza")) ? userKey : serverKey;
+    const apiKey = req.geminiApiKey || serverKey;
 
     knowledgeStore.clearDocuments();
 

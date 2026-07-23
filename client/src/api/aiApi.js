@@ -28,8 +28,7 @@ import httpClient from "./httpClient";
 export const generateAI = async (
   _extractedText,        // unused — backend reads from knowledgeStore
   type,                  // "summary" | "notes" | "explain"
-  selectedDocumentIds = [],
-  geminiKey = ""
+  selectedDocumentIds = []
 ) => {
   const body = { type };
 
@@ -37,9 +36,9 @@ export const generateAI = async (
     body.selectedDocumentIds = selectedDocumentIds;
   }
 
-  const response = await httpClient.post("/ai/generate", body, {
-    headers: { "x-gemini-key": geminiKey },
-  });
+  // The Gemini key is resolved securely on the backend now — never
+  // sent from the browser.
+  const response = await httpClient.post("/ai/generate", body);
 
   return response.data;
 };
@@ -47,7 +46,7 @@ export const generateAI = async (
 export const generateAIFromSession = async (
   sessionId,             // real MongoDB session _id
   type,                  // "summary" | "notes" | "explain"
-  geminiKey = "",
+  geminiKey = "",        // unused now — kept so call-site argument order stays intact
   token = "",            // JWT — required because the backend uses requireAuth
   selectedFileNames = [] // narrows generation to only these files, if provided
 ) => {
@@ -56,7 +55,6 @@ export const generateAIFromSession = async (
     { type, sessionId, selectedFileNames },
     {
       headers: {
-        "x-gemini-key":  geminiKey,
         "Authorization": `Bearer ${token}`,
       },
     }

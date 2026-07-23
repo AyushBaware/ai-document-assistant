@@ -8,7 +8,7 @@
 
 import httpClient from "./httpClient";
 
-export const uploadFiles = async (files, geminiKey = "") => {
+export const uploadFiles = async (files) => {
   const formData = new FormData();
 
   files.forEach((file) => {
@@ -16,10 +16,7 @@ export const uploadFiles = async (files, geminiKey = "") => {
   });
 
   const response = await httpClient.post("/upload", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-      "x-gemini-key": geminiKey,
-    },
+    headers: { "Content-Type": "multipart/form-data" },
   });
 
   return response.data;

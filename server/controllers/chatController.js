@@ -147,9 +147,8 @@ export const askQuestion = async (req, res) => {
   try {
     const { question, selectedDocumentIds, history } = req.body;
 
-    const userKey = req.headers["x-gemini-key"];
     const serverKey = process.env.GEMINI_API_KEY;
-    const apiKey = (userKey && userKey.startsWith("AIza")) ? userKey : serverKey;
+    const apiKey = req.geminiApiKey || serverKey;
 
     if (!apiKey) {
       return res.status(401).json({
@@ -217,9 +216,8 @@ export const askQuestionFromSession = async (req, res) => {
     const { question, sessionId, history, selectedFileNames } = req.body;
     const userId = req.userId;
 
-    const userKey = req.headers["x-gemini-key"];
     const serverKey = process.env.GEMINI_API_KEY;
-    const apiKey = (userKey && userKey.startsWith("AIza")) ? userKey : serverKey;
+    const apiKey = req.geminiApiKey || serverKey;
 
     if (!apiKey) {
       return res.status(401).json({
