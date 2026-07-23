@@ -25,6 +25,7 @@ import LoginButton from "./components/LoginButton";
 import SessionHistory from "./components/SessionHistory";
 import { useAuth } from "./context/AuthContext";
 import { getApiKeyStatus } from "./api/apiKeyApi";
+import { useGuestUsage } from "./hooks/useGuestUsage";
 import GuestUsageBadge from "./components/GuestUsageBadge";
 import GuestLimitToast from "./components/GuestLimitToast";
 import GuestLimitModal from "./components/GuestLimitModal";
@@ -52,11 +53,10 @@ function App() {
   // so the chat screen has zero competing chrome.
   const [hideChrome, setHideChrome] = useState(false);
 
-  // ── GUEST USAGE STATE (Phase 4 — new) ─────────────────────
-  // guestRequestsRemaining is only ever set for anonymous users —
-  // the backend simply never sends it once someone is logged in.
-  const [guestRequestsRemaining, setGuestRequestsRemaining] = useState(null);
-  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
+  // Only the INITIAL count comes from this fetch — everything after
+  // that (badge updates, toast, hard-block modal) is fully automated
+  // and event-driven via useGuestUsage below, with zero refresh needed.
+  const [initialGuestRemaining, setInitialGuestRemaining] = useState(null);
 
   useEffect(() => {
     const checkKeyStatus = async () => {
@@ -64,7 +64,7 @@ function App() {
         const data = await getApiKeyStatus();
         setGeminiKey(data.hasKey ? "configured" : "");
         if (typeof data.guestRequestsRemaining === "number") {
-          setGuestRequestsRemaining(data.guestRequestsRemaining);
+          setInitialGuestRemaining(data.guestRequestsRemaining);
         }
       } catch {
         setGeminiKey("");
@@ -73,14 +73,14 @@ function App() {
     checkKeyStatus();
   }, []);
 
-  // Backend rejects a 6th anonymous request with GUEST_LIMIT_REACHED —
-  // httpClient.js turns that into this browser event so any component
-  // can react without wiring props through the whole tree.
-  useEffect(() => {
-    const handler = () => setShowGuestLimitModal(true);
-    window.addEventListener("guest-limit-reached", handler);
-    return () => window.removeEventListener("guest-limit-reached", handler);
-  }, []);
+  // ── GUEST USAGE (Phase 4 refinement) ──────────────────────
+  const {
+    remaining: guestRequestsRemaining,
+    toastMessage: guestToastMessage,
+    dismissToast: dismissGuestToast,
+    showLimitModal: showGuestLimitModal,
+    closeLimitModal: closeGuestLimitModal,
+  } = useGuestUsage(initialGuestRemaining);
 
   const handleKeySaved = () => {
     setGeminiKey("configured");
@@ -271,10 +271,12 @@ function App() {
 
       {/* GUEST USAGE UI (Phase 4) — only ever relevant for anonymous
           users; all three render nothing once `user` is set. */}
-      {!user && <GuestUsageBadge initialRemaining={guestRequestsRemaining} />}
-      {!user && <GuestLimitToast />}
+      {!user && <GuestUsageBadge remaining={guestRequestsRemaining} />}
+      {!user && (
+        <GuestLimitToast message={guestToastMessage} onDismiss={dismissGuestToast} />
+      )}
       {showGuestLimitModal && (
-        <GuestLimitModal onClose={() => setShowGuestLimitModal(false)} />
+        <GuestLimitModal onClose={closeGuestLimitModal} />
       )}
     </motion.div>
   );

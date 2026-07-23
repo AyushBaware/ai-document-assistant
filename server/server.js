@@ -64,6 +64,12 @@ app.use(
       }
     },
     credentials: true,
+    // REQUIRED: browsers hide custom response headers from JS by
+    // default on cross-origin requests. Without this, the frontend
+    // can never read X-Guest-Requests-Remaining — it silently comes
+    // back undefined, which is why the badge only ever "caught up"
+    // on a full page refresh instead of updating live.
+    exposedHeaders: ["X-Guest-Requests-Remaining"],
   })
 );
 
