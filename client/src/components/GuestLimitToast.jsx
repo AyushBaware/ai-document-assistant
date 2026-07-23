@@ -1,43 +1,22 @@
 // ============================================================
 // GuestLimitToast.jsx
 //
-// Dismissible, auto-fading nudge shown to anonymous users after
-// their 4th and 5th free request — non-blocking, they can keep
-// using their last request(s). Listens for the same
-// "guest-requests-updated" event the usage badge does.
+// Purely presentational + its own auto-dismiss timer. Message
+// content and dismiss logic now come from useGuestUsage.js.
 // ============================================================
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiX, FiZap } from "react-icons/fi";
 
 const AUTO_DISMISS_MS = 8000;
 
-function GuestLimitToast() {
-  const [message, setMessage] = useState(null);
-
-  useEffect(() => {
-    const handler = (e) => {
-      const { remaining } = e.detail;
-      if (remaining === 1) {
-        setMessage(
-          "You've used 4 of 5 free guest credits. Create a free account to save this document and unlock unlimited chats."
-        );
-      } else if (remaining === 0) {
-        setMessage(
-          "That was your last free guest request. Sign in above to keep generating responses."
-        );
-      }
-    };
-    window.addEventListener("guest-requests-updated", handler);
-    return () => window.removeEventListener("guest-requests-updated", handler);
-  }, []);
-
+function GuestLimitToast({ message, onDismiss }) {
   useEffect(() => {
     if (!message) return;
-    const timer = setTimeout(() => setMessage(null), AUTO_DISMISS_MS);
+    const timer = setTimeout(onDismiss, AUTO_DISMISS_MS);
     return () => clearTimeout(timer);
-  }, [message]);
+  }, [message, onDismiss]);
 
   return (
     <AnimatePresence>
@@ -51,7 +30,7 @@ function GuestLimitToast() {
           <FiZap className="text-cyan-400 text-lg shrink-0 mt-0.5" />
           <p className="text-xs text-gray-300 leading-relaxed flex-1">{message}</p>
           <button
-            onClick={() => setMessage(null)}
+            onClick={onDismiss}
             className="cursor-pointer text-gray-500 hover:text-white transition-colors shrink-0"
           >
             <FiX className="text-sm" />

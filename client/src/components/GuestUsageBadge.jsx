@@ -1,28 +1,12 @@
 // ============================================================
 // GuestUsageBadge.jsx
 //
-// Small pill shown only to anonymous (not logged-in) users —
-// tells them how many of their 5 free requests remain. Starts
-// from the value App.jsx fetched on load, then updates live via
-// the "guest-requests-updated" event httpClient.js dispatches
-// after every successful /ai/generate or /ai/chat call.
+// Purely presentational — all state/event logic now lives in
+// useGuestUsage.js (App.jsx), so this component just renders
+// whatever `remaining` it's given.
 // ============================================================
 
-import { useEffect, useState } from "react";
-
-function GuestUsageBadge({ initialRemaining }) {
-  const [remaining, setRemaining] = useState(initialRemaining);
-
-  useEffect(() => {
-    setRemaining(initialRemaining);
-  }, [initialRemaining]);
-
-  useEffect(() => {
-    const handler = (e) => setRemaining(e.detail.remaining);
-    window.addEventListener("guest-requests-updated", handler);
-    return () => window.removeEventListener("guest-requests-updated", handler);
-  }, []);
-
+function GuestUsageBadge({ remaining }) {
   if (remaining === null || remaining === undefined) return null;
 
   return (
