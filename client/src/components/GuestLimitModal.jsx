@@ -44,9 +44,8 @@ function GuestLimitModal({ onClose }) {
           </h2>
 
           <p className="text-gray-400 text-sm text-center leading-relaxed mb-6">
-            You've used all 5 free guest requests. Sign in with Google — it's
-            free and takes a few seconds — to keep generating responses and
-            start saving your document history.
+            You've used all 5 free guest requests. Sign in with Google — to keep
+            generating responses and start saving your document history.
           </p>
 
           <div className="flex justify-center mb-4">
@@ -55,7 +54,7 @@ function GuestLimitModal({ onClose }) {
 
           <button
             onClick={onClose}
-            className="cursor-pointer w-full py-2.5 rounded-xl text-gray-500 font-medium text-xs hover:text-gray-300 transition-all"
+            className="cursor-pointer w-full sm:w-auto px-6 py-2.5 rounded-xl text-gray-500 font-medium text-[13px] hover:text-gray-300 transition-all mx-auto block"
           >
             Maybe later
           </button>

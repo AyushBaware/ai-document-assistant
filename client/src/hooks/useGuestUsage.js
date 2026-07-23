@@ -14,9 +14,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 
-const TOAST_MESSAGES = {
-  1: "You've used 4 of 5 free guest credits. Create a free account to save this document and unlock unlimited chats.",
-  0: "That was your last free guest request. Sign in above to keep generating responses.",
+const TOAST_MESSAGES = { 
+  1: "4/5 free credits used. Sign in to continue generating responses.", 
+  0: "Out of free credits. Sign in to save documents and continue generating responses.", 
 };
 
 export function useGuestUsage(initialRemaining) {
