@@ -154,10 +154,14 @@ function ChatPanel({
         { role: "assistant", content: data.answer, sources: data.sources || [] },
       ]);
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          "Failed to get an answer. Please try again.",
-      );
+      // GUEST_LIMIT_REACHED already shows a clear full-screen modal
+      // (see App.jsx) — no need to also show a redundant inline error.
+      if (err.response?.data?.code !== "GUEST_LIMIT_REACHED") {
+        setError(
+          err.response?.data?.message ||
+            "Failed to get an answer. Please try again.",
+        );
+      }
       setMessages((prev) => prev.slice(0, -1)); // remove the pending question on failure
     } finally {
       setLoading(false);
