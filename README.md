@@ -82,6 +82,9 @@ Powered by **Gemini 2.5 Flash**, with:
 - Google OAuth (Sign in with Google) — fully optional; the app works anonymously too
 - Custom JWT issued after Google verification (7-day expiry)
 - Self-healing auth: an expired/invalid token automatically clears itself and drops the user back to a logged-out state instead of silently failing
+- User-supplied Gemini API keys are encrypted server-side and tied to an anonymous device cookie, never `localStorage`
+- Anonymous users get 5 lifetime free requests, tracked server-side; signing in removes the cap
+- An anonymous session (documents, chat, and generated Summary/Notes/Explain) auto-restores after a refresh and can be saved permanently on login
 
 ### 🎨 UI/UX
 - Full-screen chat experience benchmarked against Claude and Gemini's own interfaces
@@ -223,7 +226,7 @@ npm run dev
 
 Runs on `http://localhost:5173`.
 
-> Note: users can also paste their own Gemini API key directly in the app (BYOK) — it's stored only in `localStorage` and never touches the server's database. If no user key is provided, the server falls back to its own `GEMINI_API_KEY`.
+> Note: users can also paste their own Gemini API key directly in the app (BYOK) — it's encrypted and stored server-side, tied to an anonymous device cookie (not `localStorage`), so it works before login too. Anonymous use is capped at 5 lifetime requests; signing in removes that cap and links the key to the account. If no user key is provided, the server falls back to its own `GEMINI_API_KEY`.
 
 ---
 
@@ -237,6 +240,7 @@ Runs on `http://localhost:5173`.
 | `JWT_SECRET` | server | ✅ | Signs the app's own session JWTs |
 | `CLIENT_URL` | server | ✅ | Allowed CORS origin (your deployed frontend URL) |
 | `GROQ_API_KEY` | server | ⬜ | Enables AI-generated session titles; silently skipped if absent |
+| `API_KEY_ENCRYPTION_SECRET` | server | ✅ | Encrypts user-supplied Gemini API keys at rest (AES-256-GCM) |
 | `VITE_API_BASE_URL` | client | ✅ | Backend API base URL |
 | `VITE_GOOGLE_CLIENT_ID` | client | ✅ | Google OAuth client ID (frontend) |
 
@@ -281,7 +285,7 @@ A few non-obvious choices, documented for anyone reading the codebase:
 
 - Text extraction does not perform OCR on images/charts embedded *inside* PDFs or PPTX files (only standalone image uploads get OCR). Low-text-density documents are flagged so the AI is transparent about this gap instead of guessing.
 - The in-memory `knowledgeStore` used for fresh uploads is per-process — this works correctly for a single-server deployment but would need to move to Redis (or MongoDB) before scaling behind a load balancer with multiple instances.
-- Anonymous (not-logged-in) chat history is not persisted — only saved sessions retain conversation history.
+- Anonymous (not-logged-in) work is kept temporarily (24 hours) so it survives a refresh, and can be converted into a permanent saved session upon login — but it is not retained indefinitely the way a logged-in session is.
 
 ---
 
