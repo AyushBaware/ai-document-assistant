@@ -256,7 +256,7 @@ function FullScreenView({
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.35 }}
-                            className="fixed inset-0 sm:absolute flex flex-col items-center justify-center gap-4 bg-[#030712]/70 backdrop-blur-sm z-30"
+                            className="fixed inset-0 flex flex-col items-center justify-center gap-4 bg-[#030712]/70 backdrop-blur-sm z-30"
                           >
                             <motion.div
                               animate={{ rotate: 360 }}
