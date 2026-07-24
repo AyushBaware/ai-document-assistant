@@ -32,15 +32,15 @@ function DesktopSidebar({
         sidebarOpen ? "w-64 lg:w-72" : "w-16"
       }`}
     >
-      <div className="flex items-center justify-between px-3 py-3 border-b border-white/10">
+      <div className="h-16 flex items-center justify-between px-3 border-b border-white/10">
         {sidebarOpen && (
-          <span className="text-lg font-bold text-white px-1 truncate tracking-tight">
+          <span className="text-lg font-bold text-white px-1 leading-none truncate tracking-tight">
             DocuMind AI
           </span>
         )}
         <button
           onClick={() => setSidebarOpen((v) => !v)}
-          className="cursor-pointer w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all shrink-0"
+          className="cursor-pointer w-8 h-8 rounded-lg flex items-center justify-center leading-none text-gray-400 hover:text-white hover:bg-white/10 transition-all shrink-0"
           title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
         >
           {sidebarOpen ? (
