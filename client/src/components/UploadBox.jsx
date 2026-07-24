@@ -31,6 +31,7 @@ import { useFileUpload } from "../hooks/useFileUpload";
 import { useSessionLoader } from "../hooks/useSessionLoader";
 import { useAIGeneration } from "../hooks/useAIGeneration";
 import { useDesktopSessions } from "../hooks/useDesktopSessions";
+import { useGuestSessionSync } from "../hooks/useGuestSessionSync";
 import FileDropzone from "./upload/FileDropzone";
 import ModeSelector from "./upload/ModeSelector";
 import FullScreenView from "./upload/FullScreenView";
@@ -155,6 +156,23 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     user,
     token,
     isFullScreenOpen,
+  });
+
+  useGuestSessionSync({
+    user,
+    isProcessed,
+    processedDocs,
+    selectedIds,
+    currentBatchId,
+    preloadedChatHistory,
+    setProcessedDocs,
+    setProcessedFileNames,
+    setSelectedIds,
+    setIsProcessed,
+    setNeedsProcessing,
+    setCurrentBatchId,
+    setPreloadedChatHistory,
+    setShowChat,
   });
 
   useEffect(() => {
