@@ -25,10 +25,12 @@ import LoginButton from "./components/LoginButton";
 import SessionHistory from "./components/SessionHistory";
 import { useAuth } from "./context/AuthContext";
 import { getApiKeyStatus } from "./api/apiKeyApi";
+import { getGuestSession, convertGuestSession, clearGuestSession } from "./api/guestSessionApi";
 import { useGuestUsage } from "./hooks/useGuestUsage";
 import GuestUsageBadge from "./components/GuestUsageBadge";
 import GuestLimitToast from "./components/GuestLimitToast";
 import GuestLimitModal from "./components/GuestLimitModal";
+import SaveGuestSessionModal from "./components/SaveGuestSessionModal";
 import { FiSettings, FiLogOut, FiUser } from "react-icons/fi";
 
 function App() {
@@ -37,7 +39,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
 
   // ── AUTH STATE (Phase 2 — unchanged) ──────────────────────
-  const { user, isAuthLoading, logout } = useAuth();
+  const { user, token, isAuthLoading, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   // ── SESSION HISTORY STATE (Phase 3 — new) ─────────────────
@@ -89,6 +91,53 @@ function App() {
     showLimitModal: showGuestLimitModal,
     closeLimitModal: closeGuestLimitModal,
   } = useGuestUsage(initialGuestRemaining);
+
+  // ── GUEST SESSION CONTINUITY (Phase 5) ────────────────────
+  // The instant login succeeds, check whether this device had an
+  // in-progress anonymous session staged — if so, ask the person
+  // whether to keep it or start clean.
+  const [guestSessionPreview, setGuestSessionPreview] = useState(null);
+  const [isSavingGuestSession, setIsSavingGuestSession] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getGuestSession();
+        if (!cancelled && data?.session?.documents?.length > 0) {
+          setGuestSessionPreview(data.session);
+        }
+      } catch {
+        // Non-blocking.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const handleSaveGuestSession = async () => {
+    try {
+      setIsSavingGuestSession(true);
+      const data = await convertGuestSession(token);
+      setSelectedSessionId(data.session.id);
+    } catch {
+      // Non-blocking — worst case the person just re-uploads.
+    } finally {
+      setIsSavingGuestSession(false);
+      setGuestSessionPreview(null);
+    }
+  };
+
+  const handleDiscardGuestSession = async () => {
+    setGuestSessionPreview(null);
+    try {
+      await clearGuestSession();
+    } catch {
+      // Non-blocking.
+    }
+  };
 
   const handleKeySaved = async () => {
     setShowSettings(false);
@@ -288,6 +337,15 @@ function App() {
       )}
       {showGuestLimitModal && (
         <GuestLimitModal onClose={closeGuestLimitModal} />
+      )}
+
+      {guestSessionPreview && (
+        <SaveGuestSessionModal
+          documents={guestSessionPreview.documents}
+          onSave={handleSaveGuestSession}
+          onDiscard={handleDiscardGuestSession}
+          isSaving={isSavingGuestSession}
+        />
       )}
     </motion.div>
   );
