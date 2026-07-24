@@ -143,11 +143,18 @@ function App() {
   };
 
   const handleKeySaved = async () => {
-    setShowSettings(false);
     // Re-check status immediately — this is what actually populates
     // guestRequestsRemaining (5/5) the instant a fresh guest saves
     // their key, instead of waiting for a page refresh to catch up.
-    await refreshKeyStatus();
+    // Also doubles as a cookie-persistence check: if the deviceId
+    // cookie didn't stick (blocked/cleared), hasKey comes back false
+    // even though the save itself succeeded — ApiKeyModal surfaces
+    // that clearly instead of silently reappearing with no explanation.
+    const data = await refreshKeyStatus();
+    if (data?.hasKey) {
+      setShowSettings(false);
+    }
+    return data;
   };
 
   const handleClearKey = () => {
