@@ -112,7 +112,7 @@ function FullScreenView({
           />
 
           <div className="flex-1 min-w-0 flex flex-col">
-            <div className="relative flex items-center justify-between px-4 sm:px-6 py-3 border-b border-white/10 shrink-0">
+            <div className="relative h-16 flex items-center justify-between px-4 sm:px-6 border-b border-white/10 shrink-0">
               <button
                 onClick={() => setMenuOpen((v) => !v)}
                 className="sm:hidden w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
