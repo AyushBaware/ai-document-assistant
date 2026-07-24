@@ -14,7 +14,7 @@
 // completely unchanged below — Phase 3 is purely additive.
 // ============================================================
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import "./App.css";
 import BackgroundGlow from "./components/BackgroundGlow";
@@ -98,23 +98,26 @@ function App() {
   // whether to keep it or start clean.
   const [guestSessionPreview, setGuestSessionPreview] = useState(null);
   const [isSavingGuestSession, setIsSavingGuestSession] = useState(false);
+  const hasCheckedGuestSession = useRef(false);
 
   useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
+    // Runs at most once per page load — prevents re-offering (and
+    // potentially re-saving as a duplicate) the same stale guest
+    // session if a prior save/discard silently failed and the
+    // pending record was never actually cleared.
+    if (!user || hasCheckedGuestSession.current) return;
+    hasCheckedGuestSession.current = true;
+
     (async () => {
       try {
         const data = await getGuestSession();
-        if (!cancelled && data?.session?.documents?.length > 0) {
+        if (data?.session?.documents?.length > 0) {
           setGuestSessionPreview(data.session);
         }
       } catch {
         // Non-blocking.
       }
     })();
-    return () => {
-      cancelled = true;
-    };
   }, [user]);
 
   const handleSaveGuestSession = async () => {
