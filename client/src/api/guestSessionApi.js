@@ -1,11 +1,12 @@
 import httpClient from "./httpClient";
 
-export const saveGuestSession = async ({ documents, selectedIds, batchId, chatHistory }) => {
+export const saveGuestSession = async ({ documents, selectedIds, batchId, chatHistory, cachedResults }) => {
   const response = await httpClient.post("/guest-session", {
     documents,
     selectedIds,
     batchId,
     chatHistory,
+    cachedResults,
   });
   return response.data;
 };

@@ -22,7 +22,7 @@ export const saveGuestSession = async (req, res) => {
       return res.status(200).json({ success: true, skipped: true });
     }
 
-    const { documents, selectedIds, batchId, chatHistory } = req.body;
+    const { documents, selectedIds, batchId, chatHistory, cachedResults } = req.body;
 
     if (!Array.isArray(documents) || documents.length === 0) {
       return res.status(400).json({ success: false, message: "No documents provided." });
@@ -36,6 +36,7 @@ export const saveGuestSession = async (req, res) => {
           selectedIds: Array.isArray(selectedIds) ? selectedIds : [],
           batchId: batchId || null,
           chatHistory: Array.isArray(chatHistory) ? chatHistory : [],
+          cachedResults: Array.isArray(cachedResults) ? cachedResults : [],
           updatedAt: new Date(),
         },
       },
@@ -62,6 +63,7 @@ export const getGuestSession = async (req, res) => {
         selectedIds: pending.selectedIds,
         batchId: pending.batchId,
         chatHistory: pending.chatHistory,
+        cachedResults: pending.cachedResults,
       },
     });
   } catch (error) {
@@ -112,6 +114,43 @@ export const convertGuestSession = async (req, res) => {
 
     const title = generateSessionTitle(matchedDocuments.map((d) => d.fileName));
 
+    // Rebuild the same two structures updateSessionResponse() normally
+    // fills in over time — the legacy single-slot "full session"
+    // response, and the scoped-by-file-selection array — so whatever
+    // Summary/Notes/Explain the guest already generated shows up
+    // immediately, exactly as it looked before they logged in.
+    const allFileNames = matchedDocuments.map((d) => d.fileName).sort();
+    const responses = { summary: {}, notes: {}, explain: {} };
+    const scopedResponses = [];
+
+    (pending.cachedResults || []).forEach((entry) => {
+      if (!entry.type || !entry.result) return;
+
+      const fileNames =
+        entry.sourceFileNames && entry.sourceFileNames.length > 0
+          ? entry.sourceFileNames
+          : allFileNames;
+      const sortedFileNames = [...fileNames].sort();
+      const isFullScope = JSON.stringify(sortedFileNames) === JSON.stringify(allFileNames);
+
+      const responseData = {
+        result: entry.result,
+        generatedAt: new Date(),
+        tokenBudget: null,
+        glossary: entry.glossary || [],
+      };
+
+      if (isFullScope) {
+        responses[entry.type] = responseData;
+      }
+
+      scopedResponses.push({
+        type: entry.type,
+        fileNames: sortedFileNames,
+        ...responseData,
+      });
+    });
+
     const session = await Session.create({
       userId,
       title,
@@ -124,7 +163,8 @@ export const convertGuestSession = async (req, res) => {
         extractedText: doc.extractedText,
         chunkCount: doc.chunkCount || (doc.chunks ? doc.chunks.length : 0),
       })),
-      responses: { summary: {}, notes: {}, explain: {} },
+      responses,
+      scopedResponses,
       chatHistory: pending.chatHistory || [],
     });
 

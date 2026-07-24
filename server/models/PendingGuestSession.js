@@ -36,6 +36,29 @@ const guestChatMessageSubSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const guestGlossaryTermSubSchema = new mongoose.Schema(
+  {
+    term: { type: String, required: true },
+    definition: { type: String, required: true },
+  },
+  { _id: false }
+);
+
+// One entry per generated Summary/Notes/Explain result — `key` matches
+// the exact cache key UploadBox already uses (e.g. "summary_id1,id2"),
+// so restoring it back into cachedResults on reload is a direct match,
+// no recomputation needed.
+const guestCachedResultSubSchema = new mongoose.Schema(
+  {
+    key: { type: String, required: true },
+    type: { type: String, enum: ["summary", "notes", "explain"], required: true },
+    result: { type: String, required: true },
+    glossary: { type: [guestGlossaryTermSubSchema], default: [] },
+    sourceFileNames: { type: [String], default: [] },
+  },
+  { _id: false }
+);
+
 const pendingGuestSessionSchema = new mongoose.Schema(
   {
     deviceId: { type: String, required: true, unique: true, index: true },
@@ -43,6 +66,7 @@ const pendingGuestSessionSchema = new mongoose.Schema(
     documents: { type: [guestDocumentSubSchema], default: [] },
     selectedIds: { type: [String], default: [] },
     chatHistory: { type: [guestChatMessageSubSchema], default: [] },
+    cachedResults: { type: [guestCachedResultSubSchema], default: [] },
     updatedAt: { type: Date, default: Date.now },
   },
   { timestamps: true }

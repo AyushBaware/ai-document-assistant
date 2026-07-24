@@ -165,6 +165,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     selectedIds,
     currentBatchId,
     preloadedChatHistory,
+    cachedResults,
     setProcessedDocs,
     setProcessedFileNames,
     setSelectedIds,
@@ -172,6 +173,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     setNeedsProcessing,
     setCurrentBatchId,
     setPreloadedChatHistory,
+    setCachedResults,
     setShowChat,
   });
 
