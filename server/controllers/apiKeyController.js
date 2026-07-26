@@ -8,6 +8,7 @@
 // ============================================================
 
 import ApiKey from "../models/ApiKey.js";
+import GuestUsage from "../models/GuestUsage.js";
 import { encrypt } from "../utils/crypto.js";
 import { GUEST_REQUEST_LIMIT } from "../middleware/guestLimitMiddleware.js";
 
@@ -46,23 +47,19 @@ export const saveApiKey = async (req, res) => {
 
 export const getApiKeyStatus = async (req, res) => {
   try {
-    const record = await ApiKey.findOne({ deviceId: req.deviceId }).select(
-      "_id guestRequestCount"
-    );
+    const record = await ApiKey.findOne({ deviceId: req.deviceId }).select("_id");
 
-    // deviceId itself is just a random, non-secret UUID — safe to
-    // return. The frontend uses it to detect blocked cookies: if this
-    // value changes between two separate requests, the cookie never
-    // actually persisted in the browser.
-    const response = { success: true, hasKey: !!record, deviceId: req.deviceId };
+    const response = { success: true, hasKey: !!record };
 
     // Only meaningful for anonymous users — logged-in users aren't
-    // capped by this counter at all.
-    if (!req.userId && record) {
-      response.guestRequestsRemaining = Math.max(
-        0,
-        GUEST_REQUEST_LIMIT - record.guestRequestCount
-      );
+    // capped by this counter at all. Sourced from GuestUsage (keyed
+    // by IP) instead of the old ApiKey.guestRequestCount (keyed by
+    // deviceId) — see guestLimitMiddleware.js for why: deviceId is a
+    // client-resettable cookie, IP is not.
+    if (!req.userId) {
+      const usage = await GuestUsage.findOne({ ip: req.ip }).select("requestCount");
+      const usedCount = usage?.requestCount || 0;
+      response.guestRequestsRemaining = Math.max(0, GUEST_REQUEST_LIMIT - usedCount);
     }
 
     return res.status(200).json(response);
