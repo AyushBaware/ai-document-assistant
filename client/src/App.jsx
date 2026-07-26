@@ -65,12 +65,20 @@ function App() {
   // at mount time for a brand-new visitor (no ApiKey record until
   // they actually save a key), which was why the badge previously
   // only appeared after a manual page refresh.
+  // Captures the deviceId from the VERY FIRST status check (page load)
+  // and never overwrites it — this is the baseline every later check
+  // gets compared against to detect blocked/non-persisting cookies.
+  const firstDeviceIdRef = useRef(null);
+
   const refreshKeyStatus = async () => {
     try {
       const data = await getApiKeyStatus();
       setGeminiKey(data.hasKey ? "configured" : "");
       if (typeof data.guestRequestsRemaining === "number") {
         setInitialGuestRemaining(data.guestRequestsRemaining);
+      }
+      if (firstDeviceIdRef.current === null) {
+        firstDeviceIdRef.current = data.deviceId;
       }
       return data;
     } catch {
@@ -146,15 +154,24 @@ function App() {
     // Re-check status immediately — this is what actually populates
     // guestRequestsRemaining (5/5) the instant a fresh guest saves
     // their key, instead of waiting for a page refresh to catch up.
-    // Also doubles as a cookie-persistence check: if the deviceId
-    // cookie didn't stick (blocked/cleared), hasKey comes back false
-    // even though the save itself succeeded — ApiKeyModal surfaces
-    // that clearly instead of silently reappearing with no explanation.
     const data = await refreshKeyStatus();
-    if (data?.hasKey) {
+
+    // DEFINITIVE cookie-persistence check: if this request's deviceId
+    // differs from the one captured on page load, the browser never
+    // actually stored the cookie — every request is being treated as
+    // a brand-new stranger. hasKey alone can't reliably catch this,
+    // since the save and this re-check could coincidentally still
+    // report true depending on timing.
+    const cookiesBlocked =
+      !!data &&
+      !!firstDeviceIdRef.current &&
+      data.deviceId !== firstDeviceIdRef.current;
+
+    if (data?.hasKey && !cookiesBlocked) {
       setShowSettings(false);
     }
-    return data;
+
+    return { ...data, cookiesBlocked };
   };
 
   const handleClearKey = () => {
