@@ -50,7 +50,11 @@ export const getApiKeyStatus = async (req, res) => {
       "_id guestRequestCount"
     );
 
-    const response = { success: true, hasKey: !!record };
+    // deviceId itself is just a random, non-secret UUID — safe to
+    // return. The frontend uses it to detect blocked cookies: if this
+    // value changes between two separate requests, the cookie never
+    // actually persisted in the browser.
+    const response = { success: true, hasKey: !!record, deviceId: req.deviceId };
 
     // Only meaningful for anonymous users — logged-in users aren't
     // capped by this counter at all.

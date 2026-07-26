@@ -71,7 +71,7 @@ function ApiKeyModal({ onKeySaved }) {
       // If the deviceId cookie didn't persist (browser blocking or
       // clearing cookies), the save technically worked but the app can
       // never find it again on the next request — say so plainly.
-      if (status && status.hasKey === false) {
+      if (status?.cookiesBlocked || status?.hasKey === false) {
         setError(
           "Your key was saved, but your browser is blocking cookies, so we can't remember it. Please allow cookies for this site and try again — or sign in, which isn't affected by this."
         );
