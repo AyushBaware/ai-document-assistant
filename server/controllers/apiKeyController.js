@@ -8,9 +8,9 @@
 // ============================================================
 
 import ApiKey from "../models/ApiKey.js";
-import GuestUsage from "../models/GuestUsage.js";
+import GuestIpUsage from "../models/GuestIpUsage.js";
 import { encrypt } from "../utils/crypto.js";
-import { GUEST_REQUEST_LIMIT } from "../middleware/guestLimitMiddleware.js";
+import { GUEST_REQUEST_LIMIT, getClientIp } from "../middleware/guestLimitMiddleware.js";
 
 const isValidKeyFormat = (key = "") => key.startsWith("AIza") && key.length >= 35;
 
@@ -47,18 +47,13 @@ export const saveApiKey = async (req, res) => {
 
 export const getApiKeyStatus = async (req, res) => {
   try {
-    const record = await ApiKey.findOne({ deviceId: req.deviceId }).select("_id");
-
+    const record = await ApiKey.findOne({ deviceId: req.deviceId }).select("_id guestRequestCount");
     const response = { success: true, hasKey: !!record };
 
-    // Only meaningful for anonymous users — logged-in users aren't
-    // capped by this counter at all. Sourced from GuestUsage (keyed
-    // by IP) instead of the old ApiKey.guestRequestCount (keyed by
-    // deviceId) — see guestLimitMiddleware.js for why: deviceId is a
-    // client-resettable cookie, IP is not.
     if (!req.userId) {
-      const usage = await GuestUsage.findOne({ ip: req.ip }).select("requestCount");
-      const usedCount = usage?.requestCount || 0;
+      const ip = getClientIp(req);
+      const usage = await GuestIpUsage.findOne({ ip }).select("requestCount");
+      const usedCount = Math.max(record?.guestRequestCount || 0, usage?.requestCount || 0);
       response.guestRequestsRemaining = Math.max(0, GUEST_REQUEST_LIMIT - usedCount);
     }
 

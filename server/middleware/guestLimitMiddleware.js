@@ -26,7 +26,7 @@ import GuestIpUsage from "../models/GuestIpUsage.js";
 
 export const GUEST_REQUEST_LIMIT = 5;
 
-const getClientIp = (req) =>
+export const getClientIp = (req) =>
   req.ip || req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || "unknown";
 
 export const checkGuestLimit = async (req, res, next) => {
@@ -36,18 +36,31 @@ export const checkGuestLimit = async (req, res, next) => {
     const deviceId = req.deviceId;
     const ip = getClientIp(req);
 
+    // ATOMIC increment-then-check. findOneAndUpdate is a single atomic
+    // operation in MongoDB — this closes the race the old find-then-save
+    // version had: firing several requests at once meant every one of
+    // them could read "4 used" before any had written "5", letting more
+    // than 5 through. Now each request's increment is indivisible —
+    // whichever lands first genuinely claims that slot.
     const [deviceRecord, ipRecord] = await Promise.all([
-      ApiKey.findOne({ deviceId }),
-      GuestIpUsage.findOne({ ip }),
+      deviceId
+        ? ApiKey.findOneAndUpdate(
+            { deviceId },
+            { $inc: { guestRequestCount: 1 } },
+            { new: true }
+          )
+        : null,
+      GuestIpUsage.findOneAndUpdate(
+        { ip },
+        { $inc: { requestCount: 1 } },
+        { upsert: true, new: true }
+      ),
     ]);
 
-    const deviceCount = deviceRecord?.guestRequestCount || 0;
-    const ipCount = ipRecord?.requestCount || 0;
+    const deviceCount = deviceRecord?.guestRequestCount ?? 0;
+    const ipCount = ipRecord?.requestCount ?? 0;
 
-    // Blocked if EITHER signal says the limit is hit — this is what
-    // stops "clear cookies, re-enter key" from resetting the count,
-    // since the IP-based counter survives a cookie wipe.
-    if (deviceCount >= GUEST_REQUEST_LIMIT || ipCount >= GUEST_REQUEST_LIMIT) {
+    if (deviceCount > GUEST_REQUEST_LIMIT || ipCount > GUEST_REQUEST_LIMIT) {
       return res.status(403).json({
         success: false,
         code: "GUEST_LIMIT_REACHED",
@@ -55,27 +68,12 @@ export const checkGuestLimit = async (req, res, next) => {
       });
     }
 
-    // Increment both — deviceRecord may not exist yet if no key saved,
-    // that's fine, the controller's own "no key" check handles that case.
-    if (deviceRecord) {
-      deviceRecord.guestRequestCount += 1;
-      await deviceRecord.save();
-    }
-    await GuestIpUsage.findOneAndUpdate(
-      { ip },
-      { $inc: { requestCount: 1 } },
-      { upsert: true }
-    );
-
-    const remaining = Math.max(
-      0,
-      GUEST_REQUEST_LIMIT - Math.max(deviceCount + 1, ipCount + 1)
-    );
+    const remaining = Math.max(0, GUEST_REQUEST_LIMIT - Math.max(deviceCount, ipCount));
     res.set("X-Guest-Requests-Remaining", String(remaining));
 
     next();
   } catch (error) {
     console.error("Guest Limit Check Error:", error.message);
-    next(); // fail open, as before
+    next(); // fail open, unchanged
   }
 };

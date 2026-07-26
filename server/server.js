@@ -106,8 +106,17 @@ const aiRateLimiter = rateLimit({
 
 app.use("/api/ai", aiRateLimiter);
 
+const generalApiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60,             // plenty for a real user, blocks scripted hammering
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // ── ROUTES ───────────────────────────────────────────────────
 app.use("/api/upload", uploadRoutes);
+app.use("/api", generalApiLimiter);
+app.use("/api/ai", aiRateLimiter); 
 app.use("/api/ai", aiRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/sessions", sessionRoutes);
