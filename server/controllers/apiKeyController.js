@@ -11,6 +11,7 @@ import ApiKey from "../models/ApiKey.js";
 import GuestIpUsage from "../models/GuestIpUsage.js";
 import Notification from "../models/Notification.js";
 import { encrypt, hashKeyForDedup } from "../utils/crypto.js";
+import { parseUserAgent } from "../utils/parseUserAgent.js";
 import { GUEST_REQUEST_LIMIT, getClientIp } from "../middleware/guestLimitMiddleware.js";
 
 const isValidKeyFormat = (key = "") => key.startsWith("AIza") && key.length >= 35;
@@ -55,11 +56,28 @@ export const saveApiKey = async (req, res) => {
         `Possible key leak/sharing.`
       );
 
-      // ── NOTIFY THE ORIGINAL OWNER(S) ────────────────────────
+      // ── NOTIFY THE ORIGINAL OWNER(S) — ANONYMOUS CONTEXT ONLY ──
       // Only owners with a real userId can be notified — a guest
       // (deviceId only, no account) has nowhere for a notification
       // to attach to. This never blocks the current save either way.
+      //
+      // PRIVACY: the message below deliberately contains ONLY
+      // anonymous context (when, and what kind of device/browser) —
+      // never the other person's name, email, userId, or IP. This
+      // still gives the original owner enough to tell "this was my
+      // own other device" from "someone else has my key", without
+      // exposing anyone's identity.
       try {
+        const deviceContext = parseUserAgent(req.headers["user-agent"]);
+        const eventTime = new Date().toLocaleString("en-US", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        });
+        const alertMessage =
+          `A device running ${deviceContext} registered a session using your ` +
+          `Gemini API key on ${eventTime}. If this wasn't you, please delete ` +
+          `this key in Google AI Studio and generate a new one to protect your quota.`;
+
         const ownerIdsToNotify = [
           ...new Set(
             sharedWith
@@ -82,9 +100,8 @@ export const saveApiKey = async (req, res) => {
             await Notification.create({
               userId: ownerId,
               type: "SECURITY_ALERT",
-              title: "Security Alert",
-              message:
-                "Another account or device has registered a session using your Gemini API key.",
+              title: "Duplicate API Key Registered",
+              message: alertMessage,
               relatedFingerprint: keyFingerprint,
             });
           }
