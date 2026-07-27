@@ -13,8 +13,21 @@ export const uploadFiles = async (req, res) => {
       return res.status(400).json({ success: false, message: "No files uploaded." });
     }
 
-    const serverKey = process.env.GEMINI_API_KEY;
-    const apiKey = req.geminiApiKey || serverKey;
+    const apiKey = req.geminiApiKey;
+
+    if (!apiKey) {
+      // No server fallback anymore — every user (guest or logged-in) must
+      // supply their own Gemini key before any processing happens. Clean
+      // up the temp files multer already wrote to disk before rejecting,
+      // so a blocked upload doesn't leave orphaned files behind.
+      req.files.forEach((file) => {
+        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      });
+      return res.status(401).json({
+        success: false,
+        message: "Please add your Gemini API key before uploading documents.",
+      });
+    }
 
     knowledgeStore.clearDocuments();
 
@@ -77,8 +90,7 @@ export const uploadFiles = async (req, res) => {
     processedDocs.forEach((doc) => knowledgeStore.addDocument(doc));
 
     // ── EMBED + STORE CHUNKS FOR RAG (with dedupe) ───────────
-    if (apiKey) {
-      try {
+    try {
         // For each document, check if this exact content was
         // embedded before (any prior upload — permanent or not).
         // If a full match exists, reuse those vectors instead of
@@ -161,9 +173,6 @@ export const uploadFiles = async (req, res) => {
       } catch (embedErr) {
         console.warn("[Upload] Embedding failed (non-blocking):", embedErr.message);
       }
-    } else {
-      console.warn("[Upload] No Gemini API key available — skipping embeddings for this batch.");
-    }
 
     const processedFiles = processedDocs.map((doc) => ({
       id: doc.id,

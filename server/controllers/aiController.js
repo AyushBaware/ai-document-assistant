@@ -487,8 +487,7 @@ export const generateAIResponse = async (req, res) => {
   try {
     const { type, selectedDocumentIds } = req.body;
 
-    const serverKey = process.env.GEMINI_API_KEY;
-    const apiKey    = req.geminiApiKey || serverKey;
+    const apiKey = req.geminiApiKey;
 
     if (!apiKey) {
       return res.status(401).json({
@@ -571,8 +570,7 @@ export const generateFromSession = async (req, res) => {
     const { type, sessionId, selectedFileNames } = req.body;
     const userId = req.userId; // attached by requireAuth middleware
 
-    const serverKey = process.env.GEMINI_API_KEY;
-    const apiKey    = req.geminiApiKey || serverKey;
+    const apiKey = req.geminiApiKey;
 
     if (!apiKey) {
       return res.status(401).json({
