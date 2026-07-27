@@ -56,3 +56,27 @@ export const markNotificationRead = async (req, res) => {
     return res.status(500).json({ success: false, message: "Failed to update notification." });
   }
 };
+
+export const deleteNotification = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { id } = req.params;
+
+    // Same ownership guard as markNotificationRead — a user can
+    // never delete (or confirm the existence of) another user's
+    // notification by guessing an id in the URL.
+    const notification = await Notification.findOneAndDelete({
+      _id: id,
+      userId,
+    }).select("_id");
+
+    if (!notification) {
+      return res.status(404).json({ success: false, message: "Notification not found." });
+    }
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Delete Notification Error:", error.message);
+    return res.status(500).json({ success: false, message: "Failed to delete notification." });
+  }
+};

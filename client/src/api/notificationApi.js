@@ -13,3 +13,8 @@ export const markNotificationRead = async (id, token) => {
   );
   return response.data;
 };
+
+export const deleteNotification = async (id, token) => {
+  const response = await httpClient.delete(`/notifications/${id}`, withAuth(token));
+  return response.data;
+};

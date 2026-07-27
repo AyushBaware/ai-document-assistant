@@ -12,9 +12,9 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiBell } from "react-icons/fi";
+import { FiBell, FiTrash2 } from "react-icons/fi";
 import { useAuth } from "../context/AuthContext";
-import { getNotifications, markNotificationRead } from "../api/notificationApi";
+import { getNotifications, markNotificationRead, deleteNotification } from "../api/notificationApi";
 
 function NotificationBell() {
   const { user, token } = useAuth();
@@ -48,18 +48,40 @@ function NotificationBell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  const handleMarkRead = async (id) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n._id === id ? { ...n, isRead: true } : n))
-    );
-    try {
-      await markNotificationRead(id, token);
-    } catch {
-      // Non-blocking.
-    }
-  };
-
-  if (!user) return null;
+  {notifications.map((n) => (
+                <div
+                  key={n._id}
+                  className={`group relative p-3 pr-10 rounded-xl mb-1.5 transition-all border ${
+                    n.isRead
+                      ? "border-transparent bg-white/[0.02]"
+                      : "border-cyan-400/20 bg-cyan-500/[0.06] hover:bg-cyan-500/[0.1]"
+                  }`}
+                >
+                  <div
+                    onClick={() => !n.isRead && handleMarkRead(n._id)}
+                    className={!n.isRead ? "cursor-pointer" : ""}
+                  >
+                    <p className="text-sm font-semibold text-white mb-0.5 pr-1 break-words">
+                      {n.title}
+                    </p>
+                    <p className="text-xs text-gray-400 leading-snug break-words">
+                      {n.message}
+                    </p>
+                    {!n.isRead && (
+                      <span className="inline-block mt-1.5 text-[10px] text-cyan-300">
+                        Tap to mark as read
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={(e) => handleDelete(e, n._id)}
+                    className="cursor-pointer absolute top-2 right-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10 shrink-0"
+                    title="Delete notification"
+                  >
+                    <FiTrash2 className="text-sm" />
+                  </button>
+                </div>
+              ))}
 
   return (
     <div className="relative">
@@ -85,7 +107,7 @@ function NotificationBell() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.15 }}
-              className="absolute right-0 top-12 w-72 sm:w-80 bg-[#0d1117] border border-white/10 rounded-2xl p-3 shadow-xl z-30 max-h-96 overflow-y-auto"
+              className="absolute right-0 top-12 w-72 sm:w-80 max-w-[90vw] bg-[#0d1117] border border-white/10 rounded-2xl p-3 shadow-xl z-30 max-h-96 overflow-y-auto"
             >
               <p className="text-xs font-medium text-gray-400 px-2 mb-2">Notifications</p>
 
