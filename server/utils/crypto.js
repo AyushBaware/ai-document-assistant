@@ -51,3 +51,21 @@ export const decrypt = ({ encryptedData, iv, authTag }) => {
 
   return decrypted.toString("utf8");
 };
+
+// ── KEY FINGERPRINTING (for leaked/shared-key detection) ──────
+// AES-GCM above uses a random IV per save, so identical plaintext
+// keys produce different ciphertext every time — encryptedData
+// can never be compared to detect reuse. This is a SEPARATE,
+// deterministic HMAC of the plaintext key using its own secret
+// (never the AES key), so the same Gemini key always produces
+// the same fingerprint — comparable across records — without
+// being reversible back to the original key.
+export const hashKeyForDedup = (plainText) => {
+  const secret = process.env.KEY_FINGERPRINT_SECRET;
+  if (!secret) {
+    throw new Error(
+      "KEY_FINGERPRINT_SECRET is not set in server/.env — required to detect shared API keys."
+    );
+  }
+  return crypto.createHmac("sha256", secret).update(plainText).digest("hex");
+};
