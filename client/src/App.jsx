@@ -31,6 +31,7 @@ import GuestUsageBadge from "./components/GuestUsageBadge";
 import GuestLimitToast from "./components/GuestLimitToast";
 import GuestLimitModal from "./components/GuestLimitModal";
 import SaveGuestSessionModal from "./components/SaveGuestSessionModal";
+import NotificationBell from "./components/NotificationBell";
 import { FiSettings, FiLogOut, FiUser } from "react-icons/fi";
 
 function App() {
@@ -59,6 +60,11 @@ function App() {
   // that (badge updates, toast, hard-block modal) is fully automated
   // and event-driven via useGuestUsage below, with zero refresh needed.
   const [initialGuestRemaining, setInitialGuestRemaining] = useState(null);
+
+  // Shown (via the existing GuestLimitToast component, reused as a
+  // generic message banner) if THIS person's own Gemini key turns out
+  // to already be registered on another account/device.
+  const [keySharedWarning, setKeySharedWarning] = useState(null);
 
   // Extracted so it can run both on initial mount AND right after a
   // key is first saved — the guest request count doesn't exist yet
@@ -285,6 +291,8 @@ function App() {
           )
         )}
 
+        <NotificationBell />
+
         <div className="relative">
           <button
             onClick={() => setShowSettings((v) => !v)}
@@ -354,7 +362,21 @@ function App() {
         ) : null}
       </div>
 
-      {geminiKey === "" && <ApiKeyModal onKeySaved={handleKeySaved} />}
+      {geminiKey === "" && (
+        <ApiKeyModal
+          onKeySaved={handleKeySaved}
+          onKeyShared={() =>
+            setKeySharedWarning(
+              "Notice: this API key is already registered on another account. You may see shared Google rate limits."
+            )
+          }
+        />
+      )}
+
+      <GuestLimitToast
+        message={keySharedWarning}
+        onDismiss={() => setKeySharedWarning(null)}
+      />
 
       {/* GUEST USAGE UI (Phase 4) — only ever relevant for anonymous
           users; all three render nothing once `user` is set. */}
