@@ -9,7 +9,7 @@
 
 import ApiKey from "../models/ApiKey.js";
 import GuestIpUsage from "../models/GuestIpUsage.js";
-import { encrypt } from "../utils/crypto.js";
+import { encrypt, hashKeyForDedup } from "../utils/crypto.js";
 import { GUEST_REQUEST_LIMIT, getClientIp } from "../middleware/guestLimitMiddleware.js";
 
 const isValidKeyFormat = (key = "") => key.startsWith("AIza") && key.length >= 35;
@@ -27,9 +27,35 @@ export const saveApiKey = async (req, res) => {
       });
     }
 
-    const { encryptedData, iv, authTag } = encrypt(apiKey.trim());
+    const trimmedKey = apiKey.trim();
+    const { encryptedData, iv, authTag } = encrypt(trimmedKey);
+    const keyFingerprint = hashKeyForDedup(trimmedKey);
 
-    const update = { encryptedData, iv, authTag };
+    // ── SHARED-KEY DETECTION ────────────────────────────────
+    // Same fingerprint already saved under a DIFFERENT identity
+    // (different deviceId, and — if logged in — a different
+    // userId) means this exact Gemini key is in use by someone
+    // else too. We never block the save (a false positive here
+    // would lock a legitimate user out of their own key), but we
+    // log it server-side and surface a flag to the frontend so
+    // the user can be warned their key may be compromised.
+    const sharedWith = await ApiKey.find({
+      keyFingerprint,
+      deviceId: { $ne: deviceId },
+      ...(userId ? { userId: { $ne: userId } } : {}),
+    }).select("deviceId userId");
+
+    const isShared = sharedWith.length > 0;
+    if (isShared) {
+      console.warn(
+        `[ApiKey] Fingerprint collision: key saved by deviceId=${deviceId}` +
+        `${userId ? ` (userId=${userId})` : " (guest)"} matches ` +
+        `${sharedWith.length} other record(s) already using this key. ` +
+        `Possible key leak/sharing.`
+      );
+    }
+
+    const update = { encryptedData, iv, authTag, keyFingerprint };
     if (userId) update.userId = userId;
 
     await ApiKey.findOneAndUpdate(
@@ -38,7 +64,11 @@ export const saveApiKey = async (req, res) => {
       { upsert: true, new: true }
     );
 
-    return res.status(200).json({ success: true, message: "API key saved securely." });
+    return res.status(200).json({
+      success: true,
+      message: "API key saved securely.",
+      keyShared: isShared, // frontend can show a warning banner if true
+    });
   } catch (error) {
     console.error("Save API Key Error:", error.message);
     return res.status(500).json({ success: false, message: "Failed to save API key." });
