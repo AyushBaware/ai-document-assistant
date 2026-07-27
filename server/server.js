@@ -115,8 +115,8 @@ const generalApiLimiter = rateLimit({
 });
 
 // ── ROUTES ───────────────────────────────────────────────────
-app.use("/api/upload", uploadRoutes);
 app.use("/api", generalApiLimiter);
+app.use("/api/upload", uploadRoutes);
 app.use("/api/ai", aiRateLimiter); 
 app.use("/api/ai", aiRoutes);
 app.use("/api/auth", authRoutes);
