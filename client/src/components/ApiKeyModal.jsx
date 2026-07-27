@@ -30,7 +30,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FiKey, FiExternalLink, FiEye, FiEyeOff, FiCheck, FiZap } from "react-icons/fi";
 import { saveApiKey } from "../api/apiKeyApi";
 
-function ApiKeyModal({ onKeySaved }) {
+function ApiKeyModal({ onKeySaved, onKeyShared }) {
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [error, setError] = useState("");
@@ -65,7 +65,14 @@ function ApiKeyModal({ onKeySaved }) {
       setIsValidating(true);
       setError("");
       // Encrypted and saved on the backend — never kept in the browser.
-      await saveApiKey(trimmed);
+      const saveResult = await saveApiKey(trimmed);
+      if (saveResult?.keyShared && onKeyShared) {
+        // Fires BEFORE onKeySaved() below, since onKeySaved can cause
+        // this modal to unmount immediately (geminiKey flips to
+        // "configured") — the warning needs to live in the parent,
+        // not as local state here.
+        onKeyShared();
+      }
       const status = await onKeySaved();
 
       // If the deviceId cookie didn't persist (browser blocking or

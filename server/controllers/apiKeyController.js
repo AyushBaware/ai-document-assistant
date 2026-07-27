@@ -9,6 +9,7 @@
 
 import ApiKey from "../models/ApiKey.js";
 import GuestIpUsage from "../models/GuestIpUsage.js";
+import Notification from "../models/Notification.js";
 import { encrypt, hashKeyForDedup } from "../utils/crypto.js";
 import { GUEST_REQUEST_LIMIT, getClientIp } from "../middleware/guestLimitMiddleware.js";
 
@@ -53,6 +54,44 @@ export const saveApiKey = async (req, res) => {
         `${sharedWith.length} other record(s) already using this key. ` +
         `Possible key leak/sharing.`
       );
+
+      // ── NOTIFY THE ORIGINAL OWNER(S) ────────────────────────
+      // Only owners with a real userId can be notified — a guest
+      // (deviceId only, no account) has nowhere for a notification
+      // to attach to. This never blocks the current save either way.
+      try {
+        const ownerIdsToNotify = [
+          ...new Set(
+            sharedWith
+              .filter((r) => r.userId)
+              .map((r) => r.userId.toString())
+          ),
+        ];
+
+        for (const ownerId of ownerIdsToNotify) {
+          // Dedup — don't re-alert the same owner for the same key
+          // every single time it gets reused/re-saved.
+          const alreadyAlerted = await Notification.findOne({
+            userId: ownerId,
+            type: "SECURITY_ALERT",
+            relatedFingerprint: keyFingerprint,
+            isRead: false,
+          }).select("_id");
+
+          if (!alreadyAlerted) {
+            await Notification.create({
+              userId: ownerId,
+              type: "SECURITY_ALERT",
+              title: "Security Alert",
+              message:
+                "Another account or device has registered a session using your Gemini API key.",
+              relatedFingerprint: keyFingerprint,
+            });
+          }
+        }
+      } catch (notifyErr) {
+        console.warn("[ApiKey] Failed to create security notification (non-blocking):", notifyErr.message);
+      }
     }
 
     const update = { encryptedData, iv, authTag, keyFingerprint };

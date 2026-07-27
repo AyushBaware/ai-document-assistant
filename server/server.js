@@ -36,6 +36,7 @@ import authRoutes from "./routes/authRoutes.js";
 import sessionRoutes from "./routes/sessionRoutes.js";
 import apiKeyRoutes from "./routes/apiKeyRoutes.js";
 import guestSessionRoutes from "./routes/guestSessionRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 import { assignDeviceId } from "./middleware/deviceMiddleware.js";
 
 connectDB();
@@ -122,6 +123,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/sessions", sessionRoutes);
 app.use("/api/apikey", apiKeyRoutes);
 app.use("/api/guest-session", guestSessionRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.get("/", (req, res) => {
   res.json({
