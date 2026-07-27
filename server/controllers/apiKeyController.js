@@ -12,6 +12,7 @@ import GuestIpUsage from "../models/GuestIpUsage.js";
 import Notification from "../models/Notification.js";
 import { encrypt, hashKeyForDedup } from "../utils/crypto.js";
 import { parseUserAgent } from "../utils/parseUserAgent.js";
+import { enforceNotificationLimit } from "../utils/notificationHelpers.js";
 import { GUEST_REQUEST_LIMIT, getClientIp } from "../middleware/guestLimitMiddleware.js";
 
 const isValidKeyFormat = (key = "") => key.startsWith("AIza") && key.length >= 35;
@@ -104,6 +105,7 @@ export const saveApiKey = async (req, res) => {
               message: alertMessage,
               relatedFingerprint: keyFingerprint,
             });
+            await enforceNotificationLimit(ownerId);
           }
         }
       } catch (notifyErr) {
