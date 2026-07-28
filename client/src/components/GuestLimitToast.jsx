@@ -10,13 +10,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FiX, FiZap } from "react-icons/fi";
 
 const AUTO_DISMISS_MS = 8000;
+const AUTO_DISMISS_WITH_ACTION_MS = 15000;
 
-function GuestLimitToast({ message, onDismiss }) {
+function GuestLimitToast({ message, onDismiss, actionLabel, onAction }) {
   useEffect(() => {
     if (!message) return;
-    const timer = setTimeout(onDismiss, AUTO_DISMISS_MS);
+    const timer = setTimeout(
+      onDismiss,
+      actionLabel ? AUTO_DISMISS_WITH_ACTION_MS : AUTO_DISMISS_MS
+    );
     return () => clearTimeout(timer);
-  }, [message, onDismiss]);
+  }, [message, onDismiss, actionLabel]);
 
   return (
     <AnimatePresence>
@@ -32,6 +36,14 @@ function GuestLimitToast({ message, onDismiss }) {
             <FiZap className="text-cyan-400 text-base" />
           </div>
           <p className="text-sm text-gray-200 leading-snug flex-1">{message}</p>
+          {actionLabel && onAction && (
+            <button
+              onClick={onAction}
+              className="cursor-pointer shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg bg-cyan-500/15 border border-cyan-400/30 text-cyan-200 hover:bg-cyan-500/25 transition-all whitespace-nowrap"
+            >
+              {actionLabel}
+            </button>
+          )}
           <button
             onClick={onDismiss}
             className="cursor-pointer text-gray-500 hover:text-white transition-colors shrink-0 p-1"

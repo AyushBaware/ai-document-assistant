@@ -66,6 +66,11 @@ function App() {
   // to already be registered on another account/device.
   const [keySharedWarning, setKeySharedWarning] = useState(null);
 
+  // Shown when the currently active Gemini key hits a quota limit or
+  // turns out to be invalid/expired mid-use — offers a direct path to
+  // Settings to switch keys, instead of a one-off inline error only.
+  const [keyIssueBanner, setKeyIssueBanner] = useState(null);
+
   // Extracted so it can run both on initial mount AND right after a
   // key is first saved — the guest request count doesn't exist yet
   // at mount time for a brand-new visitor (no ApiKey record until
@@ -95,6 +100,14 @@ function App() {
 
   useEffect(() => {
     refreshKeyStatus();
+  }, []);
+
+  useEffect(() => {
+    const handleKeyIssue = (e) => {
+      setKeyIssueBanner(e.detail?.message || "Your API key can't be used right now.");
+    };
+    window.addEventListener("gemini-key-issue", handleKeyIssue);
+    return () => window.removeEventListener("gemini-key-issue", handleKeyIssue);
   }, []);
 
   // ── GUEST USAGE (Phase 4 refinement) ──────────────────────
@@ -376,6 +389,16 @@ function App() {
       <GuestLimitToast
         message={keySharedWarning}
         onDismiss={() => setKeySharedWarning(null)}
+      />
+
+      <GuestLimitToast
+        message={keyIssueBanner}
+        onDismiss={() => setKeyIssueBanner(null)}
+        actionLabel="Update Key"
+        onAction={() => {
+          setKeyIssueBanner(null);
+          setShowSettings(true);
+        }}
       />
 
       {/* GUEST USAGE UI (Phase 4) — only ever relevant for anonymous

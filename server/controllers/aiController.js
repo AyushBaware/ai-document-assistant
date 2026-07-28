@@ -468,15 +468,30 @@ const buildPrompt = (docsToUse, type) => {
 export const classifyError = (message = "") => {
   const msg = message.toLowerCase();
   if (msg.includes("quota") || msg.includes("rate") || msg.includes("limit")) {
-    return "Gemini rate limit reached. Please wait 1-2 minutes and try again.";
+    return "Gemini quota/rate limit reached on this API key. Wait a minute and try again, or switch to a different key in Settings to keep going.";
   }
   if (msg.includes("unavailable") || msg.includes("high demand") || msg.includes("503") || msg.includes("overloaded")) {
     return "Gemini is temporarily overloaded. This usually clears in 30-60 seconds — please try again.";
   }
   if (msg.includes("api key") || msg.includes("invalid") || msg.includes("unauthorized")) {
-    return "Invalid API key. Please check your Gemini API key in settings.";
+    return "This API key is invalid or expired. Please update your Gemini API key in Settings.";
   }
   return message || "AI generation failed.";
+};
+
+// ── ERROR CODE CLASSIFIER ─────────────────────────────────────
+// Machine-readable companion to classifyError() above — lets the
+// frontend react programmatically (e.g. show a "Switch API Key"
+// banner with a button) instead of parsing the message text.
+export const getErrorCode = (message = "") => {
+  const msg = message.toLowerCase();
+  if (msg.includes("quota") || msg.includes("rate") || msg.includes("limit")) {
+    return "QUOTA_EXCEEDED";
+  }
+  if (msg.includes("api key") || msg.includes("invalid") || msg.includes("unauthorized")) {
+    return "INVALID_KEY";
+  }
+  return null;
 };
 
 
@@ -544,7 +559,11 @@ export const generateAIResponse = async (req, res) => {
 
   } catch (error) {
     console.error("[AIController] Error:", error.message);
-    return res.status(500).json({ success: false, message: classifyError(error.message) });
+    return res.status(500).json({
+      success: false,
+      message: classifyError(error.message),
+      code: getErrorCode(error.message),
+    });
   }
 };
 
@@ -655,6 +674,10 @@ export const generateFromSession = async (req, res) => {
 
   } catch (error) {
     console.error("[AIController/session] Error:", error.message);
-    return res.status(500).json({ success: false, message: classifyError(error.message) });
+    return res.status(500).json({
+      success: false,
+      message: classifyError(error.message),
+      code: getErrorCode(error.message),
+    });
   }
 };
