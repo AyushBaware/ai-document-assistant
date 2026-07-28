@@ -42,12 +42,14 @@ function NotificationDetailModal({ notification, onClose }) {
               {notification.message}
             </p>
 
-            <button
-              onClick={onClose}
-              className="cursor-pointer w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 text-sm font-medium hover:bg-white/10 transition-all"
-            >
-              Close
-            </button>
+            <div className="flex justify-center mt-5">
+              <button
+                onClick={onClose}
+                className="cursor-pointer px-6 py-2 rounded-xl bg-white/10 border border-white/10 text-gray-300 text-sm font-medium hover:bg-white/15 transition-all"
+              >
+                Close
+              </button>
+            </div>
           </motion.div>
         </motion.div>
       )}

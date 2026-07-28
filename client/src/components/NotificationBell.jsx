@@ -132,7 +132,7 @@ function NotificationBell() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.15 }}
-              className="absolute right-0 top-12 w-72 sm:w-80 max-w-[90vw] bg-[#0d1117] border border-white/10 rounded-2xl p-3 shadow-xl z-30 max-h-96 overflow-y-auto"
+              className="absolute right-0 top-12 w-72 sm:w-80 max-w-[90vw] bg-white/[0.06] backdrop-blur-2xl border border-white/10 rounded-2xl p-3 shadow-xl z-30 max-h-96 overflow-y-auto"
             >
               <p className="text-xs font-medium text-gray-400 px-2 mb-2">Notifications</p>
 
