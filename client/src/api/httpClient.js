@@ -47,6 +47,23 @@ httpClient.interceptors.response.use(
       window.dispatchEvent(new CustomEvent("guest-limit-reached"));
     }
 
+    // Quota exhausted or the saved key itself is invalid/expired — both
+    // mean "this key can't do any more work right now." Broadcast so
+    // App.jsx can surface a banner offering to switch keys, instead of
+    // the person only seeing a one-off inline error on whichever panel
+    // happened to be open.
+    const errCode = error.response?.data?.code;
+    if (errCode === "QUOTA_EXCEEDED" || errCode === "INVALID_KEY") {
+      window.dispatchEvent(
+        new CustomEvent("gemini-key-issue", {
+          detail: {
+            code: errCode,
+            message: error.response?.data?.message || "Your API key can't be used right now.",
+          },
+        })
+      );
+    }
+
     return Promise.reject(error);
   }
 );

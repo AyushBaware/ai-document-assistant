@@ -7,6 +7,21 @@ import { embedTexts } from "../utils/embedText.js";
 import knowledgeStore from "../utils/knowledgeStore.js";
 import DocumentChunk from "../models/DocumentChunk.js";
 
+// Gemini occasionally rejects an embedding batch during high load
+// (rate limits, transient 503s). One immediate retry recovers the
+// vast majority of these transient failures without meaningfully
+// slowing the upload response — only a genuinely persistent outage
+// falls through to the embeddingFailed flag below.
+const embedWithRetry = async (texts, apiKey) => {
+  try {
+    return await embedTexts(texts, apiKey);
+  } catch (err) {
+    console.warn(`[Upload] Embedding failed, retrying once: ${err.message}`);
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    return await embedTexts(texts, apiKey);
+  }
+};
+
 export const uploadFiles = async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
@@ -89,7 +104,12 @@ export const uploadFiles = async (req, res) => {
 
     processedDocs.forEach((doc) => knowledgeStore.addDocument(doc));
 
-    // ── EMBED + STORE CHUNKS FOR RAG (with dedupe) ───────────
+    // ── EMBED + STORE CHUNKS FOR RAG (with dedupe + retry) ───
+    // failedDocumentIds is declared outside the try so it's still
+    // readable below when building the response, even though the
+    // embedding logic itself lives inside this try/catch.
+    let failedDocumentIds = new Set();
+
     try {
         // For each document, check if this exact content was
         // embedded before (any prior upload — permanent or not).
@@ -132,25 +152,45 @@ export const uploadFiles = async (req, res) => {
           });
         });
 
-        const embeddings =
-          flatChunks.length > 0
-            ? await embedTexts(flatChunks.map((c) => c.text), apiKey)
-            : [];
+        // Embed with one automatic retry. If it STILL fails (genuine
+        // outage, not a one-off blip), we do NOT let this throw and
+        // skip the whole block — that would also silently drop the
+        // already-fine REUSED chunks below. Instead we record exactly
+        // which documents lost semantic search, insert only what
+        // actually succeeded, and let the response/chat layer be
+        // honest about it instead of pretending everything worked.
+        let embeddings = [];
 
-        const freshChunkDocs = flatChunks.map((chunk, i) => ({
-          batchId,
-          documentId: chunk.documentId,
-          fileName: chunk.fileName,
-          mimetype: chunk.mimetype,
-          chunkIndex: chunk.chunkIndex,
-          text: chunk.text,
-          embedding: embeddings[i],
-          contentHash: chunk.contentHash,
-        }));
+        if (flatChunks.length > 0) {
+          try {
+            embeddings = await embedWithRetry(flatChunks.map((c) => c.text), apiKey);
+          } catch (embedErr) {
+            console.error(
+              `[Upload] Embedding failed even after retry — semantic search will be ` +
+              `unavailable for the affected document(s): ${embedErr.message}`
+            );
+            failedDocumentIds = new Set(flatChunks.map((c) => c.documentId));
+          }
+        }
+
+        const freshChunkDocs = failedDocumentIds.size > 0
+          ? []
+          : flatChunks.map((chunk, i) => ({
+              batchId,
+              documentId: chunk.documentId,
+              fileName: chunk.fileName,
+              mimetype: chunk.mimetype,
+              chunkIndex: chunk.chunkIndex,
+              text: chunk.text,
+              embedding: embeddings[i],
+              contentHash: chunk.contentHash,
+            }));
 
         // Rebuild chunk records for reused documents too — same
         // batchId as this upload, so downstream retrieval scoping
         // (by batchId/documentId) works exactly like a fresh embed.
+        // These still get inserted even if the FRESH embedding above
+        // failed — reused vectors never depended on that Gemini call.
         const reusedChunkDocs = [];
         processedDocs.forEach((doc) => {
           if (!reuseMap.has(doc.id)) return;
@@ -180,6 +220,10 @@ export const uploadFiles = async (req, res) => {
       displayName: doc.displayName,
       mimetype: doc.mimetype,
       chunkCount: doc.chunkCount,
+      // Lets the frontend flag "Ask Questions may not work yet for
+      // this file" instead of the person only discovering it later
+      // via a confusing chat answer.
+      embeddingReady: !failedDocumentIds.has(doc.id),
     }));
 
     return res.status(200).json({
@@ -187,6 +231,7 @@ export const uploadFiles = async (req, res) => {
       files: processedFiles,
       totalDocuments: processedFiles.length,
       batchId,
+      hasEmbeddingIssues: failedDocumentIds.size > 0,
     });
   } catch (error) {
     console.error("Upload Error:", error);

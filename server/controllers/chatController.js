@@ -53,7 +53,7 @@ import Session from "../models/Session.js";
 import DocumentChunk from "../models/DocumentChunk.js";
 import knowledgeStore from "../utils/knowledgeStore.js";
 import { retrieveRelevantChunks, retrieveRelevantChunksPerDocument } from "../utils/retrieveChunks.js";
-import { callGemini, classifyError } from "./aiController.js";
+import { callGemini, classifyError, getErrorCode } from "./aiController.js";
 
 // Chat answers are short and specific — no need for the large
 // token budgets used by Summary/Notes/Explain.
@@ -169,6 +169,25 @@ export const askQuestion = async (req, res) => {
 
     const trimmedQuestion = question.trim().slice(0, MAX_QUESTION_LENGTH);
 
+    // Distinguish "embeddings were never created for this upload" (a
+    // genuine Gemini-traffic failure at upload time) from "the document
+    // has no relevant content for this question" — these need very
+    // different messages, or the user wrongly concludes the answer
+    // isn't in their document when semantic search simply never ran.
+    const embeddedChunkCount = await DocumentChunk.countDocuments({
+      documentId: { $in: selectedDocumentIds },
+    });
+
+    if (embeddedChunkCount === 0) {
+      return res.status(200).json({
+        success: true,
+        answer:
+          "Semantic search isn't available for this document yet — this usually happens when Gemini was briefly overloaded during upload, not because the answer is missing. Please try re-uploading the file, or wait a moment and try again.",
+        sources: [],
+        warning: true,
+      });
+    }
+
     const chunks = await knowledgeStore.retrieveContext(
       selectedDocumentIds,
       trimmedQuestion,
@@ -179,8 +198,7 @@ export const askQuestion = async (req, res) => {
     if (chunks.length === 0) {
       return res.status(200).json({
         success: true,
-        answer:
-          "I couldn't find this in the uploaded document(s). This can also happen if semantic search wasn't available for this upload — try re-uploading the file.",
+        answer: "I couldn't find this in the uploaded document(s).",
         sources: [],
       });
     }
@@ -202,7 +220,11 @@ export const askQuestion = async (req, res) => {
     return res.status(200).json({ success: true, answer, sources });
   } catch (error) {
     console.error("[ChatController] Error:", error.message);
-    return res.status(500).json({ success: false, message: classifyError(error.message) });
+    return res.status(500).json({
+      success: false,
+      message: classifyError(error.message),
+      code: getErrorCode(error.message),
+    });
   }
 };
 
@@ -257,6 +279,20 @@ export const askQuestionFromSession = async (req, res) => {
 
     const docIds = await DocumentChunk.distinct("documentId", baseFilter);
 
+    // Same distinction as askQuestion() above — reuses the docIds
+    // lookup we already need for retrieval, so this costs zero extra
+    // queries. Zero docIds means embeddings never existed for these
+    // files, not that the question has no answer in them.
+    if (docIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        answer:
+          "Semantic search isn't available for this document yet — this usually happens when Gemini was briefly overloaded during upload, not because the answer is missing. Please try re-uploading the file(s), or wait a moment and try again.",
+        sources: [],
+        warning: true,
+      });
+    }
+
     const chunks = docIds.length > 1
       ? await retrieveRelevantChunksPerDocument(
           docIds.map((docId) => ({ ...baseFilter, documentId: docId })),
@@ -274,8 +310,7 @@ export const askQuestionFromSession = async (req, res) => {
     if (chunks.length === 0) {
       return res.status(200).json({
         success: true,
-        answer:
-          "I couldn't find this in the uploaded document(s). Semantic search may not be available for this session — try re-uploading the file(s).",
+        answer: "I couldn't find this in the uploaded document(s).",
         sources: [],
       });
     }
@@ -311,6 +346,10 @@ export const askQuestionFromSession = async (req, res) => {
     return res.status(200).json({ success: true, answer, sources });
   } catch (error) {
     console.error("[ChatController/session] Error:", error.message);
-    return res.status(500).json({ success: false, message: classifyError(error.message) });
+    return res.status(500).json({
+      success: false,
+      message: classifyError(error.message),
+      code: getErrorCode(error.message),
+    });
   }
 };

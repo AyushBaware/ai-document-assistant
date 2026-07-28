@@ -152,7 +152,12 @@ function ChatPanel({
 
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: data.answer, sources: data.sources || [] },
+        {
+          role: "assistant",
+          content: data.answer,
+          sources: data.sources || [],
+          warning: data.warning || false,
+        },
       ]);
     } catch (err) {
       // GUEST_LIMIT_REACHED already shows a clear full-screen modal
@@ -317,6 +322,11 @@ function ChatPanel({
               )}
               {msg.cached && (
                 <p className="text-[10px] text-cyan-400/70 mt-1">⚡ Instant — repeated question</p>
+              )}
+              {msg.warning && (
+                <p className="text-[10px] text-amber-400/80 mt-1">
+                  ⚠ Temporary issue — not a gap in your document
+                </p>
               )}
               {msg.sources && msg.sources.length > 0 && (() => {
                 // Defensive de-dupe — guarantees one chip per document
