@@ -25,8 +25,21 @@ import dotenv from "dotenv";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
+import multer from "multer";
 
 dotenv.config();
+
+// ── PROCESS-LEVEL SAFETY NETS ────────────────────────────────
+// Last resort only — every route already handles its own errors.
+// This exists so that if something truly unexpected slips through
+// anyway, the server logs it and keeps running instead of crashing
+// and taking down every other user's active session.
+process.on("unhandledRejection", (reason) => {
+  console.error("[Unhandled Promise Rejection]", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[Uncaught Exception]", err);
+});
 
 import connectDB from "./config/db.js";
 
@@ -126,6 +139,42 @@ app.use("/api/notifications", notificationRoutes);
 app.get("/", (req, res) => {
   res.json({
     message: "AI Document Assistant API Running",
+  });
+});
+
+// ── 404 FOR UNMATCHED API ROUTES ────────────────────────────
+// Without this, an unknown /api/* path falls through to Express's
+// default 404, which is plain text — inconsistent with every real
+// route, which always returns JSON.
+app.use("/api", (req, res) => {
+  res.status(404).json({ success: false, message: "Route not found." });
+});
+
+// ── GLOBAL ERROR HANDLER ─────────────────────────────────────
+// Catches anything that reaches here uncaught — mainly multer
+// errors (oversized file, too many files, wrong file type via
+// fileFilter's err.statusCode above), which previously fell
+// through to Express's default HTML error page instead of JSON,
+// and in dev mode exposed a stack trace to the client. This is a
+// pure safety net — it never runs for any request that already
+// returns its own response, which is every existing route today.
+app.use((err, req, res, next) => {
+  console.error("[Unhandled Error]", err.message);
+
+  if (err instanceof multer.MulterError) {
+    const messages = {
+      LIMIT_FILE_SIZE: "One or more files exceed the 25MB size limit.",
+      LIMIT_FILE_COUNT: "You can upload up to 10 files at a time.",
+    };
+    return res.status(400).json({
+      success: false,
+      message: messages[err.code] || "File upload error.",
+    });
+  }
+
+  return res.status(err.statusCode || 500).json({
+    success: false,
+    message: err.statusCode ? err.message : "Something went wrong. Please try again.",
   });
 });
 

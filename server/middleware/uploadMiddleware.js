@@ -67,11 +67,11 @@ const fileFilter = (req, file, cb) => {
   if (mimeOk && extOk) {
     cb(null, true);
   } else {
-    cb(
-      new Error(
-        "Only PDF, DOC, DOCX, PPT, PPTX, TXT, PNG, JPG, JPEG, and WEBP files are allowed."
-      )
+    const err = new Error(
+      "Only PDF, DOC, DOCX, PPT, PPTX, TXT, PNG, JPG, JPEG, and WEBP files are allowed."
     );
+    err.statusCode = 400;
+    cb(err);
   }
 };
 
