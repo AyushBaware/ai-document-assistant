@@ -8,15 +8,21 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # Dependencies
-node_modules
+node_modules/
+**/node_modules/
 
 # Build
-dist
-dist-ssr
+dist/
+dist-ssr/
+build/
+.next/
 
 # Environment Variables
 .env
+.env.*
 *.local
+**/client/.env
+**/server/.env
 
 # Uploads
 server/uploads/*
@@ -28,7 +34,7 @@ Thumbs.db
 # IDE
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 
 # Misc
 *.suo
@@ -36,5 +42,4 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
-
 eng.traineddata
