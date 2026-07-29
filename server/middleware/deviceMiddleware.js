@@ -24,7 +24,7 @@ export const assignDeviceId = (req, res, next) => {
     res.cookie(COOKIE_NAME, deviceId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: COOKIE_MAX_AGE,
     });
   }
