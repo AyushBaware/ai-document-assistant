@@ -25,9 +25,14 @@ import LoginButton from "./components/LoginButton";
 import SessionHistory from "./components/SessionHistory";
 import { useAuth } from "./context/AuthContext";
 import { getApiKeyStatus } from "./api/apiKeyApi";
-import { getGuestSession, convertGuestSession, clearGuestSession } from "./api/guestSessionApi";
+import {
+  getGuestSession,
+  convertGuestSession,
+  clearGuestSession,
+} from "./api/guestSessionApi";
 import { useGuestUsage } from "./hooks/useGuestUsage";
 import GuestUsageBadge from "./components/GuestUsageBadge";
+import { usePWAUpdate } from "./hooks/usePWAUpdate";
 import GuestLimitToast from "./components/GuestLimitToast";
 import GuestLimitModal from "./components/GuestLimitModal";
 import SaveGuestSessionModal from "./components/SaveGuestSessionModal";
@@ -104,7 +109,9 @@ function App() {
 
   useEffect(() => {
     const handleKeyIssue = (e) => {
-      setKeyIssueBanner(e.detail?.message || "Your API key can't be used right now.");
+      setKeyIssueBanner(
+        e.detail?.message || "Your API key can't be used right now.",
+      );
     };
     window.addEventListener("gemini-key-issue", handleKeyIssue);
     return () => window.removeEventListener("gemini-key-issue", handleKeyIssue);
@@ -118,6 +125,9 @@ function App() {
     showLimitModal: showGuestLimitModal,
     closeLimitModal: closeGuestLimitModal,
   } = useGuestUsage(initialGuestRemaining);
+
+  // ── PWA UPDATE PROMPT ──────────────────────────────────────
+  const { needRefresh, updateServiceWorker } = usePWAUpdate();
 
   // ── GUEST SESSION CONTINUITY (Phase 5) ────────────────────
   // The instant login succeeds, check whether this device had an
@@ -241,111 +251,116 @@ function App() {
 
       {/* ── TOP-RIGHT CONTROLS ─────────────────────────────── */}
       {!hideChrome && (
-      <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+        <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+          {user ? (
+            <div className="relative">
+              <button
+                onClick={() => setShowUserMenu((v) => !v)}
+                className="cursor-pointer flex items-center gap-2 px-2 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
+              >
+                {user.picture ? (
+                  <img
+                    src={user.picture}
+                    alt={user.name}
+                    className="w-7 h-7 rounded-full"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <FiUser className="w-7 h-7 p-1.5 rounded-full bg-cyan-500/20 text-cyan-300" />
+                )}
+                <span className="text-xs text-gray-300 hidden sm:inline pr-1">
+                  {user.name?.split(" ")[0]}
+                </span>
+              </button>
 
-        {user ? (
+              {showUserMenu && (
+                <>
+                  <div
+                    onClick={() => setShowUserMenu(false)}
+                    className="fixed inset-0 z-20"
+                  />
+                  <div className="absolute right-0 top-12 w-56 bg-[#0d1117] border border-white/10 rounded-2xl p-3 shadow-xl z-30">
+                    <p className="text-xs text-gray-400 px-1 mb-1">
+                      Signed in as
+                    </p>
+                    <p className="text-sm text-white px-1 mb-3 truncate">
+                      {user.email}
+                    </p>
+                    <button
+                      onClick={() => {
+                        logout();
+                        setShowUserMenu(false);
+                        setSelectedSessionId(null); // clear any loaded session on logout
+                      }}
+                      className="cursor-pointer w-full flex items-center justify-center gap-2 text-xs py-2 rounded-lg bg-red-500/10 border border-red-400/20 text-red-300 hover:bg-red-500/20 transition"
+                    >
+                      <FiLogOut className="text-sm" />
+                      Sign Out
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            // SINGLE LoginButton instance — scaled down via CSS for
+            // mobile instead of mounting a second component instance.
+            // FIXED: previously this rendered twice (here + inline in
+            // main content below), causing Google's SDK to call
+            // initialize() twice — the "[GSI_LOGGER] initialize()
+            // called multiple times" console warning.
+            // Hidden while GuestLimitModal is open — that modal renders
+            // its own LoginButton, so this avoids two instances at once.
+            !showGuestLimitModal && (
+              <div className="scale-[0.85] sm:scale-100 origin-right">
+                <LoginButton />
+              </div>
+            )
+          )}
+
+          <NotificationBell />
+
           <div className="relative">
             <button
-              onClick={() => setShowUserMenu((v) => !v)}
-              className="cursor-pointer flex items-center gap-2 px-2 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
+              onClick={() => setShowSettings((v) => !v)}
+              className="cursor-pointer w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+              title="API Key Settings"
             >
-              {user.picture ? (
-                <img
-                  src={user.picture}
-                  alt={user.name}
-                  className="w-7 h-7 rounded-full"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <FiUser className="w-7 h-7 p-1.5 rounded-full bg-cyan-500/20 text-cyan-300" />
-              )}
-              <span className="text-xs text-gray-300 hidden sm:inline pr-1">
-                {user.name?.split(" ")[0]}
-              </span>
+              <FiSettings className="text-lg" />
             </button>
 
-            {showUserMenu && (
+            {showSettings && (
               <>
                 <div
-                  onClick={() => setShowUserMenu(false)}
+                  onClick={() => setShowSettings(false)}
                   className="fixed inset-0 z-20"
                 />
-                <div className="absolute right-0 top-12 w-56 bg-[#0d1117] border border-white/10 rounded-2xl p-3 shadow-xl z-30">
-                <p className="text-xs text-gray-400 px-1 mb-1">Signed in as</p>
-                <p className="text-sm text-white px-1 mb-3 truncate">{user.email}</p>
-                <button
-                  onClick={() => {
-                    logout();
-                    setShowUserMenu(false);
-                    setSelectedSessionId(null); // clear any loaded session on logout
-                  }}
-                  className="cursor-pointer w-full flex items-center justify-center gap-2 text-xs py-2 rounded-lg bg-red-500/10 border border-red-400/20 text-red-300 hover:bg-red-500/20 transition"
-                >
-                  <FiLogOut className="text-sm" />
-                  Sign Out
-                </button>
-              </div>
+                <div className="absolute right-0 top-12 w-64 bg-[#0d1117] border border-white/10 rounded-2xl p-4 shadow-xl z-30">
+                  <p className="text-xs text-gray-400 mb-1">Gemini API Key</p>
+                  <p className="text-xs text-white font-mono truncate mb-3 bg-white/5 px-2 py-1.5 rounded-lg">
+                    {geminiKey
+                      ? "✓ Key configured and encrypted"
+                      : "No key saved"}
+                  </p>
+                  <button
+                    onClick={() => {
+                      setShowSettings(false);
+                      setGeminiKey("");
+                    }}
+                    className="cursor-pointer w-full text-xs py-2 rounded-lg bg-cyan-500/10 border border-cyan-400/20 text-cyan-300 hover:bg-cyan-500/20 transition mb-2"
+                  >
+                    Update API Key
+                  </button>
+                  <button
+                    onClick={handleClearKey}
+                    className="cursor-pointer w-full text-xs py-2 rounded-lg bg-red-500/10 border border-red-400/20 text-red-300 hover:bg-red-500/20 transition"
+                  >
+                    Remove Key
+                  </button>
+                </div>
               </>
             )}
           </div>
-        ) : (
-          // SINGLE LoginButton instance — scaled down via CSS for
-          // mobile instead of mounting a second component instance.
-          // FIXED: previously this rendered twice (here + inline in
-          // main content below), causing Google's SDK to call
-          // initialize() twice — the "[GSI_LOGGER] initialize()
-          // called multiple times" console warning.
-          // Hidden while GuestLimitModal is open — that modal renders
-          // its own LoginButton, so this avoids two instances at once.
-          !showGuestLimitModal && (
-            <div className="scale-[0.85] sm:scale-100 origin-right">
-              <LoginButton />
-            </div>
-          )
-        )}
-
-        <NotificationBell />
-
-        <div className="relative">
-          <button
-            onClick={() => setShowSettings((v) => !v)}
-            className="cursor-pointer w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
-            title="API Key Settings"
-          >
-            <FiSettings className="text-lg" />
-          </button>
-
-          {showSettings && (
-            <>
-              <div
-                onClick={() => setShowSettings(false)}
-                className="fixed inset-0 z-20"
-              />
-              <div className="absolute right-0 top-12 w-64 bg-[#0d1117] border border-white/10 rounded-2xl p-4 shadow-xl z-30">
-              <p className="text-xs text-gray-400 mb-1">Gemini API Key</p>
-              <p className="text-xs text-white font-mono truncate mb-3 bg-white/5 px-2 py-1.5 rounded-lg">
-                {geminiKey ? "✓ Key configured and encrypted" : "No key saved"}
-              </p>
-              <button
-                onClick={() => {
-                  setShowSettings(false);
-                  setGeminiKey("");
-                }}
-                className="cursor-pointer w-full text-xs py-2 rounded-lg bg-cyan-500/10 border border-cyan-400/20 text-cyan-300 hover:bg-cyan-500/20 transition mb-2"
-              >
-                Update API Key
-              </button>
-              <button
-                onClick={handleClearKey}
-                className="cursor-pointer w-full text-xs py-2 rounded-lg bg-red-500/10 border border-red-400/20 text-red-300 hover:bg-red-500/20 transition"
-              >
-                Remove Key
-              </button>
-              </div>
-            </>
-          )}
         </div>
-      </div>
       )}
 
       {/* ── MAIN CONTENT ─────────────────────────────────────── */}
@@ -380,7 +395,7 @@ function App() {
           onKeySaved={handleKeySaved}
           onKeyShared={() =>
             setKeySharedWarning(
-              "Notice: this API key is already registered on another account. You may see shared Google rate limits."
+              "Notice: this API key is already registered on another account. You may see shared Google rate limits.",
             )
           }
         />
@@ -405,7 +420,10 @@ function App() {
           users; all three render nothing once `user` is set. */}
       {!user && <GuestUsageBadge remaining={guestRequestsRemaining} />}
       {!user && (
-        <GuestLimitToast message={guestToastMessage} onDismiss={dismissGuestToast} />
+        <GuestLimitToast
+          message={guestToastMessage}
+          onDismiss={dismissGuestToast}
+        />
       )}
       {showGuestLimitModal && (
         <GuestLimitModal onClose={closeGuestLimitModal} />
@@ -419,6 +437,13 @@ function App() {
           isSaving={isSavingGuestSession}
         />
       )}
+
+      <GuestLimitToast
+        message={needRefresh ? "A new version is available." : null}
+        onDismiss={() => {}}
+        actionLabel="Update"
+        onAction={() => updateServiceWorker(true)}
+      />
     </motion.div>
   );
 }
