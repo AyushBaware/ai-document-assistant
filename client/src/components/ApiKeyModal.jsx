@@ -30,7 +30,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FiKey, FiExternalLink, FiEye, FiEyeOff, FiCheck, FiZap } from "react-icons/fi";
 import { saveApiKey } from "../api/apiKeyApi";
 
-function ApiKeyModal({ onKeySaved, onKeyShared }) {
+function ApiKeyModal({ onKeySaved, onKeyShared, dismissible = false, onDismiss }) {
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [error, setError] = useState("");
@@ -110,6 +110,11 @@ function ApiKeyModal({ onKeySaved, onKeyShared }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
+        // Only clickable when dismissible=true (the "Update Key" flow,
+        // where an existing valid key is still saved on the backend).
+        // In the "Remove Key" flow, dismissible is false — there is
+        // genuinely no key anymore, so clicking outside must do nothing.
+        onClick={dismissible ? onDismiss : undefined}
         className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
       >
         {/* MODAL CARD */}
@@ -118,6 +123,7 @@ function ApiKeyModal({ onKeySaved, onKeyShared }) {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.92, y: 20 }}
           transition={{ duration: 0.35, ease: "easeOut" }}
+          onClick={(e) => e.stopPropagation()} // clicks inside the card must never bubble up and trigger dismiss
           className="w-full max-w-md bg-[#0d1117] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-[0_0_60px_rgba(0,255,255,0.08)]"
         >
           {/* ICON */}

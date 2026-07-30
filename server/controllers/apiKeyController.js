@@ -212,3 +212,18 @@ export const getApiKeyStatus = async (req, res) => {
     return res.status(500).json({ success: false, message: "Failed to check API key status." });
   }
 };
+
+// ── DELETE THE SAVED KEY ──────────────────────────────────────
+// "Remove Key" must actually delete the record — previously the
+// frontend only reset local state, so the key stayed valid on the
+// backend and reappeared on refresh. This is looked up by deviceId,
+// matching how getApiKeyStatus() finds it.
+export const deleteApiKey = async (req, res) => {
+  try {
+    await ApiKey.deleteOne({ deviceId: req.deviceId });
+    return res.status(200).json({ success: true, message: "API key removed." });
+  } catch (error) {
+    console.error("Delete API Key Error:", error.message);
+    return res.status(500).json({ success: false, message: "Failed to remove API key." });
+  }
+};

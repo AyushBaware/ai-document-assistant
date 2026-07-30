@@ -24,7 +24,7 @@ import ApiKeyModal from "./components/ApiKeyModal";
 import LoginButton from "./components/LoginButton";
 import SessionHistory from "./components/SessionHistory";
 import { useAuth } from "./context/AuthContext";
-import { getApiKeyStatus } from "./api/apiKeyApi";
+import { getApiKeyStatus, deleteApiKey } from "./api/apiKeyApi";
 import {
   getGuestSession,
   convertGuestSession,
@@ -43,6 +43,13 @@ function App() {
   // ── GEMINI API KEY STATE (Phase 1 — unchanged) ────────────
   const [geminiKey, setGeminiKey] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  // True only for the "Update API Key" flow — the backend key is
+  // untouched in that case, so the modal can be cancelled (refresh
+  // or click-outside) and the user lands back on the existing key.
+  // False for "Remove Key" and first-time entry, where there is
+  // genuinely no key saved — nothing to fall back to, so the modal
+  // must stay locked until a real key is entered.
+  const [keyModalDismissible, setKeyModalDismissible] = useState(false);
 
   // ── AUTH STATE (Phase 2 — unchanged) ──────────────────────
   const { user, token, isAuthLoading, logout } = useAuth();
@@ -203,11 +210,28 @@ function App() {
     return { ...data, cookiesBlocked };
   };
 
-  const handleClearKey = () => {
-    // A new key overwrites the old one on the backend automatically
-    // (see ApiKeyModal) — this just brings the entry screen back.
-    setGeminiKey("");
+  const handleClearKey = async () => {
+    // Genuinely removes the key from the backend now — previously
+    // this only reset local state, so the key silently survived on
+    // the server and refreshing the page brought the user right
+    // back to the home screen with the "removed" key still active.
     setShowSettings(false);
+    setKeyModalDismissible(false);
+    setGeminiKey("");
+    try {
+      await deleteApiKey();
+    } catch (err) {
+      console.warn("Failed to remove API key on server:", err.message);
+    }
+  };
+
+  // Backdrop click on the "Update API Key" modal only — the backend
+  // key was never touched during an update, so this just re-syncs
+  // local state with what's actually saved and closes the modal,
+  // effectively cancelling the update.
+  const handleDismissKeyModal = () => {
+    setKeyModalDismissible(false);
+    refreshKeyStatus();
   };
 
   // Called by SessionHistory when user clicks a past session
@@ -344,6 +368,7 @@ function App() {
                   <button
                     onClick={() => {
                       setShowSettings(false);
+                      setKeyModalDismissible(true);
                       setGeminiKey("");
                     }}
                     className="cursor-pointer w-full text-xs py-2 rounded-lg bg-cyan-500/10 border border-cyan-400/20 text-cyan-300 hover:bg-cyan-500/20 transition mb-2"
@@ -398,6 +423,8 @@ function App() {
               "Notice: this API key is already registered on another account. You may see shared Google rate limits.",
             )
           }
+          dismissible={keyModalDismissible}
+          onDismiss={handleDismissKeyModal}
         />
       )}
 
