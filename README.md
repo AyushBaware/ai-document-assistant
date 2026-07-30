@@ -8,6 +8,8 @@ Upload PDFs, Word docs, PowerPoints, text files, or images and instantly get AI-
 
 [Live Demo](https://documind-ai-brown.vercel.app) · [Report a Bug](https://github.com/AyushBaware/ai-document-assistant/issues) · [Request a Feature](https://github.com/AyushBaware/ai-document-assistant/issues)
 
+![DocuMind AI landing page](docs/screenshots/hero.png)
+
 </div>
 
 ---
@@ -62,6 +64,10 @@ Powered by **Gemini 2.5 Flash**, with:
 - Dynamic token budgeting (fixed ceilings + a content-length-aware floor, so long dense documents are never cut off)
 - Head + tail trimming for oversized documents (preserves both opening context and conclusion)
 - Targeted retry logic for truncated or empty responses
+- **Inline glossary** — Gemini appends a JSON glossary of the hardest terms in the same call (zero extra requests); the UI renders them as hover tooltips on desktop and tap-to-toggle popups on mobile
+- **Document scoping** — for multi-file uploads, checkboxes let you generate a Summary/Notes/Explain from only a chosen subset of documents; each subset's result is cached and restored independently
+
+![Notes view with glossary tooltip](docs/screenshots/summary-glossary.png)
 
 ### 💬 RAG-Based "Ask Questions" Chat
 - Full semantic search pipeline: chunking → embedding → MongoDB Atlas Vector Search → top-k retrieval
@@ -70,11 +76,15 @@ Powered by **Gemini 2.5 Flash**, with:
 - Source citations shown per answer
 - Full-screen chat overlay with desktop sidebar + mobile hamburger nav, styled after Claude/Gemini's interface
 - In-session answer caching (identical repeated questions cost zero extra tokens)
+- Balanced per-document retrieval for multi-document sessions — runs one vector search per selected document instead of a single global top-k, so no document gets silently starved out of the answer
+- Graceful degradation messaging if embeddings failed at upload time (transient Gemini overload), instead of a confusing "no answer found"
+
+![RAG chat with source citations](docs/screenshots/chat.png)
 
 ### 🗂️ Session History & Persistence (for signed-in users)
 - Every upload batch is saved as a "session" — documents + generated responses + full chat history
 - Reopening a session costs **zero API calls** to review past work
-- Session titles are auto-generated using a spread-sampling technique (head + middle + tail of the document) via Groq's free-tier `llama-3.1-8b-instant`, with a silent fallback to a filename-based title if Groq is unavailable or slow
+- Session titles are auto-generated using a spread-sampling technique (head + middle + tail of the document) via Groq's free-tier `llama-3.1-8b-instant`; multi-document uploads get one combined title — a shared theme if the files are related, or a `TopicA + TopicB + TopicC` breakdown if they're not — with a silent fallback to a filename-based title if Groq is unavailable or slow
 - Rolling 20-session limit per user (oldest sessions auto-pruned)
 - Embeddings are deduplicated by content hash — re-uploading an identical file reuses existing vectors instead of re-embedding
 
@@ -82,9 +92,10 @@ Powered by **Gemini 2.5 Flash**, with:
 - Google OAuth (Sign in with Google) — fully optional; the app works anonymously too
 - Custom JWT issued after Google verification (7-day expiry)
 - Self-healing auth: an expired/invalid token automatically clears itself and drops the user back to a logged-out state instead of silently failing
-- User-supplied Gemini API keys are encrypted server-side and tied to an anonymous device cookie, never `localStorage`
-- Anonymous users get 5 lifetime free requests, tracked server-side; signing in removes the cap
+- User-supplied Gemini API keys are encrypted server-side (AES-256-GCM) and tied to an anonymous device cookie, never `localStorage`
+- Anonymous users get 5 lifetime free requests, enforced against **both** the device cookie and IP address (so clearing cookies alone can't reset the cap); signing in removes it entirely
 - An anonymous session (documents, chat, and generated Summary/Notes/Explain) auto-restores after a refresh and can be saved permanently on login
+- **Shared-key security alerts** — if the same Gemini API key gets registered on a different device/account, the original owner receives an in-app notification (device/browser context only — never the other identity) so they can rotate a possibly-leaked key
 
 ### 🎨 UI/UX
 - Full-screen chat experience benchmarked against Claude and Gemini's own interfaces
@@ -92,6 +103,15 @@ Powered by **Gemini 2.5 Flash**, with:
 - Responsive design, mobile-first bug-fixing priority
 - Global minimal scrollbar styling, scroll-fade blur overlays
 - Always-visible copy-to-clipboard on chat bubbles and generated responses
+- **Installable PWA** — manifest + Workbox service worker, works as a standalone app on mobile/desktop, with an in-app prompt when a new version is available
+- Mobile-specific navigation: hamburger menu with mode switching + per-document checkboxes, replacing the desktop sidebar on small screens
+
+<img src="docs/screenshots/mobile.png" alt="Mobile view with hamburger navigation" width="320" />
+d
+### 🔔 Notifications & Alerts
+- In-app notification bell (signed-in users only) — currently used for security alerts when your saved Gemini key is detected on another device/account
+- Desktop: full message inline; mobile: compact swipeable list (swipe to delete, tap for detail)
+- Rolling cap of 3 notifications per user — oldest are auto-pruned
 
 ---
 
@@ -108,6 +128,7 @@ Powered by **Gemini 2.5 Flash**, with:
 | Auth | Google OAuth 2.0 + custom JWT |
 | Text Extraction | pdfjs-dist, mammoth, officeparser, tesseract.js |
 | Security | Helmet, express-rate-limit, CORS allowlisting |
+| PWA | vite-plugin-pwa (Workbox service worker, installable manifest) |
 
 ---
 
@@ -264,6 +285,15 @@ All routes are prefixed with `/api`.
 | `GET` | `/sessions/:id` | required | Get full session detail |
 | `PATCH` | `/sessions/:id` | required | Save a generated response into a session |
 | `DELETE` | `/sessions/:id` | required | Delete a session |
+| `POST` | `/apikey` | optional | Save/encrypt the caller's Gemini API key |
+| `GET` | `/apikey/status` | optional | Check if a key exists + remaining guest requests |
+| `POST` | `/guest-session` | optional | Save in-progress anonymous work (documents, chat, cached results) |
+| `GET` | `/guest-session` | optional | Restore in-progress anonymous work |
+| `DELETE` | `/guest-session` | optional | Discard in-progress anonymous work |
+| `POST` | `/guest-session/convert` | required | Convert a pending guest session into a permanent saved session on login |
+| `GET` | `/notifications` | required | List current user's notifications |
+| `PATCH` | `/notifications/:id/read` | required | Mark a notification as read |
+| `DELETE` | `/notifications/:id` | required | Delete a notification |
 
 The `/api/ai/*` routes are rate-limited (20 requests / 5 minutes / IP) to protect the Gemini quota from abuse.
 
@@ -291,13 +321,22 @@ A few non-obvious choices, documented for anyone reading the codebase:
 
 ## Roadmap
 
+**Recently completed:**
+- [x] Session title display in the full-screen chat header (desktop + mobile)
+- [x] Balanced multi-document retrieval in chat (per-document vector search instead of one global top-k)
+- [x] Deployed live on Vercel
+- [x] Global error boundary for graceful failure recovery
+- [x] Installable PWA with offline-aware caching and update prompts
+
+**Still planned:**
 - [ ] **Flashcards generator** — auto-generate spaced-repetition-style flashcards from a document
 - [ ] **Quiz generator** — auto-generate multiple-choice/short-answer quizzes with answer keys
 - [ ] **"Important Questions"** — likely-exam-question generation for revision
-- [ ] Session title display in the full-screen chat header (desktop + mobile)
-- [ ] Multi-document cross-referencing in chat (currently scoped per selected document set, could support smarter cross-document reasoning)
 - [ ] Streaming AI responses instead of a single blocking response
 - [ ] Exportable summaries/notes (PDF/Markdown download)
+- [ ] True page-number citation tracking (requires extraction/chunking pipeline changes)
+- [ ] Refine multi-file Groq titles to a cleaner "Primary Topic +N more" format
+- [ ] Automated test coverage (unit + integration)
 
 ---
 
