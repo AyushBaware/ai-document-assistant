@@ -15,7 +15,55 @@ import { parseUserAgent } from "../utils/parseUserAgent.js";
 import { enforceNotificationLimit } from "../utils/notificationHelpers.js";
 import { GUEST_REQUEST_LIMIT, getClientIp } from "../middleware/guestLimitMiddleware.js";
 
-const isValidKeyFormat = (key = "") => key.startsWith("AIza") && key.length >= 35;
+// ── FORMAT CHECK (instant, no network call) ──────────────────
+// Google currently issues Gemini keys in two formats: legacy
+// "AIzaSy..." and the newer dot-separated "AQ.Ab8...". This only
+// rejects obviously-wrong strings — the real check is the live
+// call below, since a string like "AQ.randomtext123" would still
+// pass this regex but isn't a real key.
+const KEY_FORMAT_REGEX = /^(AIzaSy|AQ\.)[A-Za-z0-9_-]+$/;
+const isValidKeyFormat = (key = "") => KEY_FORMAT_REGEX.test(key);
+
+// ── LIVE VERIFICATION AGAINST GOOGLE ──────────────────────────
+// listModels is a lightweight, read-only catalog endpoint — it
+// does NOT call generateContent, so it does not consume the
+// user's daily content-generation quota. This is what actually
+// confirms the key works, rather than just "looks right".
+const GEMINI_MODELS_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+
+const verifyGeminiKeyIsLive = async (apiKey) => {
+  try {
+    const response = await fetch(`${GEMINI_MODELS_URL}?key=${encodeURIComponent(apiKey)}`);
+
+    if (response.ok) {
+      return { isValid: true };
+    }
+
+    const data = await response.json().catch(() => ({}));
+    const message = data?.error?.message || "";
+
+    // Map Google's error into the same user-facing language used
+    // elsewhere in this app (aiController.js classifyError).
+    if (response.status === 400 || response.status === 401 || response.status === 403) {
+      return {
+        isValid: false,
+        message: "This API key is invalid or not authorized. Please double-check it in Google AI Studio.",
+      };
+    }
+
+    console.warn(`[ApiKey] Live verification non-OK (${response.status}):`, message);
+    return {
+      isValid: false,
+      message: "Couldn't verify this key with Google right now. Please try again in a moment.",
+    };
+  } catch (err) {
+    console.warn("[ApiKey] Live verification network error:", err.message);
+    // Fail open on our own network/infra issues — don't block a
+    // possibly-valid key just because our server briefly couldn't
+    // reach Google. Format check has already passed at this point.
+    return { isValid: true, skippedDueToNetworkError: true };
+  }
+};
 
 export const saveApiKey = async (req, res) => {
   try {
@@ -26,11 +74,24 @@ export const saveApiKey = async (req, res) => {
     if (!apiKey || !isValidKeyFormat(apiKey.trim())) {
       return res.status(400).json({
         success: false,
-        message: "This doesn't look like a valid Gemini API key.",
+        message: "This doesn't look like a valid Gemini API key. Keys start with 'AIzaSy' or 'AQ.'.",
       });
     }
 
     const trimmedKey = apiKey.trim();
+
+    // Live check against Google BEFORE saving anything — catches
+    // fake/typo'd keys that merely pass the format regex (e.g.
+    // "AQ.randomtext123"). Uses listModels, which does not count
+    // against the user's daily content-generation quota.
+    const liveCheck = await verifyGeminiKeyIsLive(trimmedKey);
+    if (!liveCheck.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: liveCheck.message,
+      });
+    }
+
     const { encryptedData, iv, authTag } = encrypt(trimmedKey);
     const keyFingerprint = hashKeyForDedup(trimmedKey);
 

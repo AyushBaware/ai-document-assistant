@@ -37,14 +37,17 @@ function ApiKeyModal({ onKeySaved, onKeyShared }) {
   const [isValidating, setIsValidating] = useState(false);
 
   // ──────────────────────────────────────────────────
-  // BASIC VALIDATION
-  // Gemini API keys always start with "AIza" and are
-  // 39 characters long. We check this before saving
-  // so users don't paste the wrong thing by mistake.
+  // BASIC VALIDATION (format only — instant, no network call)
+  // Google currently issues Gemini API keys in TWO formats:
+  //   - Legacy "Traffic Keys":  AIzaSy... (39 chars)
+  //   - Newer "Auth Keys":      AQ.Ab8...  (dot-separated)
+  // This only rules out obviously-wrong pastes (empty, wrong
+  // prefix, stray whitespace/characters). The REAL check — does
+  // this key actually work — happens on the backend via a live
+  // call to Gemini, right before saving. See handleSave() below.
   // ──────────────────────────────────────────────────
-  const isValidKeyFormat = (key) => {
-    return key.startsWith("AIza") && key.length >= 35;
-  };
+  const KEY_FORMAT_REGEX = /^(AIzaSy|AQ\.)[A-Za-z0-9_-]+$/;
+  const isValidKeyFormat = (key) => KEY_FORMAT_REGEX.test(key);
 
   const handleSave = async () => {
     const trimmed = apiKey.trim();
@@ -56,7 +59,7 @@ function ApiKeyModal({ onKeySaved, onKeyShared }) {
 
     if (!isValidKeyFormat(trimmed)) {
       setError(
-        "This doesn't look like a valid Gemini API key. Keys start with 'AIza' and are ~39 characters."
+        "This doesn't look like a valid Gemini API key. Keys start with 'AIzaSy' or 'AQ.'."
       );
       return;
     }
@@ -64,8 +67,12 @@ function ApiKeyModal({ onKeySaved, onKeyShared }) {
     try {
       setIsValidating(true);
       setError("");
-      // Encrypted and saved on the backend — never kept in the browser.
+      // Backend runs a real, live check against Google before saving —
+      // catches typos/fake keys that merely LOOK right, not just
+      // format mismatches. Encrypted and saved server-side — the
+      // raw key never stays in the browser.
       const saveResult = await saveApiKey(trimmed);
+
       if (saveResult?.keyShared && onKeyShared) {
         // Fires BEFORE onKeySaved() below, since onKeySaved can cause
         // this modal to unmount immediately (geminiKey flips to
@@ -162,7 +169,7 @@ function ApiKeyModal({ onKeySaved, onKeyShared }) {
                 setError(""); // Clear error on type
               }}
               onKeyDown={handleKeyDown}
-              placeholder="AIza..."
+              placeholder="AIzaSy... or AQ.Ab8..."
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pr-12 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 focus:bg-white/8 transition-all font-mono"
             />
             {/* SHOW/HIDE KEY TOGGLE */}
