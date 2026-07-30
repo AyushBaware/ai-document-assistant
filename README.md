@@ -6,7 +6,7 @@
 
 Upload PDFs, Word docs, PowerPoints, text files, or images and instantly get AI-generated summaries, structured notes, plain-English explanations, and a RAG-powered chat assistant that answers questions grounded strictly in your own content.
 
-[Live Demo](https://your-project-name.vercel.app) · [Report a Bug](https://github.com/AyushBaware/ai-document-assistant/issues) · [Request a Feature](https://github.com/AyushBaware/ai-document-assistant/issues)
+[Live Demo](https://documind-ai-brown.vercel.app) · [Report a Bug](https://github.com/AyushBaware/ai-document-assistant/issues) · [Request a Feature](https://github.com/AyushBaware/ai-document-assistant/issues)
 
 </div>
 

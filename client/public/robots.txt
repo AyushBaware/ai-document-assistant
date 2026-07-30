@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://your-project-name.vercel.app/sitemap.xml
+Sitemap: https://documind-ai-brown.vercel.app/sitemap.xml
