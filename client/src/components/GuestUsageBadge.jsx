@@ -12,7 +12,8 @@ function GuestUsageBadge({ remaining }) {
   return (
     <div
       className="fixed bottom-4 left-4 z-20 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-gray-300 backdrop-blur-md select-none"
-      title="Free guest requests remaining"
+      data-tooltip="Free guest requests remaining"
+      data-tooltip-align="start"
     >
       <span className={remaining <= 1 ? "text-amber-300 font-medium" : ""}>
         {remaining}/5

@@ -63,7 +63,7 @@ function ScrollToBottomButton({ scrollRef, deps = [] }) {
           exit={{ opacity: 0, y: 8, scale: 0.9 }}
           transition={{ duration: 0.15 }}
           onClick={scrollToBottom}
-          title="Scroll to bottom"
+          data-tooltip="Scroll to bottom"
           className="cursor-pointer w-9 h-9 rounded-full bg-white/10 border border-white/15 backdrop-blur-md flex items-center justify-center text-gray-300 hover:text-white hover:bg-white/20 transition-all shadow-lg shadow-black/30"
         >
           <FiArrowDown className="text-base" />

@@ -46,6 +46,129 @@ body {
   animation: glossaryPop 0.12s ease-out;
 }
 
+/* ── CUSTOM ICON/BUTTON TOOLTIPS ──────────────────────────
+   Replaces native title="" tooltips (OS-rendered square boxes)
+   with a small rounded tooltip matching the app's own styling.
+
+   Usage:
+     data-tooltip="Label text"
+     data-tooltip-pos="bottom" | "right"   (default = above)
+     data-tooltip-align="start" | "end"    (default = center)
+       — use "start" when the trigger sits near the LEFT edge
+         of the screen (tooltip grows rightward instead)
+       — use "end" when the trigger sits near the RIGHT edge
+         of the screen (tooltip grows leftward instead)
+
+   Delay mimics native OS tooltips: a short pause before
+   appearing, instant fade-out on leave. */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::after,
+[data-tooltip]::before {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+  z-index: 99999;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  white-space: nowrap;
+  max-width: min(240px, calc(100vw - 20px));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: #0d1117;
+  color: #e5e7eb;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+[data-tooltip]::before {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #0d1117;
+  transform: rotate(45deg);
+}
+
+/* ── VERTICAL PLACEMENT: default/"top" = above, "bottom" = below ── */
+[data-tooltip]:not([data-tooltip-pos="bottom"]):not([data-tooltip-pos="right"])::after {
+  bottom: calc(100% + 8px);
+}
+[data-tooltip]:not([data-tooltip-pos="bottom"]):not([data-tooltip-pos="right"])::before {
+  bottom: calc(100% + 3px);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-tooltip-pos="bottom"]::after {
+  top: calc(100% + 8px);
+}
+[data-tooltip-pos="bottom"]::before {
+  top: calc(100% + 3px);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ── HORIZONTAL PLACEMENT (top/bottom variants only) ──────────
+   default: centered on the trigger
+   align="start": box's LEFT edge lines up with trigger's left
+   align="end": box's RIGHT edge lines up with trigger's right
+   The little arrow always stays centered on the trigger itself,
+   regardless of which way the box is shifted. */
+[data-tooltip]:not([data-tooltip-pos="right"]):not([data-tooltip-align])::after {
+  left: 50%;
+  transform: translateX(-50%);
+}
+[data-tooltip]:not([data-tooltip-pos="right"])::before {
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+[data-tooltip-align="start"]:not([data-tooltip-pos="right"])::after {
+  left: 0;
+  transform: none;
+}
+[data-tooltip-align="end"]:not([data-tooltip-pos="right"])::after {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+/* ── RIGHT-SIDE PLACEMENT (collapsed sidebar icons) ───────────
+   Grows into the main content area, so it's inherently safe
+   from left-edge overflow; only clamp so it can't run past the
+   right edge of very narrow viewports. */
+[data-tooltip-pos="right"]::after {
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  max-width: min(240px, calc(100vw - 100% - 20px));
+}
+[data-tooltip-pos="right"]::before {
+  left: calc(100% + 3px);
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@media (hover: hover) {
+  [data-tooltip]:hover::after,
+  [data-tooltip]:hover::before {
+    transition-delay: 0.5s;
+    opacity: 1;
+  }
+}
+
 /* ── GLOBAL MINIMAL SCROLLBAR ─────────────────────────────
    Applies everywhere (chat messages, desktop sidebar, history
    panels, hamburger dropdown lists) via one shared rule —

@@ -347,7 +347,9 @@ function App() {
             <button
               onClick={() => setShowSettings((v) => !v)}
               className="cursor-pointer w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
-              title="API Key Settings"
+              data-tooltip="API Key Settings"
+              data-tooltip-pos="bottom"
+              data-tooltip-align="end"
             >
               <FiSettings className="text-lg" />
             </button>

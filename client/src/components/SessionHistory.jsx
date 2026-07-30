@@ -26,6 +26,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FiClock, FiTrash2, FiX, FiMenu } from "react-icons/fi";
 import { useAuth } from "../context/AuthContext";
 import { getAllSessions, deleteSession } from "../api/sessionApi";
+import { useHoverTooltip } from "../hooks/useHoverTooltip";
 
 const formatRelativeTime = (dateString) => {
   const diff = Date.now() - new Date(dateString).getTime();
@@ -46,6 +47,7 @@ function SessionHistory({ onSelectSession, refreshTrigger, activeSessionId }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const { showTooltip, hideTooltip, tooltipPortal } = useHoverTooltip();
 
   // Reload sessions whenever the panel opens, or when
   // refreshTrigger changes (bumped by App.jsx after a new
@@ -92,8 +94,9 @@ function SessionHistory({ onSelectSession, refreshTrigger, activeSessionId }) {
       {/* TOGGLE BUTTON */}
       <button
         onClick={() => setIsOpen(true)}
+        onMouseEnter={(e) => showTooltip(e, "View History", { position: "bottom", align: "start" })}
+        onMouseLeave={hideTooltip}
         className="cursor-pointer fixed top-4 left-4 z-20 w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
-        title="View History"
       >
         <FiClock className="text-lg" />
       </button>
@@ -219,8 +222,9 @@ function SessionHistory({ onSelectSession, refreshTrigger, activeSessionId }) {
                       </div>
                       <button
                         onClick={(e) => handleDelete(e, session.id)}
+                        onMouseEnter={(e) => showTooltip(e, "Delete session", { position: "top", align: "end" })}
+                        onMouseLeave={hideTooltip}
                         className="cursor-pointer opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10 shrink-0"
-                        title="Delete session"
                       >
                         <FiTrash2 className="text-sm" />
                       </button>
@@ -240,6 +244,8 @@ function SessionHistory({ onSelectSession, refreshTrigger, activeSessionId }) {
           </>
         )}
       </AnimatePresence>
+
+      {tooltipPortal}
     </>
   );
 }

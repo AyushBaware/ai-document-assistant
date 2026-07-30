@@ -20,6 +20,7 @@ import { FiBell, FiTrash2 } from "react-icons/fi";
 import { useAuth } from "../context/AuthContext";
 import { getNotifications, markNotificationRead, deleteNotification } from "../api/notificationApi";
 import NotificationDetailModal from "./NotificationDetailModal";
+import { useHoverTooltip } from "../hooks/useHoverTooltip";
 
 // Matches SessionHistory.jsx's own relative-time formatting exactly,
 // for a consistent feel across the app's two notification-like lists.
@@ -49,6 +50,7 @@ function NotificationBell() {
   const [loading, setLoading] = useState(false);
   const [detailNotification, setDetailNotification] = useState(null);
   const isMobile = useRef(isTouchDevice());
+  const { showTooltip, hideTooltip, tooltipPortal } = useHoverTooltip();
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
@@ -113,7 +115,9 @@ function NotificationBell() {
       <button
         onClick={() => setIsOpen((v) => !v)}
         className="cursor-pointer relative w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
-        title="Notifications"
+        data-tooltip="Notifications"
+        data-tooltip-pos="bottom"
+        data-tooltip-align="end"
       >
         <FiBell className="text-lg" />
         {unreadCount > 0 && (
@@ -213,8 +217,9 @@ function NotificationBell() {
                         e.stopPropagation();
                         handleDelete(n._id);
                       }}
+                      onMouseEnter={(e) => showTooltip(e, "Delete notification", { position: "bottom", align: "end" })}
+                      onMouseLeave={hideTooltip}
                       className="cursor-pointer absolute top-2 right-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10 shrink-0"
-                      title="Delete notification"
                     >
                       <FiTrash2 className="text-sm" />
                     </button>
@@ -230,6 +235,8 @@ function NotificationBell() {
         notification={detailNotification}
         onClose={() => setDetailNotification(null)}
       />
+
+      {tooltipPortal}
     </div>
   );
 }
