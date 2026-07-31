@@ -24,7 +24,13 @@ export const assignDeviceId = (req, res, next) => {
     res.cookie(COOKIE_NAME, deviceId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      // "lax" is now correct in BOTH environments — the Vercel rewrite
+      // makes the frontend and backend appear same-site to the browser
+      // in production, and localhost:5173 → localhost:5000 is already
+      // same-site in dev. "none" is no longer needed and was the
+      // looser, more permissive setting — safe to drop it now that
+      // we don't have a genuine cross-site cookie situation anymore.
+      sameSite: "lax",
       maxAge: COOKIE_MAX_AGE,
     });
   }
