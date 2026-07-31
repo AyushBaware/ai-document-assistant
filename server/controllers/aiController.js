@@ -70,9 +70,19 @@ import Session        from "../models/Session.js";
 // ── API CONFIGURATION ─────────────────────────────────────────
 // gemini-2.5-flash: fast, large output limit (65,535 tokens),
 // cost-efficient — the right choice for document analysis.
-const GEMINI_MODEL = "gemini-2.5-flash";
-const GEMINI_URL   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+// "gemini-flash-latest" is Google's own auto-updated alias — it always
+// points to whichever Flash model Google currently serves to ALL keys,
+// old and new. Pinning an exact version (gemini-2.5-flash) broke for a
+// chunk of new signups the moment Google blocked that specific model for
+// new keys — the alias avoids that entire class of failure going forward.
+const GEMINI_MODEL = "gemini-flash-latest";
+// Second line of defense — used only if the alias itself is somehow
+// unavailable for a given key. This is exactly the failure mode that just
+// happened, so this makes it self-healing instead of a repeat outage.
+const FALLBACK_GEMINI_MODEL = "gemini-2.5-flash-lite";
 
+const geminiUrlFor = (model) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
 // ── INPUT LIMIT PER DOCUMENT ──────────────────────────────────
 // 80,000 chars ≈ 26 dense A4 pages. Most documents fit in full.
@@ -371,9 +381,10 @@ export const callGemini = async (
   userContent,
   apiKey,
   maxTokens,
-  retryCount = 0
+  retryCount = 0,
+  model = GEMINI_MODEL
 ) => {
-  const response = await fetch(GEMINI_URL, {
+  const response = await fetch(geminiUrlFor(model), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -399,7 +410,24 @@ export const callGemini = async (
 
   if (!response.ok) {
     console.error("[Gemini] API error:", JSON.stringify(data, null, 2));
-    throw new Error(data.error?.message || "Gemini request failed");
+
+    // MODEL UNAVAILABLE FOR THIS KEY — the exact bug that broke the app
+    // for new users. Auto-retry once against FALLBACK_GEMINI_MODEL instead
+    // of failing outright. `model !== FALLBACK` stops it retrying forever.
+    const errMsg = data.error?.message || "";
+    const isModelUnavailable =
+      response.status === 404 && /no longer available|not found/i.test(errMsg);
+
+    if (isModelUnavailable && model !== FALLBACK_GEMINI_MODEL) {
+      console.warn(
+        `[Gemini] "${model}" unavailable for this key. Retrying with "${FALLBACK_GEMINI_MODEL}".`
+      );
+      return callGemini(
+        systemInstruction, userContent, apiKey, maxTokens, retryCount, FALLBACK_GEMINI_MODEL
+      );
+    }
+
+    throw new Error(errMsg || "Gemini request failed");
   }
 
   const candidate    = data.candidates?.[0];
@@ -412,7 +440,7 @@ export const callGemini = async (
       `[Gemini] ⚠️ MAX_TOKENS at ceiling=${maxTokens}. Retrying at HARD_MAX=${HARD_MAX}.`
     );
     return callGemini(
-      systemInstruction, userContent, apiKey, HARD_MAX, retryCount + 1
+      systemInstruction, userContent, apiKey, HARD_MAX, retryCount + 1, model
     );
   }
 
@@ -476,6 +504,9 @@ export const classifyError = (message = "") => {
   if (msg.includes("api key") || msg.includes("invalid") || msg.includes("unauthorized")) {
     return "This API key is invalid or expired. Please update your Gemini API key in Settings.";
   }
+  if (msg.includes("no longer available") || msg.includes("not found")) {
+    return "Google updated their AI models — please try again in a moment. If this keeps happening, let us know.";
+  }
   return message || "AI generation failed.";
 };
 
@@ -490,6 +521,9 @@ export const getErrorCode = (message = "") => {
   }
   if (msg.includes("api key") || msg.includes("invalid") || msg.includes("unauthorized")) {
     return "INVALID_KEY";
+  }
+  if (msg.includes("no longer available") || msg.includes("not found")) {
+    return "MODEL_UNAVAILABLE";
   }
   return null;
 };
