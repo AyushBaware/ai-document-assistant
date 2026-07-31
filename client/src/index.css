@@ -65,6 +65,13 @@ body {
   position: relative;
 }
 
+[data-tooltip].fixed {
+  position: fixed;
+}
+[data-tooltip].absolute {
+  position: absolute;
+}
+
 [data-tooltip]::after,
 [data-tooltip]::before {
   opacity: 0;

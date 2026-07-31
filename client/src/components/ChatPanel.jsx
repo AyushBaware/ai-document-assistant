@@ -285,7 +285,7 @@ function ChatPanel({
               {msg.role === "assistant" && (
                 <button
                   onClick={() => handleCopyMessage(msg.content, i)}
-                  className="cursor-pointer absolute -top-2 -right-2 transition-all w-6 h-6 rounded-full bg-white/10 border border-white/10 text-gray-400 hover:text-white hover:bg-white/20 flex items-center justify-center text-xs"
+                  className="cursor-pointer absolute top-[-8px] right-[-8px] transition-all w-6 h-6 rounded-full bg-white/10 border border-white/10 text-gray-400 hover:text-white hover:bg-white/20 flex items-center justify-center text-xs"
                   data-tooltip="Copy answer"
                 >
                   {copiedIndex === i ? "✓" : "⧉"}
