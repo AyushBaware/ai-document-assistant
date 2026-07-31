@@ -46,12 +46,7 @@ export const AI_MODES = [
 // Shown as clickable starter pills in the full-screen chat when no
 // messages exist yet — generic, document-agnostic prompts (no extra
 // API call needed to generate these).
-export const CHAT_SUGGESTIONS = [
-  "Summarize the key points",
-  "What are the main topics covered?",
-  "Explain this in simple terms",
-  "What should I focus on for revision?",
-];
+export const CHAT_SUGGESTIONS = [];
 
 // Hamburger nav items for the full-screen view — "Chat" (type: null)
 // plus the three AI modes. Real icon components, not emoji.
