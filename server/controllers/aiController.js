@@ -534,7 +534,7 @@ export const getErrorCode = (message = "") => {
 // Route: POST /api/ai/generate
 export const generateAIResponse = async (req, res) => {
   try {
-    const { type, selectedDocumentIds } = req.body;
+    const { type, selectedDocumentIds, batchId } = req.body;
 
     const apiKey = req.geminiApiKey;
 
@@ -552,21 +552,29 @@ export const generateAIResponse = async (req, res) => {
       });
     }
 
-    const allDocuments = knowledgeStore.getAllDocuments();
-    let docsToUse      = allDocuments;
+    if (!batchId) {
+      return res.status(400).json({
+        success: false,
+        message: "No upload batch found. Please upload your documents again.",
+      });
+    }
+
+    // SECURITY: batchId scopes this lookup to exactly this upload — no
+    // shared array, so concurrent users can never see each other's docs.
+    const batchDocuments = knowledgeStore.getBatch(batchId);
+    let docsToUse        = batchDocuments;
 
     if (Array.isArray(selectedDocumentIds) && selectedDocumentIds.length > 0) {
       const idSet = new Set(selectedDocumentIds);
-      const filtered = allDocuments.filter((d) => idSet.has(d.id));
-      if (filtered.length > 0) docsToUse = filtered;
+      docsToUse = batchDocuments.filter((d) => idSet.has(d.id));
     }
 
     if (!docsToUse || docsToUse.length === 0) {
       return res.status(400).json({
         success: false,
-        message: "No documents found. Please upload and process files first.",
+        message: "Your uploaded documents are no longer available — this can happen if the batch expired or another upload ran. Please re-upload and try again.",
       });
-    }
+    } 
 
     const { systemInstruction, userContent, tokenBudget } = buildPrompt(docsToUse, type);
     const { text: rawResult, finishReason } = await callGemini(

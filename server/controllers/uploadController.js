@@ -44,8 +44,6 @@ export const uploadFiles = async (req, res) => {
       });
     }
 
-    knowledgeStore.clearDocuments();
-
     const batchId = crypto.randomUUID();
 
     const results = await Promise.all(
@@ -102,7 +100,7 @@ export const uploadFiles = async (req, res) => {
       });
     }
 
-    processedDocs.forEach((doc) => knowledgeStore.addDocument(doc));
+    knowledgeStore.addBatch(batchId, processedDocs);
 
     // ── EMBED + STORE CHUNKS FOR RAG (with dedupe + retry) ───
     // failedDocumentIds is declared outside the try so it's still

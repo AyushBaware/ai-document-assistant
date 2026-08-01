@@ -140,7 +140,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     setError,
     setSourceFileNames: setAiSourceFileNames,
     currentSessionId,
-    isPreloadedSession,
+    currentBatchId,
     setMenuOpen,
   });
 

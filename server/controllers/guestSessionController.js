@@ -100,9 +100,17 @@ export const convertGuestSession = async (req, res) => {
     // reads from it. If it's gone (server restarted, or a different
     // upload ran since), fail gracefully instead of creating an empty
     // session.
-    const allDocuments = knowledgeStore.getAllDocuments();
+    if (!pending.batchId) {
+      await PendingGuestSession.deleteOne({ deviceId: req.deviceId });
+      return res.status(410).json({
+        success: false,
+        message: "Your previous session has expired and can no longer be restored.",
+      });
+    }
+
+    const batchDocuments = knowledgeStore.getBatch(pending.batchId);
     const idSet = new Set(pending.documents.map((d) => d.id));
-    const matchedDocuments = allDocuments.filter((doc) => idSet.has(doc.id));
+    const matchedDocuments = batchDocuments.filter((doc) => idSet.has(doc.id));
 
     if (matchedDocuments.length === 0) {
       await PendingGuestSession.deleteOne({ deviceId: req.deviceId });

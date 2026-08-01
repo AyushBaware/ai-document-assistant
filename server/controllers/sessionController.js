@@ -52,9 +52,16 @@ export const createSession = async (req, res) => {
       });
     }
 
-    const allDocuments = knowledgeStore.getAllDocuments();
+    if (!batchId) {
+      return res.status(400).json({
+        success: false,
+        message: "No upload batch found. Please upload your documents again.",
+      });
+    }
+
+    const batchDocuments = knowledgeStore.getBatch(batchId);
     const idSet = new Set(documentIds);
-    const matchedDocuments = allDocuments.filter((doc) => idSet.has(doc.id));
+    const matchedDocuments = batchDocuments.filter((doc) => idSet.has(doc.id));
 
     if (matchedDocuments.length === 0) {
       return res.status(404).json({

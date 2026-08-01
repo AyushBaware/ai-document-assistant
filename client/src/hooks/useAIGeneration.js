@@ -16,7 +16,7 @@ export function useAIGeneration({
   setError,
   setSourceFileNames,
   currentSessionId,
-  isPreloadedSession,
+  currentBatchId,
   setMenuOpen,
 }) {
   const [aiLoading, setAiLoading] = useState(false);
@@ -49,7 +49,11 @@ export function useAIGeneration({
 
       let data;
 
-      if (isPreloadedSession && currentSessionId && token) {
+      // Route by whether a saved session exists — not isPreloadedSession.
+      // A fresh upload by a logged-in user already has a real session
+      // (created in useFileUpload.js right after upload) just as much as
+      // a reopened one. Matches the condition ChatPanel.jsx already uses.
+      if (currentSessionId && token) {
         data = await generateAIFromSession(
           currentSessionId,
           type,
@@ -58,7 +62,7 @@ export function useAIGeneration({
           selectedFileNames,
         );
       } else {
-        data = await generateAI(null, type, selectedIds);
+        data = await generateAI(currentBatchId, type, selectedIds);
       }
 
       const glossaryData = data.glossary || [];

@@ -26,11 +26,11 @@
 import httpClient from "./httpClient";
 
 export const generateAI = async (
-  _extractedText,        // unused — backend reads from knowledgeStore
-  type,                  // "summary" | "notes" | "explain"
+  batchId,                // REQUIRED now — scopes the lookup to this upload
+  type,                   // "summary" | "notes" | "explain"
   selectedDocumentIds = []
 ) => {
-  const body = { type };
+  const body = { type, batchId };
 
   if (Array.isArray(selectedDocumentIds) && selectedDocumentIds.length > 0) {
     body.selectedDocumentIds = selectedDocumentIds;
