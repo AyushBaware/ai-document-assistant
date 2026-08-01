@@ -8,6 +8,43 @@ const httpClient = axios.create({
   withCredentials: true, // sends the httpOnly deviceId cookie with every request
 });
 
+// ── REQUEST INTERCEPTOR: always attach the auth token when present ────
+// FIXED: generateAI, askQuestion, and uploadFiles (the FRESH-upload code
+// paths) never attached the JWT, even for a fully logged-in user — only
+// the *FromSession variants built the header manually. The backend's
+// optionalAuth only sets req.userId if it sees this header, so a
+// logged-in user hitting these specific endpoints was silently treated
+// as an anonymous guest and subjected to the 5-request guest cap. That's
+// why some already-signed-in users kept being shown "Sign in with
+// Google" in a loop — signing in again changed nothing, since the token
+// was never sent on that request in the first place. Attaching it here,
+// once, for every outgoing request closes this for good.
+//
+// Uses AxiosHeaders' own .has()/.set() rather than direct property
+// access — config.headers is an AxiosHeaders instance by the time a
+// request interceptor runs, and those methods are the documented,
+// case-insensitive way to check/set on it (bracket access on the raw
+// instance isn't guaranteed stable across axios versions).
+httpClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem("app_jwt_token");
+  if (!token) return config;
+
+  const alreadySet =
+    typeof config.headers?.has === "function"
+      ? config.headers.has("Authorization")
+      : !!(config.headers && config.headers.Authorization);
+
+  if (!alreadySet) {
+    if (typeof config.headers?.set === "function") {
+      config.headers.set("Authorization", `Bearer ${token}`);
+    } else {
+      config.headers = { ...(config.headers || {}), Authorization: `Bearer ${token}` };
+    }
+  }
+
+  return config;
+});
+
 // SELF-HEALING AUTH + GUEST USAGE TRACKING:
 // One shared response interceptor handles two unrelated concerns
 // that both need to observe every response:
