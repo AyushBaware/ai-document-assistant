@@ -2,11 +2,6 @@
 
 # 📄 DocuMind AI
 
-[![React](https://shields.io)](https://react.dev)
-[![MongoDB](https://shields.io)](https://mongodb.com)
-[![Gemini](https://shields.io)](https://deepmind.google)
-[![License: MIT](https://shields.io)](https://opensource.org)
-
 **AI-powered document intelligence — upload, understand, and converse with your documents.**
 
 Upload PDFs, Word docs, PowerPoints, text files, or images and instantly get AI-generated summaries, structured notes, plain-English explanations, and a RAG-powered chat assistant that answers questions grounded strictly in your own content.
