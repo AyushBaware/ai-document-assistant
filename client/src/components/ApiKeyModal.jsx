@@ -46,6 +46,7 @@ function ApiKeyModal({
   onKeyShared,
   dismissible = false,
   onDismiss,
+  guestRequestsRemaining = null,
 }) {
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
@@ -223,21 +224,41 @@ function ApiKeyModal({
             </AnimatePresence>
           </div>
 
-          {/* GUEST LIMIT DISCLOSURE */}
-          <div className="flex items-center gap-2.5 rounded-xl border border-cyan-400/20 bg-cyan-500/[0.06] px-4 py-2.5 mb-6">
-            <FiZap className="text-cyan-400 text-base shrink-0" />
-            <p className="text-xs text-cyan-100 leading-snug text-left">
-              <span className="font-semibold">5 free requests</span> without an
-              account — sign in anytime for unlimited access.
-            </p>
-          </div>
+          {/* GUEST LIMIT DISCLOSURE — hidden once the free quota is
+              fully used up (0 remaining), since it's no longer a
+              benefit to advertise at that point. Shows the real
+              remaining count for a returning guest; falls back to
+              the generic "5 free requests" pitch for a brand-new
+              visitor (remaining is null before the first status
+              check resolves). */}
+          {guestRequestsRemaining !== 0 && (
+            <div className="flex items-center gap-2.5 rounded-xl border border-cyan-400/20 bg-cyan-500/[0.06] px-4 py-2.5 mb-6">
+              <FiZap className="text-cyan-400 text-base shrink-0" />
+              <p className="text-xs text-cyan-100 leading-snug text-left">
+                {guestRequestsRemaining === null ? (
+                  <>
+                    <span className="font-semibold">5 free requests</span> without
+                    an account — sign in anytime for unlimited access.
+                  </>
+                ) : (
+                  <>
+                    <span className="font-semibold">
+                      {guestRequestsRemaining} free request
+                      {guestRequestsRemaining === 1 ? "" : "s"} left
+                    </span>{" "}
+                    without an account — sign in anytime for unlimited access.
+                  </>
+                )}
+              </p>
+            </div>
+          )}
 
           {/* INPUT */}
           <div className="relative mb-2">
             <input
               type={showKey ? "text" : "password"}
               value={apiKey}
-              onChange={(e) => {a
+              onChange={(e) => {
                 setApiKey(e.target.value);
                 setError(""); // Clear error on type
               }}

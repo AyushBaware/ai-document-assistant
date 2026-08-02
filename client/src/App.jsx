@@ -315,6 +315,7 @@ function App() {
                         logout();
                         setShowUserMenu(false);
                         setSelectedSessionId(null); // clear any loaded session on logout
+                        refreshKeyStatus(); // re-fetch guest usage so the badge is accurate immediately, no manual refresh needed
                       }}
                       className="cursor-pointer w-full flex items-center justify-center gap-2 text-xs py-2 rounded-lg bg-red-500/10 border border-red-400/20 text-red-300 hover:bg-red-500/20 transition"
                     >
@@ -413,6 +414,7 @@ function App() {
             onSessionSaved={handleSessionSaved}
             onHeroVisibilityChange={setHideHero}
             onFullScreenChatChange={setHideChrome}
+            guestRequestsRemaining={guestRequestsRemaining}
           />
         ) : null}
       </div>
@@ -427,6 +429,7 @@ function App() {
           }
           dismissible={keyModalDismissible}
           onDismiss={handleDismissKeyModal}
+          guestRequestsRemaining={guestRequestsRemaining}
         />
       )}
 

@@ -36,7 +36,7 @@ import FileDropzone from "./upload/FileDropzone";
 import ModeSelector from "./upload/ModeSelector";
 import FullScreenView from "./upload/FullScreenView";
 
-function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibilityChange, onFullScreenChatChange }) {
+function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibilityChange, onFullScreenChatChange, guestRequestsRemaining }) {
   const { user, token } = useAuth();
 
   const [error, setError] = useState("");
@@ -77,6 +77,7 @@ function UploadBox({ geminiKey, preloadedSession, onSessionSaved, onHeroVisibili
     geminiKey,
     user,
     token,
+    guestRequestsRemaining,
     onSessionSaved,
     setProcessedFileNames,
     setProcessedDocs,
