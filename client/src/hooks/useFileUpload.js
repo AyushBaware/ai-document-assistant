@@ -55,6 +55,16 @@ export function useFileUpload({
   // This is the single place new files actually get merged in,
   // so both entry points behave identically.
   const addFiles = (newFileList) => {
+    // A guest who has already used all 5 free requests must sign in
+    // before doing anything else — catching this here (not just at
+    // "Process Documents") means files never even reach the review
+    // screen; they see the login prompt the moment they try to add
+    // anything, whether via the file picker or drag-and-drop.
+    if (!user && guestRequestsRemaining === 0) {
+      window.dispatchEvent(new CustomEvent("guest-limit-reached"));
+      return;
+    }
+
     const incoming = Array.from(newFileList);
 
     // Filter out unsupported file types client-side for instant
@@ -148,17 +158,6 @@ export function useFileUpload({
   // ── PROCESS (initial or re-process after changes) ────────
   const handleUpload = async () => {
     if (files.length === 0) return;
-
-    // A guest who has already used all 5 free requests must sign in
-    // BEFORE uploading — letting them upload/process and only hitting
-    // the wall at generation time wastes their time and looks broken.
-    // Reuses the same "guest-limit-reached" event the backend already
-    // triggers, so this shows the exact same GuestLimitModal instead
-    // of introducing a second, inconsistent UI for the same limit.
-    if (!user && guestRequestsRemaining === 0) {
-      window.dispatchEvent(new CustomEvent("guest-limit-reached"));
-      return;
-    }
 
     setLoading(true);
     setError("");
