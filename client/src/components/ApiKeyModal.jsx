@@ -25,16 +25,34 @@
 // It takes about 2 minutes and is completely free.
 // ============================================================
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiKey, FiExternalLink, FiEye, FiEyeOff, FiCheck, FiZap } from "react-icons/fi";
+import {
+  FiKey,
+  FiExternalLink,
+  FiEye,
+  FiEyeOff,
+  FiCheck,
+  FiZap,
+  FiHelpCircle,
+} from "react-icons/fi";
 import { saveApiKey } from "../api/apiKeyApi";
 
-function ApiKeyModal({ onKeySaved, onKeyShared, dismissible = false, onDismiss }) {
+const isTouchDevice = () =>
+  typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
+
+function ApiKeyModal({
+  onKeySaved,
+  onKeyShared,
+  dismissible = false,
+  onDismiss,
+}) {
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [error, setError] = useState("");
   const [isValidating, setIsValidating] = useState(false);
+  const [showSteps, setShowSteps] = useState(false);
+  const isTouch = useRef(isTouchDevice());
 
   // ──────────────────────────────────────────────────
   // BASIC VALIDATION (format only — instant, no network call)
@@ -59,7 +77,7 @@ function ApiKeyModal({ onKeySaved, onKeyShared, dismissible = false, onDismiss }
 
     if (!isValidKeyFormat(trimmed)) {
       setError(
-        "This doesn't look like a valid Gemini API key. Keys start with 'AIzaSy' or 'AQ.'."
+        "This doesn't look like a valid Gemini API key. Keys start with 'AIzaSy' or 'AQ.'.",
       );
       return;
     }
@@ -87,12 +105,13 @@ function ApiKeyModal({ onKeySaved, onKeyShared, dismissible = false, onDismiss }
       // never find it again on the next request — say so plainly.
       if (status?.cookiesBlocked || status?.hasKey === false) {
         setError(
-          "Your key was saved, but your browser is blocking cookies, so we can't remember it. Please allow cookies for this site and try again — or sign in, which isn't affected by this."
+          "Your key was saved, but your browser is blocking cookies, so we can't remember it. Please allow cookies for this site and try again — or sign in, which isn't affected by this.",
         );
       }
     } catch (err) {
       setError(
-        err.response?.data?.message || "Couldn't save your key. Please try again."
+        err.response?.data?.message ||
+          "Couldn't save your key. Please try again.",
       );
     } finally {
       setIsValidating(false);
@@ -134,43 +153,91 @@ function ApiKeyModal({ onKeySaved, onKeyShared, dismissible = false, onDismiss }
           </div>
 
           {/* HEADING */}
-          <h2 className="text-xl sm:text-2xl font-bold text-white text-center mb-2">
+          <h2 className="text-xl sm:text-2xl font-bold text-white text-center mb-1.5 tracking-tight">
             Enter Your Gemini API Key
           </h2>
 
-          {/* EXPLANATION — tell the user exactly what's happening */}
-          <p className="text-gray-400 text-sm text-center leading-relaxed mb-5">
-            DocuMind AI uses Google Gemini to analyze your documents.
-            Your key is <span className="text-white font-medium">encrypted and stored securely</span>.
+          {/* EXPLANATION */}
+          <p className="text-gray-400 text-sm text-center leading-relaxed mb-6 px-2">
+            Powers DocuMind AI's document analysis —{" "}
+            <span className="text-white font-medium">free from Google</span>,
+            takes under a minute to set up.
           </p>
 
-          {/* GUEST LIMIT DISCLOSURE — stated upfront, not as a
-              surprise once the user hits the wall later. */}
-          <div className="flex items-center gap-2.5 rounded-xl border border-cyan-400/20 bg-cyan-500/[0.06] px-4 py-2.5 mb-6">
-            <FiZap className="text-cyan-400 text-base shrink-0" />
-            <p className="text-xs text-cyan-100 leading-snug text-left">
-              <span className="font-semibold">5 free requests</span>, no sign-in needed —
-              sign in anytime for unlimited access.
-            </p>
-          </div>
-
-          {/* HOW TO GET KEY LINK */}
+          {/* GET FREE KEY CTA */}
           <a
             href="https://aistudio.google.com/apikey"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 text-cyan-400 text-sm hover:text-cyan-300 transition-colors mb-6 group"
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-semibold hover:opacity-90 transition-all shadow-[0_0_20px_rgba(34,211,238,0.2)] group"
           >
             <FiExternalLink className="text-base group-hover:translate-x-0.5 transition-transform" />
-            Get a free API key at aistudio.google.com
+            Get Free API Key
           </a>
+
+          {/* QUICK-HELP — centered, out of the way, same row rhythm as the CTA above */}
+          <div className="relative flex justify-center mt-2.5 mb-6">
+            <button
+              type="button"
+              onMouseEnter={!isTouch.current ? () => setShowSteps(true) : undefined}
+              onMouseLeave={!isTouch.current ? () => setShowSteps(false) : undefined}
+              onClick={() => isTouch.current && setShowSteps((v) => !v)}
+              className="cursor-pointer flex items-center gap-1.5 text-xs text-gray-500 hover:text-cyan-300 transition-colors"
+            >
+              <FiHelpCircle className="text-sm" />
+              Need help getting one?
+            </button>
+
+            <AnimatePresence>
+              {showSteps && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute top-full mt-2 w-72 max-w-[85vw] rounded-xl border border-white/10 bg-[#12161f] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.4)] z-10 text-left"
+                >
+                  <p className="text-[11px] font-semibold text-gray-400 mb-2.5 tracking-wide uppercase">
+                    How to get your key
+                  </p>
+                  <ol className="space-y-2 text-xs text-gray-300">
+                    <li className="flex gap-2">
+                      <span className="text-cyan-400 font-semibold shrink-0">1.</span>
+                      Click <span className="text-cyan-300 font-medium">Get Free API Key</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-cyan-400 font-semibold shrink-0">2.</span>
+                      Sign in with your Google account
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-cyan-400 font-semibold shrink-0">3.</span>
+                      Click <span className="text-cyan-300 font-medium">Create API key</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-cyan-400 font-semibold shrink-0">4.</span>
+                      Copy it and paste it below
+                    </li>
+                  </ol>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* GUEST LIMIT DISCLOSURE */}
+          <div className="flex items-center gap-2.5 rounded-xl border border-cyan-400/20 bg-cyan-500/[0.06] px-4 py-2.5 mb-6">
+            <FiZap className="text-cyan-400 text-base shrink-0" />
+            <p className="text-xs text-cyan-100 leading-snug text-left">
+              <span className="font-semibold">5 free requests</span> without an
+              account — sign in anytime for unlimited access.
+            </p>
+          </div>
 
           {/* INPUT */}
           <div className="relative mb-2">
             <input
               type={showKey ? "text" : "password"}
               value={apiKey}
-              onChange={(e) => {
+              onChange={(e) => {a
                 setApiKey(e.target.value);
                 setError(""); // Clear error on type
               }}
@@ -184,7 +251,11 @@ function ApiKeyModal({ onKeySaved, onKeyShared, dismissible = false, onDismiss }
               onClick={() => setShowKey((v) => !v)}
               className="cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors p-1"
             >
-              {showKey ? <FiEyeOff className="text-base" /> : <FiEye className="text-base" />}
+              {showKey ? (
+                <FiEyeOff className="text-base" />
+              ) : (
+                <FiEye className="text-base" />
+              )}
             </button>
           </div>
 

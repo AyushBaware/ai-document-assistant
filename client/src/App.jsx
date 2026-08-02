@@ -446,8 +446,15 @@ function App() {
       />
 
       {/* GUEST USAGE UI (Phase 4) — only ever relevant for anonymous
-          users; all three render nothing once `user` is set. */}
-      {!user && <GuestUsageBadge remaining={guestRequestsRemaining} />}
+          users; all three render nothing once `user` is set. Hidden
+          while the API key modal is open — showing "2/5 left" behind
+          a modal that's pitching "5 free requests" as a fresh offer
+          is a confusing, conflicting message, and it also just
+          floats awkwardly over the dimmed backdrop instead of
+          staying out of the way like every other overlay does. */}
+      {!user && geminiKey !== "" && (
+        <GuestUsageBadge remaining={guestRequestsRemaining} />
+      )}
       {!user && (
         <GuestLimitToast
           message={guestToastMessage}
