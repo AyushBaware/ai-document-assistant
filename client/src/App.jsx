@@ -403,7 +403,7 @@ function App() {
 
         {!hideHero && !user && (
           <p className="sm:hidden text-center text-gray-500 text-xs mb-6">
-            Sign in (top right) to save your session history.
+            Sign in to save your session history.
           </p>
         )}
 
@@ -455,7 +455,12 @@ function App() {
           is a confusing, conflicting message, and it also just
           floats awkwardly over the dimmed backdrop instead of
           staying out of the way like every other overlay does. */}
-      {!user && geminiKey !== "" && (
+      {/* Hidden once the guest's free quota is fully exhausted (0
+          remaining) — a "0/5" badge advertises nothing and would
+          otherwise linger on screen (including right after logout,
+          once refreshKeyStatus re-syncs the real count) even though
+          the person can no longer use the app without signing in. */}
+      {!user && geminiKey !== "" && guestRequestsRemaining !== 0 && (
         <GuestUsageBadge remaining={guestRequestsRemaining} />
       )}
       {!user && (
