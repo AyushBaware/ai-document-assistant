@@ -69,13 +69,16 @@ import Session        from "../models/Session.js";
 
 // ── API CONFIGURATION ─────────────────────────────────────────
 // gemini-2.5-flash: fast, large output limit (65,535 tokens),
-// cost-efficient — the right choice for document analysis.
-// "gemini-flash-latest" is Google's own auto-updated alias — it always
-// points to whichever Flash model Google currently serves to ALL keys,
-// old and new. Pinning an exact version (gemini-2.5-flash) broke for a
-// chunk of new signups the moment Google blocked that specific model for
-// new keys — the alias avoids that entire class of failure going forward.
-const GEMINI_MODEL = "gemini-flash-latest";
+// cost-efficient, stable/GA — the right choice for document analysis.
+// NOTE: we deliberately do NOT use the "gemini-flash-latest" alias here.
+// Google's own docs state that alias "points to an experimental model
+// which will typically not be suitable for production use and come
+// with more restrictive rate limits" — it currently points to a
+// brand-new preview-tier model with a ~20 requests/day free-tier cap,
+// which is what was causing every free-tier key to fail regardless of
+// which key was used. gemini-2.5-flash is pinned, stable, and carries
+// a much larger free-tier quota.
+const GEMINI_MODEL = "gemini-2.5-flash";
 // Second line of defense — used only if the alias itself is somehow
 // unavailable for a given key. This is exactly the failure mode that just
 // happened, so this makes it self-healing instead of a repeat outage.
@@ -421,6 +424,27 @@ export const callGemini = async (
     if (isModelUnavailable && model !== FALLBACK_GEMINI_MODEL) {
       console.warn(
         `[Gemini] "${model}" unavailable for this key. Retrying with "${FALLBACK_GEMINI_MODEL}".`
+      );
+      return callGemini(
+        systemInstruction, userContent, apiKey, maxTokens, retryCount, FALLBACK_GEMINI_MODEL
+      );
+    }
+
+    // OVERLOADED — Gemini Flash models intermittently return 503 "high
+    // demand" during load spikes. Same self-healing pattern as the 404
+    // case above: one automatic retry against the lighter fallback
+    // model before giving up, since gemini-2.5-flash-lite is frequently
+    // available even when the primary Flash model is momentarily
+    // saturated. Guarded by `model !== FALLBACK_GEMINI_MODEL` so this
+    // can only ever fire once — no infinite retry loop if the fallback
+    // is ALSO overloaded, it just throws normally at that point.
+    const isOverloaded =
+      response.status === 503 ||
+      /overloaded|high demand|unavailable/i.test(errMsg);
+
+    if (isOverloaded && model !== FALLBACK_GEMINI_MODEL) {
+      console.warn(
+        `[Gemini] "${model}" overloaded. Retrying with "${FALLBACK_GEMINI_MODEL}".`
       );
       return callGemini(
         systemInstruction, userContent, apiKey, maxTokens, retryCount, FALLBACK_GEMINI_MODEL
