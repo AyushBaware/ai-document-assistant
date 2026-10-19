@@ -1,10 +1,4 @@
-// ======================================================
-// KNOWLEDGE STORE (batch-scoped, concurrency-safe)
-// Replaces the single shared array with per-batch storage so
-// concurrent uploads from different users can never contaminate
-// each other's document set. See aiController.js / uploadController.js
-// for how batchId flows through.
-// ======================================================
+// Purpose: Stores and retrieves document chunks for the active upload batch.
 
 import { retrieveRelevantChunks, retrieveRelevantChunksPerDocument } from "./retrieveChunks.js";
 

@@ -1,10 +1,4 @@
-// ============================================================
-// SaveGuestSessionModal.jsx
-//
-// Shown right after a successful login IF the person had an
-// anonymous session in progress. Styled to match GuestLimitModal
-// and ApiKeyModal so it reads as the same product, not a new UI.
-// ============================================================
+// Purpose: Asks whether to save or discard a guest session after sign-in.
 
 import { motion, AnimatePresence } from "framer-motion";
 import { FiFileText } from "react-icons/fi";

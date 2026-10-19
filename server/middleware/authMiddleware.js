@@ -1,34 +1,4 @@
-// ============================================================
-// authMiddleware.js
-//
-// WHAT IS MIDDLEWARE?
-// A function that runs BEFORE your route's main controller.
-// It can inspect the request, modify it, block it, or let it
-// continue. Think of it as a checkpoint guard standing in
-// front of certain routes.
-//
-// WHAT THIS SPECIFIC MIDDLEWARE DOES:
-// Checks if the incoming request has a valid JWT in its
-// headers. If valid, it attaches the user's ID to the request
-// object (req.userId) so the next function (the actual route
-// controller) knows WHO is making this request.
-//
-// TWO VERSIONS PROVIDED:
-//
-// requireAuth — BLOCKS the request entirely if no valid token
-//               exists. Use this on routes that absolutely
-//               need a logged-in user (e.g. "get my saved
-//               sessions").
-//
-// optionalAuth — Does NOT block the request. If a valid token
-//                exists, it attaches req.userId. If not, it
-//                just continues with req.userId = null. Use
-//                this on routes that work for both logged-in
-//                AND anonymous users (e.g. your current
-//                upload/AI generation routes — these should
-//                keep working without login, per your decision
-//                that login is optional for now).
-// ============================================================
+// Purpose: Verifies required or optional JWT authentication for requests.
 
 import jwt from "jsonwebtoken";
 

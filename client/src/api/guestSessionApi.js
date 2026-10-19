@@ -1,3 +1,5 @@
+// Purpose: Stages, retrieves, converts, and clears guest sessions.
+
 import httpClient from "./httpClient";
 
 export const saveGuestSession = async ({ documents, selectedIds, batchId, chatHistory, cachedResults }) => {

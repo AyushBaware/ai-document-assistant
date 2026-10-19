@@ -1,12 +1,4 @@
-// ======================================================
-// CREATE CHUNKS
-// Splits document text into semantic segments.
-// RAG CONCEPT: Instead of sending the entire document
-// to Gemini every time, we break it into chunks so
-// later we can retrieve ONLY the relevant ones.
-// Chunk size = 6000 chars (~1500 tokens) — large enough
-// to hold meaningful content, small enough to be precise.
-// ======================================================
+// Purpose: Splits extracted document text into embedding-ready chunks.
 
 const CHUNK_SIZE = 6000;
 const CHUNK_OVERLAP = 200; // Overlap prevents cutting mid-concept

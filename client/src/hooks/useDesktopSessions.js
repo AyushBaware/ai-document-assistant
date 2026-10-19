@@ -1,13 +1,8 @@
+// Purpose: Manages desktop session navigation and saved-session state.
+
 import { useState, useEffect } from "react";
 import { getAllSessions, deleteSession } from "../api/sessionApi";
 
-// ============================================================
-// useDesktopSessions.js
-//
-// Loads/deletes the session list shown in UploadBox's desktop
-// sidebar (Claude/Gemini-style persistent history), reloading
-// whenever the full-screen view becomes active.
-// ============================================================
 export function useDesktopSessions({ user, token, isFullScreenOpen }) {
   const [deskSessions, setDeskSessions] = useState([]);
   const [deskSessionsLoading, setDeskSessionsLoading] = useState(false);

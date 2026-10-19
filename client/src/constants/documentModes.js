@@ -1,11 +1,4 @@
-// ============================================================
-// documentModes.js
-//
-// Shared constants describing the app's AI modes and navigation
-// items. Pulled out of UploadBox.jsx so any component that needs
-// to know "what modes exist" reads from one single source of
-// truth instead of duplicating this list.
-// ============================================================
+// Purpose: Defines analysis modes and supported document file types.
 
 import { FiMessageCircle, FiZap, FiFileText, FiBookOpen } from "react-icons/fi";
 

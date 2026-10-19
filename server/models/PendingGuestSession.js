@@ -1,18 +1,4 @@
-// ============================================================
-// PendingGuestSession.js
-//
-// Temporary holding place for an ANONYMOUS user's in-progress
-// work — which documents they uploaded (by reference, not full
-// text) and the chat exchanged so far. Keyed by deviceId (the
-// same httpOnly cookie used for the API key and guest limit),
-// so it survives refreshes, tab closes, and reopens.
-//
-// This is intentionally NOT permanent storage — it exists only
-// to bridge "anonymous work" to "saved account session" at the
-// moment of login, or to restore an in-progress guest session
-// after a refresh. It self-deletes 24h after last activity via
-// the TTL index below, same pattern as DocumentChunk's TTL.
-// ============================================================
+// Purpose: Defines the MongoDB schema for guest sessions awaiting sign-in.
 
 import mongoose from "mongoose";
 

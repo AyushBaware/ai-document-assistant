@@ -1,37 +1,4 @@
-// ============================================================
-// embedText.js
-//
-// WHAT THIS DOES:
-// Converts chunks of text into embedding vectors using Gemini's
-// embedding model. These vectors are what MongoDB Atlas Vector
-// Search compares against to find semantically relevant chunks
-// later (retrieval).
-//
-// MODEL UPDATE (important):
-// text-embedding-004 was shut down by Google on Jan 14, 2026.
-// gemini-embedding-001 is the replacement. Its native output is
-// 3072 dimensions, but we explicitly request 768 dimensions via
-// outputDimensionality — this keeps our Atlas Vector Search index
-// small and fast, and 768 dims is still highly accurate for
-// document retrieval at this project's scale.
-//
-// WHY BATCH INSTEAD OF ONE CALL PER CHUNK:
-// Gemini's batchEmbedContents endpoint embeds up to 100 pieces
-// of text in a SINGLE API call. Calling embedContent once per
-// chunk would burn through a user's free-tier quota far faster
-// for zero benefit — batching is both faster and cheaper.
-//
-// TASK TYPE:
-// Gemini embeddings support a "taskType" hint that improves
-// retrieval accuracy:s
-//   RETRIEVAL_DOCUMENT → used here, when embedding documents
-//                         to be searched (at upload time)
-//   RETRIEVAL_QUERY     → used later when embedding a user's
-//                         search/chat question
-// Using the correct type on each side measurably improves
-// which chunks get retrieved — that's why this is a parameter,
-// not hardcoded.
-// ============================================================
+// Purpose: Creates vector embeddings for document text.
 
 const EMBEDDING_MODEL = "gemini-embedding-001";
 const EMBEDDING_URL = `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:batchEmbedContents`;

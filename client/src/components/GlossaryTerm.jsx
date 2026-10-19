@@ -1,12 +1,4 @@
-// ============================================================
-// GlossaryTerm.jsx
-//
-// Wraps a single hard word/phrase. Desktop: hover shows a small
-// popup near the cursor (Google-define style). Mobile (no hover
-// support): tap toggles the popup, tap elsewhere closes it.
-// Rendered via a portal so it never gets clipped by the
-// scrollable response containers.
-// ============================================================
+// Purpose: Displays a glossary definition for a document term.
 
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";

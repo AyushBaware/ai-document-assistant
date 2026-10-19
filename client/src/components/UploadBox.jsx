@@ -1,26 +1,4 @@
-// ============================================================
-// UploadBox.jsx
-//
-// Orchestrator only. All logic lives in custom hooks
-// (useFileUpload, useSessionLoader, useAIGeneration,
-// useDesktopSessions); all JSX lives in components/upload/*.
-// This file wires them together and holds only the state that
-// genuinely needs to be shared across more than one hook.
-// ============================================================
-
-// HOW DRAG-AND-DROP WORKS IN THE BROWSER:
-// Three events matter: dragover (fires continuously while
-// something is dragged over the element — we must call
-// preventDefault() or the browser blocks dropping entirely),
-// dragleave (dragged item left the zone — reset visual state),
-// and drop (the actual file drop — extract files from
-// e.dataTransfer.files, which has the SAME shape as
-// e.target.files from a normal file input, so it plugs into
-// the existing handleFilesChange-style logic directly).
-//
-// We track `isDragging` purely for visual feedback (highlight
-// the drop zone border) — it doesn't affect upload logic at all.
-// ============================================================
+// Purpose: Coordinates document selection, analysis modes, responses, and chat.
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";

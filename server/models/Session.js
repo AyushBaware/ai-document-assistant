@@ -1,29 +1,4 @@
-// ============================================================
-// Session.js
-//
-// WHAT THIS REPRESENTS:
-// One "session" = one upload batch (the documents the user
-// processed together) + whatever AI responses were generated
-// for them. This mirrors how your UploadBox.jsx already works
-// — you upload a set of files, then click Summary/Notes/Explain
-// on that same set. A session captures that entire unit.
-//
-// WHY THIS SHAPE AND NOT "ONE DOCUMENT PER RESPONSE"?
-// If we saved each response as its own flat document, a user
-// who uploaded 2 PDFs and generated all 3 modes would create
-// 3 separate DB entries that don't know about each other. By
-// nesting responses INSIDE the session, opening one session
-// shows everything generated for that exact upload — Summary,
-// Notes, AND Explain together, just like the UI already groups
-// them per upload.
-//
-// THE FORWARD-COMPATIBLE PART (for RAG):
-// Chunk-level embeddings live in the separate DocumentChunk
-// collection (see models/DocumentChunk.js), linked back here
-// via batchId. Session itself only stores the full extractedText
-// per document (for the existing Summary/Notes/Explain flow) —
-// it doesn't duplicate embeddings, keeping this schema small.
-// ============================================================
+// Purpose: Defines the MongoDB schema for saved document sessions and results.
 
 import mongoose from "mongoose";
 

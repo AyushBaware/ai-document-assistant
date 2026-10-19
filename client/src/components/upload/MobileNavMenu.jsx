@@ -1,10 +1,4 @@
-// ============================================================
-// MobileNavMenu.jsx
-//
-// The hamburger dropdown panel shown in the full-screen view's
-// top bar on mobile — nav items (Chat/Summary/Notes/Explain)
-// plus a document checklist when more than one file is loaded.
-// ============================================================
+// Purpose: Renders the mobile navigation and document actions.
 
 import { motion, AnimatePresence } from "framer-motion";
 import { NAV_ITEMS } from "../../constants/documentModes";

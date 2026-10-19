@@ -1,11 +1,4 @@
-// ============================================================
-// NotificationDetailModal.jsx
-//
-// Mobile-only: shown when a notification is tapped in the
-// compact list. Same visual language as ApiKeyModal/
-// GuestLimitModal — centered card, blurred backdrop — so it
-// reads as the same product, not a new UI pattern.
-// ============================================================
+// Purpose: Shows the full content of a selected notification.
 
 import { motion, AnimatePresence } from "framer-motion";
 import { FiBell } from "react-icons/fi";

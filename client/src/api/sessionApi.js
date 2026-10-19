@@ -1,15 +1,4 @@
-// ============================================================
-// sessionApi.js
-//
-// CHANGED: createSession now sends documentIds (array of
-// strings) instead of full document objects. The backend
-// pulls the actual extractedText from its own knowledgeStore —
-// see sessionController.js header comment for why.
-//
-// OPTIMIZED: now uses the shared httpClient instance instead of
-// raw axios + a hardcoded base URL — reuses connections and
-// keeps the backend URL in one place (httpClient.js).
-// ============================================================
+// Purpose: Creates and retrieves saved document sessions.
 
 import httpClient, { withAuth } from "./httpClient";
 

@@ -1,10 +1,4 @@
-// ============================================================
-// GuestUsageBadge.jsx
-//
-// Purely presentational — all state/event logic now lives in
-// useGuestUsage.js (App.jsx), so this component just renders
-// whatever `remaining` it's given.
-// ============================================================
+// Purpose: Displays the remaining guest request count.
 
 import { createPortal } from "react-dom";
 

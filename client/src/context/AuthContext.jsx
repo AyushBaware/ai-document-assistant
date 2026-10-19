@@ -1,30 +1,4 @@
-// ============================================================
-// AuthContext.jsx
-//
-// WHAT IS REACT CONTEXT?
-// Normally in React, data flows down via props — parent to
-// child. But auth state (is user logged in? who are they?) is
-// needed in MANY components scattered across your app — the
-// navbar, settings menu, future session history sidebar, etc.
-// Passing it down as props through every layer would be messy
-// ("prop drilling"). Context solves this: any component,
-// anywhere in the tree, can directly read auth state without
-// it being manually passed down through every parent.
-//
-// WHAT THIS FILE PROVIDES TO YOUR APP:
-// - user            → current logged-in user's info, or null
-// - token           → the JWT string, or null
-// - isAuthLoading   → true while we're checking localStorage
-//                     on initial app load
-// - login(token, user) → call this after successful Google login
-// - logout()        → clears everything, logs the user out
-//
-// HOW THIS WORKS WITH YOUR EXISTING geminiKey PATTERN:
-// This follows the EXACT same localStorage pattern you already
-// understand from Phase 1. Instead of "gemini_api_key" we now
-// also store "app_jwt_token" and "app_user". Same mental model,
-// just for a different piece of data.
-// ============================================================
+// Purpose: Shares the signed-in user and auth actions across the client.
 
 import { createContext, useContext, useState, useEffect } from "react";
 

@@ -1,3 +1,5 @@
+// Purpose: Processes uploaded documents and stores extracted text and chunks.
+
 import fs from "fs";
 import crypto from "crypto";
 import { extractText } from "../utils/extractText.js";

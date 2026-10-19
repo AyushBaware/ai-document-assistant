@@ -1,16 +1,4 @@
-// ============================================================
-// useGuestUsage.js
-//
-// Single source of truth for anonymous "guest" usage state —
-// the remaining-request count, the dismissible toast nudge at
-// requests #4/#5, and the hard-block modal at request #6.
-//
-// Fully event-driven, not refresh-dependent: httpClient.js
-// dispatches "guest-requests-updated" the instant a response
-// carries the updated count, and "guest-limit-reached" the
-// instant a request is rejected — this hook just listens and
-// derives all UI state from those events in real time.
-// ============================================================
+// Purpose: Tracks guest request usage and limit notifications.
 
 import { useState, useEffect, useCallback } from "react";
 

@@ -1,23 +1,4 @@
-// ============================================================
-// server.js
-//
-// SECURITY FIXES:
-//
-// 1. CORS RESTRICTED — previously cors() with no config meant
-//    ANY website on the internet could call your API directly
-//    from a user's browser (e.g. a malicious site could read
-//    your API responses using a visitor's session). Now CORS
-//    only allows requests from your own frontend's origin.
-//
-// 2. RATE LIMITING ADDED on /api/ai — without this, anyone
-//    (or any script) could hammer your Gemini-calling endpoint
-//    repeatedly, burning through API quota or costs with no
-//    limit. express-rate-limit caps requests per IP per window.
-//
-// 3. HELMET ADDED — sets a collection of security-related HTTP
-//    headers (prevents clickjacking, MIME-sniffing attacks,
-//    etc.) with sensible defaults for an API server.
-// ============================================================
+// Purpose: Starts Express, connects middleware and routes, and opens the server.
 
 import express from "express";
 import cors from "cors";

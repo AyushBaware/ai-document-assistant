@@ -1,27 +1,4 @@
-// ============================================================
-// aiApi.js
-//
-// TWO FUNCTIONS:
-//
-//   generateAI()
-//   → Called after a fresh upload. Sends selectedDocumentIds
-//     (the IDs that exist in the server's knowledgeStore).
-//
-//   generateAIFromSession()
-//   → Called when the user loads a past session from history
-//     and clicks Summary/Notes/Explain. Sends the real MongoDB
-//     sessionId instead of document IDs, because the fake
-//     "preloaded-0" IDs that UploadBox assigns for display
-//     don't exist in knowledgeStore.
-//
-// Both functions send the Gemini API key in the x-gemini-key
-// header — the BYOK pattern from Phase 1. The backend uses
-// the user's key if present and valid, otherwise falls back
-// to the server's .env key.
-//
-// OPTIMIZED: uses the shared httpClient instance instead of
-// raw axios + a hardcoded base URL.
-// ============================================================
+// Purpose: Calls backend endpoints for document analysis and glossary generation.
 
 import httpClient from "./httpClient";
 

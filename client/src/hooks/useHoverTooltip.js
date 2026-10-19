@@ -1,26 +1,12 @@
+// Purpose: Controls hover tooltip visibility and positioning.
+
 import { useState, useRef, useCallback, createElement } from "react";
 import { createPortal } from "react-dom";
 
 const SHOW_DELAY_MS = 500;
 
-// ============================================================
-// useHoverTooltip.js
-//
-// Portal-based hover tooltip for icon/row buttons that live
-// inside a scrollable (overflow-y-auto) container — e.g. the
-// session history list, the document checklist, the
-// notifications dropdown. CSS-only tooltips (data-tooltip
-// attribute) get clipped by those containers because
-// overflow-x is silently forced to "auto" whenever overflow-y
-// isn't "visible" — there's no CSS-only way around that.
-//
-// Rendering into document.body sidesteps the clipping entirely
-// and lets z-index actually mean "above everything".
-//
-// Call ONCE per component; reuse showTooltip/hideTooltip across
-// as many rows/buttons as needed (only one tooltip can ever be
-// visible at a time, since a person can only hover one thing).
-// ============================================================
+// Portals tooltips outside scroll containers to prevent clipping.
+// Reuse one hook per component; only one tooltip is shown at a time.
 export function useHoverTooltip() {
   const [tooltip, setTooltip] = useState(null);
   const timerRef = useRef(null);

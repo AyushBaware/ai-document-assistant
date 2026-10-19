@@ -1,25 +1,4 @@
-// ============================================================
-// guestLimitMiddleware.js
-//
-// Caps anonymous (not-logged-in) usage of Gemini-calling routes
-// to a fixed lifetime total — not daily, not resettable by
-// clearing cookies alone (the count lives server-side against
-// the deviceId, not in the browser).
-//
-// LOGGED-IN USERS ARE NEVER CAPPED HERE — req.userId being set
-// (by optionalAuth, which must run before this) skips the check
-// entirely. Their own account-level limits, if any, are handled
-// elsewhere.
-//
-// COUNTS ATTEMPTS, NOT SUCCESSES — the count increments the
-// moment a request is allowed through, before Gemini is called.
-// This keeps the logic simple and can't be bypassed by retrying
-// a failed request.
-//
-// FAILS OPEN — if the DB check itself errors out, we let the
-// request through rather than blocking real usage over an
-// infrastructure hiccup.
-// ============================================================
+// Purpose: Tracks guest usage by device and IP and enforces the free limit.
 
 import ApiKey from "../models/ApiKey.js";
 import GuestIpUsage from "../models/GuestIpUsage.js";

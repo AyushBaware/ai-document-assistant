@@ -1,3 +1,5 @@
+// Purpose: Registers endpoints to save, check, and delete API keys.
+
 import express from "express";
 import { saveApiKey, getApiKeyStatus, deleteApiKey } from "../controllers/apiKeyController.js";
 import { optionalAuth } from "../middleware/authMiddleware.js";

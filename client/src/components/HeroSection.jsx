@@ -1,4 +1,5 @@
-// HeroSection.jsx
+// Purpose: Renders the home-page brand mark, headline, and description.
+
 import { motion } from "framer-motion";
 import { FiFileText } from "react-icons/fi";
 

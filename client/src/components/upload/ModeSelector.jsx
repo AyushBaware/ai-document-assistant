@@ -1,3 +1,5 @@
+// Purpose: Lets users choose the document analysis mode.
+
 import { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AI_MODES } from "../../constants/documentModes";

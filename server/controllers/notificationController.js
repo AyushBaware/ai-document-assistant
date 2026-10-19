@@ -1,17 +1,4 @@
-// ============================================================
-// notificationController.js
-//
-// Two endpoints, both requireAuth (a guest has no account to
-// look notifications up against):
-//
-//   GET   /api/notifications          → list current user's notifications
-//   PATCH /api/notifications/:id/read → mark one as read
-//
-// PRIVACY: the .select() below deliberately excludes anything
-// that could identify the OTHER account/device involved in a
-// SECURITY_ALERT (no deviceId, no other userId, no email) —
-// the user only ever learns "your key was used elsewhere."
-// ============================================================
+// Purpose: Retrieves and updates user notifications.
 
 import Notification from "../models/Notification.js";
 

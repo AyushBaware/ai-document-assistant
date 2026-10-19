@@ -1,3 +1,5 @@
+// Purpose: Fetches and updates user notifications.
+
 import httpClient, { withAuth } from "./httpClient";
 
 export const getNotifications = async (token) => {

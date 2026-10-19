@@ -1,17 +1,4 @@
-// ============================================================
-// GuestLimitModal.jsx
-//
-// Full hard-block screen shown when an anonymous user's 6th
-// request attempt is rejected by the backend (GUEST_LIMIT_REACHED).
-// Styled to match ApiKeyModal so it reads as one coherent product
-// moment rather than a jarring paywall.
-//
-// Renders its own LoginButton — App.jsx hides the top-right one
-// while this modal is open, so only one GoogleLogin instance is
-// ever mounted at a time (mounting two simultaneously triggers a
-// harmless but noisy "initialize() called multiple times" SDK
-// warning, which the app has intentionally avoided elsewhere).
-// ============================================================
+// Purpose: Explains the guest request limit and offers sign-in.
 
 import { motion, AnimatePresence } from "framer-motion";
 import { FiLock } from "react-icons/fi";

@@ -1,12 +1,4 @@
-// ============================================================
-// crypto.js
-//
-// AES-256-GCM encrypt/decrypt for the user's Gemini API key.
-// The encryption secret lives ONLY in server/.env — never in
-// the database, never sent to the frontend. GCM mode also
-// gives us an authTag, which detects if the encrypted data was
-// ever tampered with (not just decrypts it).
-// ============================================================
+// Purpose: Encrypts and decrypts sensitive values stored by the server.
 
 import crypto from "crypto";
 

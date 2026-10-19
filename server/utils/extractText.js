@@ -1,43 +1,4 @@
-// ============================================================
-// extractText.js
-//
-// WHAT THIS DOES:
-// Extracts text from PDF, DOCX, PPTX, TXT, and Images.
-//
-// HONEST LIMITATION (documented, not hidden):
-// This extracts the TEXT LAYER of documents. It does NOT
-// perform OCR on images/charts embedded INSIDE PDFs or PPTs.
-// Standalone image uploads (screenshots) DO get OCR via
-// Tesseract — that works fully.
-//
-// WHY NOT OCR EVERY PAGE OF EVERY PDF?
-// Rendering PDF pages to images requires either:
-//   1. The 'canvas' npm package — needs native compilation
-//      (Cairo, node-gyp, Python build tools). Breaks easily
-//      on Windows machines without Visual Studio Build Tools.
-//   2. External binaries like Poppler — not installed by
-//      default on Windows, adds setup friction for every
-//      person who clones this project.
-// Both options trade project portability for partial accuracy
-// gains, while also increasing Gemini token usage per upload.
-// For this project's scope, text-layer extraction with
-// honest gap detection is the right engineering tradeoff.
-//
-// WHAT WE IMPROVED INSTEAD:
-// 1. TABLE STRUCTURE RECONSTRUCTION — PDF text is extracted
-//    with X/Y position data. We now group text by row (Y
-//    coordinate) so tables read as structured rows instead
-//    of one jumbled line. This directly improves accuracy
-//    for any document containing tables.
-// 2. CONTENT DENSITY DETECTION — if a PDF/PPTX has very
-//    little extractable text relative to its page count,
-//    we flag it. This tells Gemini (via the content profile
-//    in aiController.js) that the document may contain
-//    significant image/chart content it cannot see — so
-//    Gemini says so honestly instead of inventing content
-//    to fill gaps. This is what "not biased" means in
-//    practice: the AI admits what it cannot see.
-// ============================================================
+// Purpose: Extracts readable text from supported document formats.
 
 import fs from "fs";
 import mammoth from "mammoth";

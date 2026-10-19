@@ -1,3 +1,5 @@
+// Purpose: Catches rendering errors and shows the app fallback UI.
+
 import { Component } from "react";
 
 class ErrorBoundary extends Component {

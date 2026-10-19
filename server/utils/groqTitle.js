@@ -1,32 +1,4 @@
-// WHAT THIS DOES:
-// Generates a smart, content-aware session title using Groq's
-// free-tier llama-3.1-8b-instant model — completely isolated
-// from the Gemini pipeline (different API, different key,
-// different provider). This file's only job is: given a
-// document's extracted text, return a short title describing
-// what the document is ABOUT, or null if anything goes wrong.
-//
-// WHY SPREAD-SAMPLING (not "first N words"):
-// Real documents front-load metadata before real content —
-// resumes start with a name/contact block, forms start with
-// header fields, reports start with a cover page. Reading
-// further into the START doesn't fix this; the fix is reading
-// from multiple POINTS across the document (head + middle +
-// tail), so the sample is very likely to include real body
-// content no matter where the document places its metadata.
-//
-// WHY THIS NEVER BLOCKS OR BREAKS ANYTHING:
-// - Hard 3-second timeout via AbortController
-// - ANY failure (network, timeout, bad key, rate limit) simply
-//   returns null — caller falls back to the existing filename-
-//   based title. This function must NEVER throw.
-// - Runs only in sessionController.js createSession(), which
-//   already wraps title generation in a non-blocking try/catch.
-//   It never touches the upload flow or the user-facing
-//   response time.
-// - Zero relationship to Gemini quota — different provider,
-//   different key, tracked entirely separately.
-// ============================================================
+// Purpose: Generates concise session titles with the Groq API.
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "llama-3.1-8b-instant";

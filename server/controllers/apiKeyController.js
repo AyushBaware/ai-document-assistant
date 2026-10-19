@@ -1,11 +1,4 @@
-// ============================================================
-// apiKeyController.js
-//
-// Two endpoints:
-//   POST /api/apikey         → encrypt + save the user's key
-//   GET  /api/apikey/status  → tell the frontend "yes/no" only,
-//                              NEVER the raw or decrypted key
-// ============================================================
+// Purpose: Validates and manages encrypted Gemini API keys.
 
 import ApiKey from "../models/ApiKey.js";
 import GuestIpUsage from "../models/GuestIpUsage.js";

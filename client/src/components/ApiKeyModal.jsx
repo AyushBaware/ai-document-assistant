@@ -1,29 +1,4 @@
-// ============================================================
-// ApiKeyModal.jsx
-//
-// WHAT THIS IS:
-// A modal (popup) that asks the user for their Gemini API key
-// the first time they visit the app. Once saved, it lives in
-// localStorage — the browser's built-in key-value storage.
-//
-// WHY localStorage AND NOT THE SERVER?
-// The API key is sensitive — like a password. If we sent it
-// to our server and stored it in MongoDB, we'd need to encrypt
-// it, manage user accounts, etc. For now, keeping it in the
-// browser is simpler AND more secure — it never leaves the
-// user's device except when making an AI request.
-//
-// HOW IT WORKS:
-// 1. App checks localStorage for "gemini_api_key" on load
-// 2. If not found → show this modal
-// 3. User pastes their key → we save it to localStorage
-// 4. Modal closes, app works normally
-// 5. Every AI request sends the key in the request header
-//
-// HOW TO GET A FREE KEY:
-// aistudio.google.com → Sign in → Get API key → Copy
-// It takes about 2 minutes and is completely free.
-// ============================================================
+// Purpose: Collects, validates, and saves a Gemini API key.
 
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";

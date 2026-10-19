@@ -1,11 +1,4 @@
-// ============================================================
-// notificationHelpers.js
-//
-// Same "rolling window" pattern as sessionHelpers.js's
-// enforceSessionLimit — caps how many notifications pile up
-// per user so the list never grows unbounded. Called right
-// after every new notification is created.
-// ============================================================
+// Purpose: Creates and dispatches user notification records.
 
 import Notification from "../models/Notification.js";
 

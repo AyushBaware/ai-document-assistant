@@ -1,13 +1,4 @@
-// ============================================================
-// useGuestSessionSync.js
-//
-// For anonymous users only: restores in-progress work (docs,
-// chat, AND any already-generated Summary/Notes/Explain results)
-// once on mount if a pending guest session exists, and keeps it
-// all updated in the background as they keep working — so a
-// refresh, tab close, or login never loses what was generated.
-// Does nothing at all once `user` is set.
-// ============================================================
+// Purpose: Synchronizes a guest session when a user signs in.
 
 import { useEffect, useRef } from "react";
 import { saveGuestSession, getGuestSession } from "../api/guestSessionApi";

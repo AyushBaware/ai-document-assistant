@@ -1,21 +1,4 @@
-// ============================================================
-// Conversational "Ask Questions" UI. Keeps its own message
-// history in local state — reset automatically whenever the
-// `key` prop (selectedIds) changes in UploadBox, so switching
-// which documents are selected starts a fresh conversation.
-//
-// Citations: each assistant message shows which source
-// document(s) the answer was grounded in — builds trust that
-// the answer isn't hallucinated.
-//
-// FORMATTING FIX:
-// When Gemini splits an answer per document (per the updated
-// chatController.js prompt), it now uses a real "####" markdown
-// heading with the actual file name instead of plain bold text.
-// DocHeading below renders that heading with its own distinct
-// color/spacing so multi-document answers are easy to scan on
-// both mobile and desktop, instead of looking like a plain line.
-// ============================================================
+// Purpose: Renders chat controls and document-grounded conversation history.
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";

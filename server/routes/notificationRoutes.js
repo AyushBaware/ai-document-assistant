@@ -1,3 +1,5 @@
+// Purpose: Registers endpoints to list, read, and delete notifications.
+
 import express from "express";
 import {
   getNotifications,

@@ -1,15 +1,4 @@
-// ============================================================
-// deviceMiddleware.js
-//
-// Assigns every visitor a stable, anonymous deviceId via an
-// httpOnly cookie — separate from the Google/JWT auth cookie
-// entirely. This is what lets someone use the app without
-// logging in: their API key and guest request count are
-// looked up by this id, not by userId.
-//
-// httpOnly means client-side JS can never read or tamper with
-// it (unlike localStorage) — meaningfully safer.
-// ============================================================
+// Purpose: Assigns a persistent device ID using a secure cookie.
 
 import crypto from "crypto";
 

@@ -1,25 +1,4 @@
-// ============================================================
-// LoginButton.jsx
-//
-// WHAT THIS RENDERS:
-// Google's official "Sign in with Google" button, using the
-// @react-oauth/google library — this is Google's recommended
-// way to integrate Google Identity Services in React.
-//
-// WHAT HAPPENS WHEN CLICKED:
-// 1. Google shows its own popup/redirect login flow
-// 2. User selects their Google account, approves
-// 3. Google calls our onSuccess handler with a "credential"
-//    (the signed ID token described in authController.js)
-// 4. We send that credential to OUR backend (/api/auth/google)
-// 5. Backend verifies it, returns OUR jwt + user info
-// 6. We call login() from AuthContext to save the session
-//
-// WHY A SEPARATE COMPONENT?
-// Keeps the Google-specific UI logic isolated. If you ever
-// add GitHub or another OAuth provider later, it would live
-// in its own component file the same way — clean separation.
-// ============================================================
+// Purpose: Signs users in with Google and stores the app session.
 
 import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "../context/AuthContext";

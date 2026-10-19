@@ -1,12 +1,4 @@
-// ============================================================
-// usePWAUpdate.js
-//
-// Service workers cache your JS/CSS aggressively (StaleWhileRevalidate).
-// That means after you deploy a new version, an already-installed
-// user's app could keep running OLD code until they fully close and
-// reopen it. This hook surfaces a small "Update available" prompt
-// instead, so they can refresh into the new version on demand.
-// ============================================================
+// Purpose: Detects service-worker updates and triggers app refresh.
 
 import { useRegisterSW } from "virtual:pwa-register/react";
 

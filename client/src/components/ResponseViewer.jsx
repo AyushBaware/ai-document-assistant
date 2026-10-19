@@ -1,3 +1,5 @@
+// Purpose: Renders generated document analysis and glossary terms.
+
 import { useMemo, Children } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -26,13 +28,7 @@ const buildGlossaryLookup = (glossary = []) => {
     .sort((a, b) => b.length - a.length)
     .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
 
-  // FIXED: \b word boundaries silently fail whenever a term ends in a
-  // non-word character (e.g. "RAG (Retrieval Augmented Generation)",
-  // "Progressive Web App (PWA)") — \b requires a word/non-word
-  // transition, and a term ending in ")" followed by a space has no
-  // such transition, so it never matched at all. Using explicit
-  // lookaround on alphanumeric characters instead of \b fixes this
-  // regardless of what character the term starts/ends with.
+  // Alphanumeric boundaries also match terms that end in punctuation.
   const glossaryRegex =
     escaped.length > 0
       ? new RegExp(
@@ -55,11 +51,7 @@ const renderTextPiece = (text, glossaryMap, glossaryRegex, keyPrefix) => {
   return parts.map((part, i) => {
     if (!part) return null;
     const key = part.trim().toLowerCase();
-    // FIXED: the optional trailing "s" in the regex (for plurals like
-    // "chunks" matching a glossary entry for "chunk") matched the text
-    // fine, but the lookup below used the matched (plural) text as the
-    // map key — which never existed, since glossary terms are stored
-    // singular. Falls back to the singular form if the exact key misses.
+    // Resolve plural matches using their singular glossary key.
     const definition =
       glossaryMap.get(key) || glossaryMap.get(key.replace(/s$/, ""));
     if (definition) {
@@ -200,12 +192,6 @@ const ResponseViewer = ({ content, glossary = [] }) => {
             </motion.li>
           ),
 
-          // FIXED: this previously rendered `children` raw, with no
-          // glossary pass at all. Since the system prompt tells Gemini
-          // to **bold** the most important names/terms, and those bolded
-          // terms are exactly what the glossary defines, this was the
-          // single biggest reason most glossary entries never appeared
-          // in the app — they were structurally invisible to the matcher.
           strong: ({ children }) => (
             <strong className="text-white font-bold bg-linear-to-r from-cyan-400/20 to-blue-400/20 px-1 py-0.5 rounded">
               {renderWithGlossary(children, glossaryMap, glossaryRegex)}

@@ -1,11 +1,4 @@
-// ============================================================
-// ApiKey.js
-//
-// Stores each user's Gemini API key encrypted at rest, keyed
-// by deviceId (an httpOnly cookie — works whether or not the
-// person is logged in). If they ARE logged in, userId is also
-// attached, so the key follows their account across devices.
-// ============================================================
+// Purpose: Defines the MongoDB schema for encrypted user API keys.
 
 import mongoose from "mongoose";
 
@@ -29,8 +22,7 @@ const apiKeySchema = new mongoose.Schema(
     // every time, even for the identical key).
     keyFingerprint: { type: String, index: true, default: null },
 
-    // Not enforced until Phase 2 — counts Gemini-calling requests
-    // made by this guest (deviceId) before they log in.
+    // Counts Gemini requests made by this device before sign-in.
     guestRequestCount: { type: Number, default: 0 },
   },
   { timestamps: true }

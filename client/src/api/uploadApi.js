@@ -1,10 +1,4 @@
-// ============================================================
-// uploadApi.js
-//
-// UPDATED: now sends the Gemini API key on upload too (not just
-// on Summary/Notes/Explain). Uploads now trigger embedding
-// generation on the backend for RAG — that needs a key.
-// ============================================================
+// Purpose: Uploads documents for text extraction and processing.
 
 import httpClient from "./httpClient";
 

@@ -1,3 +1,5 @@
+// Purpose: Registers endpoints to manage and convert guest sessions.
+
 import express from "express";
 import {
   saveGuestSession,

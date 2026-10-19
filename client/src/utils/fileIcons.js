@@ -1,10 +1,4 @@
-// ============================================================
-// fileIcons.js
-//
-// Maps a file name's extension to a display emoji. Pure utility
-// function — no state, no side effects — so it lives in utils/
-// rather than components/.
-// ============================================================
+// Purpose: Maps document types to their display icons.
 
 export const getFileIcon = (name = "") => {
   const ext = name.split(".").pop().toLowerCase();

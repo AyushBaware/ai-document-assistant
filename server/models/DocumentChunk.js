@@ -1,30 +1,4 @@
-// ============================================================
-// DocumentChunk.js
-//
-// WHAT THIS REPRESENTS:
-// One embedded chunk of text from an uploaded document. This
-// is the collection MongoDB Atlas Vector Search will query
-// against — the vector index gets created on the `embedding`
-// field here (that's Step 3, done manually in Atlas next).
-//
-// WHY A SEPARATE COLLECTION FROM Session:
-// Uploads happen before we know whether the user is logged in
-// or will ever save a session. Chunks need to exist in MongoDB
-// the moment ANY upload happens — Atlas Vector Search can't
-// search in-memory data. Session stays the permanent "saved
-// history" record; DocumentChunk is the searchable knowledge
-// layer underneath it.
-//
-// LIFECYCLE (permanent + TTL):
-// - On upload: chunks are written with permanent:false.
-// - If the user is logged in and saves a session, those chunks
-//   flip to permanent:true and get linked via sessionId — see
-//   sessionController.js createSession().
-// - Chunks that stay permanent:false (anonymous uploads, or
-//   uploads that never got saved) auto-delete after 24 hours
-//   via the TTL index below, so abandoned uploads don't grow
-//   the database forever.
-// ============================================================
+// Purpose: Defines the MongoDB schema for embedded document chunks.
 
 import mongoose from "mongoose";
 

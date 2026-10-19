@@ -1,17 +1,4 @@
-// ============================================================
-// parseUserAgent.js
-//
-// Lightweight, dependency-free User-Agent parser used only to
-// give the ORIGINAL key owner anonymous context about a
-// collision — e.g. "Chrome on Windows" — never anything that
-// identifies the other person (no IP, no username, no userId).
-//
-// Order matters below: Chrome, Edge, and Opera all include a
-// "Safari/" compatibility token in their real User-Agent string,
-// so Safari must be checked LAST, or every Chrome user would be
-// wrongly reported as Safari. Same logic for iOS vs Mac OS X —
-// an iPhone's UA also matches "Mac OS X", so iOS is checked first.
-// ============================================================
+// Purpose: Parses browser and device details from user-agent strings.
 
 const BROWSER_PATTERNS = [
   { name: "Edge", regex: /Edg\// },

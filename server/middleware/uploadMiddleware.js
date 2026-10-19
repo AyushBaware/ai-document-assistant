@@ -1,25 +1,4 @@
-// ============================================================
-// uploadMiddleware.js
-//
-// SECURITY FIX: File extension validation added alongside
-// MIME type checking.
-//
-// WHY THIS MATTERS:
-// The MIME type (file.mimetype) that multer checks is reported
-// by the CLIENT'S BROWSER, not verified by the server. A
-// malicious user could rename a script file to "resume.pdf"
-// and many browsers would still report a fake/spoofed MIME
-// type, potentially slipping past a MIME-only check. Adding
-// an extension check as a second layer makes this meaningfully
-// harder to bypass — both checks must agree.
-//
-// NOTE: True deep validation (checking actual file bytes/magic
-// numbers) is a further hardening step possible with a library
-// like 'file-type', but for this project's threat model
-// (a document analysis tool, not a system that executes
-// uploaded files), MIME + extension matching is a reasonable,
-// proportionate level of validation.
-// ============================================================
+// Purpose: Stores uploaded files and validates their types and size limits.
 
 import multer from "multer";
 import path from "path";

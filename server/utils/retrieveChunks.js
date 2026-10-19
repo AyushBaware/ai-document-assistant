@@ -1,27 +1,4 @@
-// ============================================================
-// retrieveChunks.js
-//
-// WHAT THIS DOES:
-// Given a natural-language query, finds the most semantically
-// relevant chunks from DocumentChunk using MongoDB Atlas Vector
-// Search ($vectorSearch aggregation stage).
-//
-// FLOW:
-//   1. Embed the query text using RETRIEVAL_QUERY taskType
-//      (different from RETRIEVAL_DOCUMENT used at upload time —
-//      Gemini's embeddings are asymmetric, this pairing gives
-//      measurably better retrieval accuracy).
-//   2. Run $vectorSearch against the "vector_index" created in
-//      Atlas, scoped by `filter` (e.g. only this document, only
-//      this batch, only this session) so one user's search never
-//      touches another user's chunks.
-//   3. Return the top-k matches with their similarity score.
-//
-// NOT YET WIRED TO ANY ROUTE:
-// This is infrastructure — nothing calls it yet. It becomes live
-// once the "Ask Questions" chat feature (Phase 4, Step 6) sends
-// user questions through it.
-// ============================================================
+// Purpose: Finds relevant document chunks for a user query.
 
 import DocumentChunk from "../models/DocumentChunk.js";
 import { embedTexts } from "./embedText.js";

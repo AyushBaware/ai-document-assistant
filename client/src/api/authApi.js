@@ -1,12 +1,4 @@
-// ============================================================
-// authApi.js
-//
-// Same pattern as your existing aiApi.js and uploadApi.js —
-// a thin wrapper around axios calls to your backend.
-//
-// OPTIMIZED: uses the shared httpClient instance instead of
-// raw axios + a hardcoded base URL.
-// ============================================================
+// Purpose: Exchanges Google credentials for an application login.
 
 import httpClient, { withAuth } from "./httpClient";
 

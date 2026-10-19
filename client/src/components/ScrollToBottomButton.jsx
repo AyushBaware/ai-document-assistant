@@ -1,15 +1,4 @@
-// ============================================================
-// ScrollToBottomButton.jsx
-//
-// Floating "scroll to bottom" affordance, same behavior as
-// Claude's own chat UI: hidden while already at/near the
-// bottom of a scrollable container, fades in once the user
-// scrolls up past a small threshold, and smooth-scrolls back
-// down on click. Re-checks its own visibility whenever the
-// passed `deps` change (new message, new generated content,
-// loading state) so it never gets stuck visible or hidden
-// after content streams in.
-// ============================================================
+// Purpose: Scrolls the active conversation to its latest message.
 
 import { useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";

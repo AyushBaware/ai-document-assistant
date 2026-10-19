@@ -1,3 +1,5 @@
+// Purpose: Manages AI generation, result state, and related errors.
+
 import { useState } from "react";
 import { generateAI, generateAIFromSession } from "../api/aiApi";
 import { updateSessionResponse } from "../api/sessionApi";

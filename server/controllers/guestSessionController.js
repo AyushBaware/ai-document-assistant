@@ -1,13 +1,4 @@
-// ============================================================
-// guestSessionController.js
-//
-// Four endpoints supporting anonymous session continuity:
-//   POST   /api/guest-session          → save/update in-progress guest work
-//   GET    /api/guest-session          → fetch it back (refresh/reopen)
-//   DELETE /api/guest-session          → discard it ("Start Fresh")
-//   POST   /api/guest-session/convert  → turn it into a real, permanent
-//                                        Session once the user logs in
-// ============================================================
+// Purpose: Stages and converts guest sessions for signed-in users.
 
 import PendingGuestSession from "../models/PendingGuestSession.js";
 import Session from "../models/Session.js";

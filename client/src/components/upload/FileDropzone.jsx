@@ -1,11 +1,4 @@
-// ============================================================
-// FileDropzone.jsx
-//
-// The empty "select documents" state AND the file-review list
-// (once files are picked, before/while processing). Renders
-// `children` (the ModeSelector) at the end of the active state,
-// same position it occupied inline in the original UploadBox.
-// ============================================================
+// Purpose: Accepts documents through file selection or drag and drop.
 
 import { motion, AnimatePresence } from "framer-motion";
 import { FiUploadCloud, FiPlus } from "react-icons/fi";

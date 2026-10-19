@@ -1,12 +1,4 @@
-// ============================================================
-// FullScreenView.jsx
-//
-// The fixed inset-0 overlay shown once documents are processed
-// and the user is in Chat/Summary/Notes/Explain mode — the
-// Claude/Gemini-style full-screen layout. Combines the desktop
-// sidebar, the mobile hamburger top bar, and the body (ChatPanel
-// or the selected mode's ResponseViewer).
-// ============================================================
+// Purpose: Renders the full-screen document chat experience.
 
 import { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";

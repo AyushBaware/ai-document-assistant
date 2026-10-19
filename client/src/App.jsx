@@ -1,24 +1,11 @@
-// ============================================================
-// App.jsx
-//
-// WHAT CHANGED FROM PHASE 2:
-// 1. Imports SessionHistory — the sidebar showing past sessions
-// 2. Tracks `selectedSessionId` — when set via sidebar click,
-//    gets passed into UploadBox as `preloadedSession`
-// 3. Tracks `sessionRefreshTrigger` — a simple counter bumped
-//    every time a new session is saved, so SessionHistory
-//    knows to reload its list (React doesn't auto-detect
-//    changes happening inside a sibling component otherwise)
-//
-// Everything from Phase 1 (geminiKey) and Phase 2 (auth) is
-// completely unchanged below — Phase 3 is purely additive.
-// ============================================================
+// Purpose: Coordinates startup checks, authentication, API-key setup, and the document workspace.
 
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import "./App.css";
 import BackgroundGlow from "./components/BackgroundGlow";
 import HeroSection from "./components/HeroSection";
+import IntroScreen from "./components/IntroScreen";
 import UploadBox from "./components/UploadBox";
 import ApiKeyModal from "./components/ApiKeyModal";
 import LoginButton from "./components/LoginButton";
@@ -40,8 +27,11 @@ import NotificationBell from "./components/NotificationBell";
 import { FiSettings, FiLogOut, FiUser } from "react-icons/fi";
 
 function App() {
-  // ── GEMINI API KEY STATE (Phase 1 — unchanged) ────────────
   const [geminiKey, setGeminiKey] = useState(null);
+  const [initialStatusChecked, setInitialStatusChecked] = useState(false);
+  const [initialStatusSucceeded, setInitialStatusSucceeded] = useState(false);
+  const [introDismissed, setIntroDismissed] = useState(false);
+  const [showWakeMessage, setShowWakeMessage] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   // True only for the "Update API Key" flow — the backend key is
   // untouched in that case, so the modal can be cancelled (refresh
@@ -51,11 +41,9 @@ function App() {
   // must stay locked until a real key is entered.
   const [keyModalDismissible, setKeyModalDismissible] = useState(false);
 
-  // ── AUTH STATE (Phase 2 — unchanged) ──────────────────────
   const { user, token, isAuthLoading, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  // ── SESSION HISTORY STATE (Phase 3 — new) ─────────────────
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [sessionRefreshTrigger, setSessionRefreshTrigger] = useState(0);
 
@@ -111,8 +99,21 @@ function App() {
   };
 
   useEffect(() => {
-    refreshKeyStatus();
+    const checkInitialStatus = async () => {
+      const data = await refreshKeyStatus();
+      setInitialStatusSucceeded(!!data?.success);
+      setShowWakeMessage(false);
+      setInitialStatusChecked(true);
+    };
+
+    checkInitialStatus();
   }, []);
+
+  useEffect(() => {
+    if (initialStatusChecked) return;
+    const timeout = window.setTimeout(() => setShowWakeMessage(true), 4000);
+    return () => window.clearTimeout(timeout);
+  }, [initialStatusChecked]);
 
   useEffect(() => {
     const handleKeyIssue = (e) => {
@@ -124,7 +125,6 @@ function App() {
     return () => window.removeEventListener("gemini-key-issue", handleKeyIssue);
   }, []);
 
-  // ── GUEST USAGE (Phase 4 refinement) ──────────────────────
   const {
     remaining: guestRequestsRemaining,
     toastMessage: guestToastMessage,
@@ -133,10 +133,8 @@ function App() {
     closeLimitModal: closeGuestLimitModal,
   } = useGuestUsage(initialGuestRemaining);
 
-  // ── PWA UPDATE PROMPT ──────────────────────────────────────
   const { needRefresh, updateServiceWorker } = usePWAUpdate();
 
-  // ── GUEST SESSION CONTINUITY (Phase 5) ────────────────────
   // The instant login succeeds, check whether this device had an
   // in-progress anonymous session staged — if so, ask the person
   // whether to keep it or start clean.
@@ -234,19 +232,42 @@ function App() {
     refreshKeyStatus();
   };
 
-  // Called by SessionHistory when user clicks a past session
   const handleSelectSession = (sessionId) => {
     setSelectedSessionId(sessionId);
   };
 
-  // Called by UploadBox right after a NEW session is saved —
-  // bumps the trigger so SessionHistory refreshes its list
-  // next time it's opened.
   const handleSessionSaved = () => {
     setSessionRefreshTrigger((prev) => prev + 1);
   };
 
-  if (geminiKey === null || isAuthLoading) return null;
+  if (!initialStatusChecked || isAuthLoading) {
+    return (
+      <div
+        role="status"
+        className="min-h-screen bg-[#030712] text-white flex flex-col items-center justify-center gap-4 px-4"
+      >
+        <span
+          aria-hidden="true"
+          className="h-8 w-8 rounded-full border-2 border-white/15 border-t-cyan-400 animate-spin"
+        />
+        <span className="sr-only">Loading DocuMind AI</span>
+        {showWakeMessage && (
+          <p className="text-center text-sm text-gray-400">
+            Waking up the server, this can take up to a minute…
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  if (
+    initialStatusSucceeded &&
+    !geminiKey &&
+    !user &&
+    !introDismissed
+  ) {
+    return <IntroScreen onGetStarted={() => setIntroDismissed(true)} />;
+  }
 
   return (
     <motion.div
@@ -261,10 +282,7 @@ function App() {
     >
       <BackgroundGlow />
 
-      {/* ── SESSION HISTORY SIDEBAR (Phase 3) ─────────────────
-          Renders nothing if user is not logged in — see the
-          `if (!user) return null` check inside the component.
-      ──────────────────────────────────────────────────────── */}
+        {/* SessionHistory renders only for signed-in users. */}
       {!hideChrome && (
         <SessionHistory
           onSelectSession={handleSelectSession}
@@ -327,14 +345,7 @@ function App() {
               )}
             </div>
           ) : (
-            // SINGLE LoginButton instance — scaled down via CSS for
-            // mobile instead of mounting a second component instance.
-            // FIXED: previously this rendered twice (here + inline in
-            // main content below), causing Google's SDK to call
-            // initialize() twice — the "[GSI_LOGGER] initialize()
-            // called multiple times" console warning.
-            // Hidden while GuestLimitModal is open — that modal renders
-            // its own LoginButton, so this avoids two instances at once.
+            // Keep one GoogleLogin instance mounted to avoid reinitialization.
             !showGuestLimitModal && (
               <div className="scale-[0.85] sm:scale-100 origin-right">
                 <LoginButton />
@@ -448,18 +459,6 @@ function App() {
         }}
       />
 
-      {/* GUEST USAGE UI (Phase 4) — only ever relevant for anonymous
-          users; all three render nothing once `user` is set. Hidden
-          while the API key modal is open — showing "2/5 left" behind
-          a modal that's pitching "5 free requests" as a fresh offer
-          is a confusing, conflicting message, and it also just
-          floats awkwardly over the dimmed backdrop instead of
-          staying out of the way like every other overlay does. */}
-      {/* Hidden once the guest's free quota is fully exhausted (0
-          remaining) — a "0/5" badge advertises nothing and would
-          otherwise linger on screen (including right after logout,
-          once refreshKeyStatus re-syncs the real count) even though
-          the person can no longer use the app without signing in. */}
       {!user && geminiKey !== "" && guestRequestsRemaining !== 0 && (
         <GuestUsageBadge remaining={guestRequestsRemaining} />
       )}

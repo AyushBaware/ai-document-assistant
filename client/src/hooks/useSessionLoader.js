@@ -1,18 +1,8 @@
+// Purpose: Loads a saved session into the document workspace.
+
 import { useState, useEffect } from "react";
 import { getSessionById } from "../api/sessionApi";
 
-// ============================================================
-// useSessionLoader.js
-//
-// Loads a past session — either because App.jsx's history
-// sidebar handed down a `preloadedSession` id, or because the
-// user clicked a session in UploadBox's own desktop sidebar
-// (loadSessionById is called directly in that case).
-//
-// Loading a session repopulates the same shared state that a
-// fresh upload would populate, so it needs the same set of
-// setters passed down from UploadBox.
-// ============================================================
 export function useSessionLoader({
   token,
   preloadedSession,

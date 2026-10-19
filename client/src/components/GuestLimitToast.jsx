@@ -1,9 +1,4 @@
-// ============================================================
-// GuestLimitToast.jsx
-//
-// Purely presentational + its own auto-dismiss timer. Message
-// content and dismiss logic now come from useGuestUsage.js.
-// ============================================================
+// Purpose: Shows dismissible status and error messages.
 
 import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";

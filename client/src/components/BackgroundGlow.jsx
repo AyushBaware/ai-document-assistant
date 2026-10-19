@@ -1,3 +1,5 @@
+// Purpose: Renders the ambient background lighting behind the workspace.
+
 function BackgroundGlow() {
   return (
     <>

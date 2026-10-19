@@ -1,10 +1,4 @@
-// ============================================================
-// chatApi.js
-//
-// Two functions, same BYOK + session pattern as aiApi.js:
-//   askQuestion            → fresh upload
-//   askQuestionFromSession → past session (persists to MongoDB)
-// ============================================================
+// Purpose: Sends document-grounded chat messages to the backend.
 
 import httpClient from "./httpClient";
 

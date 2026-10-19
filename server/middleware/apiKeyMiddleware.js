@@ -1,12 +1,4 @@
-// ============================================================
-// apiKeyMiddleware.js
-//
-// Looks up the caller's saved Gemini key (by userId if logged
-// in, otherwise by deviceId) and decrypts it onto req.geminiApiKey.
-// Controllers now read from here instead of an "x-gemini-key"
-// header — the raw key never has to travel from the browser
-// again after it's first saved.
-// ============================================================
+// Purpose: Loads and decrypts the API key for the current user or device.
 
 import ApiKey from "../models/ApiKey.js";
 import { decrypt } from "../utils/crypto.js";

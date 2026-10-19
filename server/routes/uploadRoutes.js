@@ -1,3 +1,5 @@
+// Purpose: Registers the document upload endpoint and its processing middleware.
+
 import express from "express";
 import upload from "../middleware/uploadMiddleware.js";
 import { uploadFiles } from "../controllers/uploadController.js";

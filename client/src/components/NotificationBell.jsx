@@ -1,18 +1,4 @@
-// ============================================================
-// NotificationBell.jsx
-//
-// Only rendered for logged-in users (guests have no account to
-// hold notifications against).
-//
-// DESKTOP: unchanged — full message inline, click text to mark
-// read, hover reveals a trash icon to delete.
-//
-// MOBILE: a compact list (title + one-line preview + relative
-// time, no inline "mark as read" text) — tapping a row opens
-// NotificationDetailModal (auto-marks read) and closes this
-// dropdown. Swiping a row left or right deletes it, instead of
-// a tap target that would otherwise crowd a small screen.
-// ============================================================
+// Purpose: Displays the notification menu and unread count.
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";

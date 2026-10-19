@@ -1,16 +1,4 @@
-// ============================================================
-// Notification.js
-//
-// Generic notification record, currently used for one type:
-// SECURITY_ALERT — sent to a logged-in user's account when
-// their Gemini API key fingerprint is detected on a DIFFERENT
-// account/device (see apiKeyController.js saveApiKey()).
-//
-// Only ever created for owners who HAVE a userId (logged-in
-// accounts) — a guest (deviceId only) has no account to attach
-// a notification to, so guests are simply excluded from this
-// entirely; they'd only start receiving alerts once they log in.
-// ============================================================
+// Purpose: Defines the MongoDB schema for user notifications.
 
 import mongoose from "mongoose";
 

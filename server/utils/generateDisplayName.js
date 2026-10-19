@@ -1,25 +1,4 @@
-// ============================================================
-// generateDisplayName.js
-//
-// WHAT THIS DOES:
-// Derives a human-readable display name for an uploaded document
-// directly from its extracted text — zero Gemini API calls, zero
-// token cost. Uploaded filenames are often meaningless (IMG_2394.pdf,
-// scan001.pdf, Untitled.docx) and give the user no way to recognize
-// a document later in their history.
-//
-// The original fileName is NEVER discarded — it's still stored and
-// used internally for chat source citations and chunk lookups. This
-// is purely a friendlier label for the UI (file cards, session
-// titles, sidebar history).
-//
-// HEURISTIC (no AI involved):
-// Scan the first ~40 lines of extracted text for the first line
-// that "looks like a title" — reasonable length, mostly letters,
-// not a page number/header/footer artifact — and use that. Falls
-// back to the original filename (without extension) if nothing
-// suitable is found.
-// ============================================================
+// Purpose: Creates readable display names for uploaded documents.
 
 const MAX_LINES_TO_SCAN = 40;
 const MIN_TITLE_LENGTH = 4;

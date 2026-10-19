@@ -1,22 +1,10 @@
+// Purpose: Manages file selection, validation, uploads, and session creation.
+
 import { useState, useRef } from "react";
 import { ACCEPTED_EXTENSIONS } from "../constants/documentModes";
 import { uploadFiles } from "../api/uploadApi";
 import { createSession } from "../api/sessionApi";
 
-// ============================================================
-// useFileUpload.js
-//
-// Owns everything about getting files INTO the app: picking
-// files (click or drag-and-drop), reviewing them before
-// processing, uploading them to the backend, and (for logged-in
-// users) auto-saving the resulting batch as a session.
-//
-// A successful upload also resets/repopulates state that other
-// parts of UploadBox care about (processedDocs, selectedIds,
-// activeMode, etc.) — those setters are passed in from the
-// parent rather than duplicated here, since they're shared
-// across upload / session-loading / AI-generation concerns.
-// ============================================================
 export function useFileUpload({
   geminiKey,
   user,

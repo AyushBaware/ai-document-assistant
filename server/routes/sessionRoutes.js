@@ -1,11 +1,4 @@
-// ============================================================
-// sessionRoutes.js
-//
-// Every route here uses requireAuth — saving/viewing history
-// is a logged-in-only feature, per our design. Compare this to
-// aiRoutes.js and uploadRoutes.js, which remain UNCHANGED and
-// still work without login (per your "optional login" decision).
-// ============================================================
+// Purpose: Registers endpoints to create, retrieve, update, and delete sessions.
 
 import express from "express";
 import {

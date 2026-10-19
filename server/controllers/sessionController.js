@@ -1,31 +1,4 @@
-// ============================================================
-// sessionController.js
-//
-// ARCHITECTURE NOTE (Phase 3 design decision):
-// createSession does NOT receive extractedText from the
-// frontend. uploadController.js intentionally strips that
-// field from its response to keep the upload payload light —
-// the browser never needs to hold 50,000+ characters of raw
-// document text just to display it.
-//
-// Instead, the frontend sends only DOCUMENT IDS (the same ids
-// used for the checkbox selection in UploadBox.jsx). The
-// backend then pulls the actual extractedText from
-// knowledgeStore.js — which already has it in memory from the
-// upload step that just ran. This avoids a wasteful round-trip
-// AND prevents a tampered frontend request from injecting fake
-// content directly into MongoDB.
-//
-// TRADEOFF: knowledgeStore is in-memory and per-server-process.
-// This works correctly for a single-server local/dev setup
-// (your current architecture). If you later deploy with
-// multiple server instances behind a load balancer, in-memory
-// storage breaks (request might land on a different instance
-// than the upload did). That's a known limitation documented
-// here for when Phase 7 (deployment) is reached — the fix then
-// would be moving knowledgeStore into Redis or directly into
-// MongoDB as a temporary "pending documents" collection.
-// ============================================================
+// Purpose: Creates, lists, loads, and deletes saved sessions.
 
 import Session from "../models/Session.js";
 import DocumentChunk from "../models/DocumentChunk.js";
@@ -33,12 +6,7 @@ import knowledgeStore from "../utils/knowledgeStore.js";
 import { generateSessionTitle, enforceSessionLimit } from "../utils/sessionHelpers.js";
 import { generateSmartTitle } from "../utils/groqTitle.js";
 
-// ============================================================
-// POST /api/sessions
-// Frontend sends: { documentIds: ["id1", "id2"] }
-// Backend looks these up in knowledgeStore (populated during
-// the upload that just happened) and saves the full session.
-// ============================================================
+// POST /api/sessions: saves the uploaded documents as a session.
 
 export const createSession = async (req, res) => {
   try {
@@ -139,11 +107,7 @@ export const createSession = async (req, res) => {
   }
 };
 
-// ============================================================
-// GET /api/sessions
-// Lightweight list for the sidebar — title, dates, document
-// names, and which AI modes already have cached responses.
-// ============================================================
+// GET /api/sessions: returns session summaries for the history sidebar.
 
 export const getAllSessions = async (req, res) => {
   try {
@@ -181,12 +145,7 @@ export const getAllSessions = async (req, res) => {
   }
 };
 
-// ============================================================
-// GET /api/sessions/:id
-// Full session detail. Security check: filters by userId too,
-// so users can never fetch another user's session by guessing
-// the MongoDB _id in the URL.
-// ============================================================
+// GET /api/sessions/:id: returns a session owned by the current user.
 
 export const getSessionById = async (req, res) => {
   try {
@@ -255,10 +214,7 @@ export const getSessionById = async (req, res) => {
   }
 };
 
-// ============================================================
-// PATCH /api/sessions/:id
-// Saves an AI response (summary/notes/explain) into the session.
-// ============================================================
+// PATCH /api/sessions/:id: saves a generated response to a session.
 
 export const updateSessionResponse = async (req, res) => {
   try {

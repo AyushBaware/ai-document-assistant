@@ -1,15 +1,4 @@
-// ============================================================
-// db.js
-//
-// WHAT THIS DOES:
-// Connects your Express server to MongoDB Atlas using Mongoose.
-//
-// FIX: On some Windows machines, Node's internal DNS resolver
-// (c-ares) fails to resolve mongodb+srv:// SRV records even
-// when the OS's own DNS resolution works fine (confirmed via
-// nslookup). Explicitly pointing Node's resolver at public DNS
-// servers (Google + Cloudflare) works around this reliably.
-// ============================================================
+// Purpose: Connects the server to MongoDB through Mongoose.
 
 import mongoose from "mongoose";
 import dns from "dns";

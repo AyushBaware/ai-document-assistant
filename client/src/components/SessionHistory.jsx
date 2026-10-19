@@ -1,25 +1,4 @@
-// ============================================================
-// SessionHistory.jsx
-//
-// WHAT THIS IS:
-// A slide-out sidebar showing the logged-in user's past
-// sessions — exactly like Claude's chat history panel. Click
-// a session, it loads instantly from MongoDB without calling
-// Gemini again (zero tokens used to REVIEW past work).
-//
-// WHY THIS ONLY SHOWS WHEN LOGGED IN:
-// Sessions belong to a userId. An anonymous user has no
-// sessions to show — this component simply isn't rendered
-// at all if `user` is null (handled in App.jsx).
-//
-// HOW OPENING A SESSION WORKS:
-// onSelectSession is a callback passed down from App.jsx. When
-// clicked, it calls getSessionById(), then hands the full
-// session data back up to App.jsx, which passes it into
-// UploadBox as "preloaded" data — UploadBox renders it exactly
-// like a fresh upload, just without needing to re-upload files
-// or re-call Gemini.
-// ============================================================
+// Purpose: Lists saved sessions and loads a selected session.
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -161,13 +140,7 @@ function SessionHistory({ onSelectSession, refreshTrigger, activeSessionId }) {
                 {sessions.map((session) => {
                   const isActiveSession = session.id === activeSessionId;
                   return (
-                  // FIXED: was a <button> wrapping another <button>
-                  // (the delete icon below) — invalid HTML, browsers
-                  // handle nested interactive elements inconsistently
-                  // and React warns about it as a hydration risk.
-                  // Now this is a <div> with role="button" and full
-                  // keyboard support (Enter/Space activate it, Tab
-                  // can focus it) — same accessibility, valid HTML.
+                  // Use a focusable div so the delete button isn't nested in a button.
                   <div
                     key={session.id}
                     role="button"

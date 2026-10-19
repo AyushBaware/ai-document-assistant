@@ -1,11 +1,4 @@
-// ============================================================
-// DesktopSidebar.jsx
-//
-// The collapsible left nav shown inside the full-screen view on
-// desktop — Chat/Summary/Notes/Explain nav items plus the
-// session history list. Hidden on mobile (the hamburger dropdown
-// in MobileNavMenu covers navigation there instead).
-// ============================================================
+// Purpose: Renders desktop navigation and document controls.
 
 import { FiChevronLeft, FiChevronRight, FiTrash2 } from "react-icons/fi";
 import { NAV_ITEMS } from "../../constants/documentModes";

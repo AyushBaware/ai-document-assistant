@@ -1,3 +1,5 @@
+/* Purpose: Defines global styles, Tailwind setup, and shared UI utilities. */
+
 @import "tailwindcss";
 
 * {

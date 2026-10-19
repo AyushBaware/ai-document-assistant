@@ -1,3 +1,5 @@
+// Purpose: Defines the MongoDB schema for guest request usage.
+
 import mongoose from "mongoose";
 
 const guestIpUsageSchema = new mongoose.Schema(

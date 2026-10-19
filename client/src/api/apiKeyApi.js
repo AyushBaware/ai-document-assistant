@@ -1,3 +1,5 @@
+// Purpose: Saves, checks, and removes the user Gemini API key.
+
 import httpClient from "./httpClient";
 
 export const saveApiKey = async (apiKey) => {
