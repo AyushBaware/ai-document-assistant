@@ -158,6 +158,11 @@ function FullScreenView({
             </div>
 
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              {activeMode === null && error && (
+                <p className="shrink-0 text-center text-red-400 text-sm px-4 py-2">
+                  {error}
+                </p>
+              )}
               {activeMode === null ? (
                 <ChatPanel
                   selectedIds={selectedIds}

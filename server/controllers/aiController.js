@@ -14,11 +14,23 @@ import Session        from "../models/Session.js";
 // which is what was causing every free-tier key to fail regardless of
 // which key was used. gemini-2.5-flash is pinned, stable, and carries
 // a much larger free-tier quota.
-const GEMINI_MODEL = "gemini-2.5-flash";
-// Second line of defense — used only if the alias itself is somehow
-// unavailable for a given key. This is exactly the failure mode that just
-// happened, so this makes it self-healing instead of a repeat outage.
-const FALLBACK_GEMINI_MODEL = "gemini-2.5-flash-lite";
+// Ordered by preference. If one model returns 404 (retired) or 503
+// (overloaded), the next one is tried automatically. Can be overridden
+// on Render via GEMINI_MODELS="a,b,c" without a code change.
+const GEMINI_MODELS = (
+  process.env.GEMINI_MODELS ||
+  "gemini-3.5-flash,gemini-3-flash-preview,gemini-2.5-flash,gemini-2.5-flash-lite"
+)
+  .split(",")
+  .map((m) => m.trim())
+  .filter(Boolean);
+
+const GEMINI_MODEL = GEMINI_MODELS[0];
+
+const nextModel = (current) => {
+  const i = GEMINI_MODELS.indexOf(current);
+  return i !== -1 && i < GEMINI_MODELS.length - 1 ? GEMINI_MODELS[i + 1] : null;
+};
 
 const geminiUrlFor = (model) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
@@ -351,39 +363,27 @@ export const callGemini = async (
     console.error("[Gemini] API error:", JSON.stringify(data, null, 2));
 
     // MODEL UNAVAILABLE FOR THIS KEY — the exact bug that broke the app
-    // for new users. Auto-retry once against FALLBACK_GEMINI_MODEL instead
-    // of failing outright. `model !== FALLBACK` stops it retrying forever.
-    const errMsg = data.error?.message || "";
+        const errMsg = data.error?.message || "";
+
+    // 404 = model retired/unavailable for this key.
     const isModelUnavailable =
       response.status === 404 && /no longer available|not found/i.test(errMsg);
 
-    if (isModelUnavailable && model !== FALLBACK_GEMINI_MODEL) {
-      console.warn(
-        `[Gemini] "${model}" unavailable for this key. Retrying with "${FALLBACK_GEMINI_MODEL}".`
-      );
-      return callGemini(
-        systemInstruction, userContent, apiKey, maxTokens, retryCount, FALLBACK_GEMINI_MODEL
-      );
-    }
-
-    // OVERLOADED — Gemini Flash models intermittently return 503 "high
-    // demand" during load spikes. Same self-healing pattern as the 404
-    // case above: one automatic retry against the lighter fallback
-    // model before giving up, since gemini-2.5-flash-lite is frequently
-    // available even when the primary Flash model is momentarily
-    // saturated. Guarded by `model !== FALLBACK_GEMINI_MODEL` so this
-    // can only ever fire once — no infinite retry loop if the fallback
-    // is ALSO overloaded, it just throws normally at that point.
+    // 503 = Gemini overloaded during a load spike.
     const isOverloaded =
       response.status === 503 ||
       /overloaded|high demand|unavailable/i.test(errMsg);
 
-    if (isOverloaded && model !== FALLBACK_GEMINI_MODEL) {
+    // Walk down the GEMINI_MODELS chain. nextModel() returns null at the
+    // end of the list, so this can never loop forever.
+    const next = nextModel(model);
+
+    if ((isModelUnavailable || isOverloaded) && next) {
       console.warn(
-        `[Gemini] "${model}" overloaded. Retrying with "${FALLBACK_GEMINI_MODEL}".`
+        `[Gemini] "${model}" failed (${response.status}). Trying "${next}".`
       );
       return callGemini(
-        systemInstruction, userContent, apiKey, maxTokens, retryCount, FALLBACK_GEMINI_MODEL
+        systemInstruction, userContent, apiKey, maxTokens, retryCount, next
       );
     }
 
@@ -414,7 +414,7 @@ export const callGemini = async (
       `[Gemini] ⚠️ Near-empty response (${text.trim().length} chars). Retrying once.`
     );
     return callGemini(
-      systemInstruction, userContent, apiKey, HARD_MAX, retryCount + 1
+      systemInstruction, userContent, apiKey, HARD_MAX, retryCount + 1, model
     );
   }
 
